@@ -56,7 +56,7 @@ const Patient = sequelize.define('patient',{
         }
     }
 
-})
+},{timestamps: true})
 
 Patient.sync().then(() =>{
     console.log('patient表模型已同步!')

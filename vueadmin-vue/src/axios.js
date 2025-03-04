@@ -11,19 +11,22 @@ const request = axios.create({
     }
 })
 
-// /* 请求拦截器 */
-// request.interceptors.request.use(config =>{                                   
-//     config.headers['Authorization'] = localStorage.getItem('token')
-//     return config
-// })
+/* 请求拦截器 */
+request.interceptors.request.use(config =>{       
+    const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IlRlc3QyIiwiaWF0IjoxNzQwOTIwMjcwfQ.8LolkvGyfcbHeoB8YM4iT09F6c5KVWNxp9UaQfwpoAM'                            
+    config.headers['Authorization'] = `Bearer ${token}`
+    return config
+})
 
 
 
 /* 响应拦截器 */
 request.interceptors.response.use(
     response =>{
+        
     const res = response.data
-    
+    console.log("fired!",res)
+
     if(res.id || res.code === 200){                 
         return response }
 
@@ -41,7 +44,6 @@ request.interceptors.response.use(
 
     Element.Message.error(error.message,{duration:3000}) //弹窗错误警告
     return Promise.reject(error)
-    
     }
 )
 

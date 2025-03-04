@@ -72,7 +72,7 @@
 					label="联系电话">
 			</el-table-column>
 			<el-table-column
-					prop="created"
+					prop="createdAt"
 					width="200"
 					label="创建时间"
 			>
@@ -179,6 +179,7 @@
 </template>
 
 <script>
+    import { GetPatientList } from '@/api/index.js'  
 	export default {
 		name: "User",
 		data() {
@@ -186,7 +187,7 @@
 				searchForm: {},
 				delBtlStatu: true,
 
-				total: 0,
+				total: 10,
 				size: 10,
 				current: 1,
 
@@ -232,13 +233,23 @@
             }
         },
 		created() {
-			this.getUserList()
+			this.getPatientList()
+			// this.getUserList()
 
-			this.$axios.get("/sys/role/list").then(res => {
-				this.roleTreeData = res.data.data.records
-			})
+			// this.$axios.get("/sys/role/list").then(res => {
+			// 	this.roleTreeData = res.data.data.records
+			// })
 		},
 		methods: {
+			async getPatientList() {
+				try {
+					const res = await GetPatientList()
+					this.tableData  = res.data.data.records
+					console.log(res.data,"res")
+				} catch (error) {
+					console.log("Error fetching patient list", error)
+				}
+			},
 
             test(){
                 console.log("permList",this.$store.state.menu.permList)
@@ -319,6 +330,7 @@
 					}
 				});
 			},
+
 			editHandle(id) {
 				this.$axios.get('/sys/user/info/' + id).then(res => {
 					this.editForm = res.data.data
@@ -326,6 +338,7 @@
 					this.dialogVisible = true
 				})
 			},
+
 			delHandle(id) {
 
 				var ids = []

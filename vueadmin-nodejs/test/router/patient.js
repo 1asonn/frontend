@@ -21,7 +21,7 @@ router.post('/addPatients', async (req,res) => {
 //获取患者信息列表
 router.get('/getPatients', async (req,res) => {
     const patients = await patient.findAll()
-    res.send({code:200, msg: '获取患者信息列表成功', data: patients})
+    res.send({code:200, msg: '获取患者信息列表成功', data:{records:patients}})
 })
 
 //获取患者信息分页列表
