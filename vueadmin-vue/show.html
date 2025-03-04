@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <div class="main">
+        <svg viewBox="0 0 400 200">
+            <text 
+                x="50%" 
+                y="50%" 
+                text-anchor="middle" 
+                dominant-baseline="middle" 
+                class="text"
+            >
+            hello
+            </text>
+        </svg> 
+    </div>
+    <style>
+        
+        .main{
+            height: 100vh;
+            background-color: black;
+        }
+        svg{
+            width: 700px;
+            height: 300px;
+            margin: auto;
+        }
+        svg text{
+            font-size: 60px;
+            /* fill: white; */
+            stroke: white;
+            stroke-dashoffset: 25%;
+            stroke-dasharray: 25% 25%;
+        }
+    </style>
+</body>
+</html>
