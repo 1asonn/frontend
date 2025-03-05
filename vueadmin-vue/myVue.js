@@ -1,7 +1,7 @@
 function observe(obj){
     
     for(const key in obj){
-        let internalValue = obj[key]  //指针？
+        let internalValue = obj[key]  
         const funcs = []
         Object.defineProperty(obj,key,{
             get(){
@@ -14,7 +14,7 @@ function observe(obj){
                 return internalValue
             },
             set(val){
-                internalValue = val  //internalValue是一个指针，指向obj[key]的值？
+                internalValue = val  //接受新值 在下次触发get方法时返回新值
                 // 派发更新
                 for(let i = 0; i< funcs.length; i++){
                     funcs[i]()
