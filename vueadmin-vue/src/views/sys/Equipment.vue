@@ -22,7 +22,7 @@
                 width="50%"
                 :before-close="handleClose">
                 <div class="dialog-body">
-                    <p>编号：{{ selectedEquipment.code }}</p>
+                    <div>编号：{{ selectedEquipment.code }}</div>
                     <p>类型：{{ selectedEquipment.type }}</p>
                     <p>科室：{{ selectedEquipment.partment }}</p>
                     <p>状态：{{ selectedEquipment.status }}</p>
@@ -132,6 +132,12 @@
         opacity: 1;
     }
 
+    .dialog-body{
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: start;
+    }
 
 
 </style>
