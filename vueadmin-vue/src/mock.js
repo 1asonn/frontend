@@ -82,7 +82,16 @@ Mock.mock('/sys/menu/nav', 'get', () => {
             icon: 'el-icon-s-tools',
             path: '/equipment',
             component: 'equipment/Equipment',
-            children: []
+            children: [
+				{
+					name: 'SysEquipment',
+					title: '设备列表',
+					icon: 'el-icon-s-custom',
+					path: '/sys/equipments',
+					component: 'sys/Equipment',
+					children: []
+				}
+			]
         },
         {
             name: 'HRManager',
