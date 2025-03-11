@@ -175,6 +175,55 @@
 			</div>
 		</el-dialog>
 
+		<el-drawer
+		    size="50%"
+			title="患者信息详情"
+			:visible.sync="drawer"
+			:direction="direction"
+			:before-close="handleDrawerClose">
+
+			<span>我来啦!</span>
+			<el-table :data="tableData" style="width: 100%">
+        <el-table-column
+          prop="date"
+          label="日期"
+          width="180">
+        </el-table-column>
+        <el-table-column
+          prop="attendingDoctor"
+          label="主治医生"
+          width="180">
+        </el-table-column>
+        <el-table-column
+          prop="symptoms"
+          label="症状"
+          width="180">
+        </el-table-column>
+        <el-table-column
+          prop="diagnosticResults"
+          label="诊断结果"
+          width="180">
+        </el-table-column>
+        <el-table-column
+          prop="treatment"
+          label="治疗措施"
+          width="180">
+        </el-table-column>
+        <el-table-column label="操作" width="180">
+          <template slot-scope="scope">
+            <el-button type="text" @click="dialogTableVisible = true">编辑</el-button>
+            <el-button type="text" @click="delHandle(scope.row.recordId)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+		</el-drawer>
+		<el-dialog title="详情" :visible.sync="dialogTableVisible">
+			<el-table :data="gridData">
+				<el-table-column property="date" label="日期" width="150"></el-table-column>
+				<el-table-column property="name" label="姓名" width="200"></el-table-column>
+				<el-table-column property="address" label="地址"></el-table-column>
+			</el-table>
+		</el-dialog>
 	</div>
 </template>
 
@@ -184,6 +233,26 @@
 		name: "User",
 		data() {
 			return {
+				gridData: [{
+          date: '2016-05-02',
+          name: '王小虎',
+          address: '上海市普陀区金沙江路 1518 弄'
+        }, {
+          date: '2016-05-04',
+          name: '王小虎',
+          address: '上海市普陀区金沙江路 1518 弄'
+        }, {
+          date: '2016-05-01',
+          name: '王小虎',
+          address: '上海市普陀区金沙江路 1518 弄'
+        }, {
+          date: '2016-05-03',
+          name: '王小虎',
+          address: '上海市普陀区金沙江路 1518 弄'
+        }],
+        dialogTableVisible: false,
+				drawer: false,
+        		direction: 'rtl',
 				searchForm: {},
 				delBtlStatu: true,
 
@@ -250,6 +319,9 @@
 					console.log("Error fetching patient list", error)
 				}
 			},
+			checkHandle(id){
+				this.drawer = true
+			},
 
             test(){
                 console.log("permList",this.$store.state.menu.permList)
@@ -287,6 +359,9 @@
 				this.$refs[formName].resetFields();
 				this.dialogVisible = false
 				this.editForm = {}
+			},
+			handleDrawerClose(){
+				this.drawer = false
 			},
 			handleClose() {
 				this.resetForm('editForm')

@@ -1,6 +1,7 @@
 const express = require('express')
 const userRouter = require('./router/user.js')
 const patientRouter = require('./router/patient.js')
+const medicalRecord = require('./router/medicalRecord.js')
 const cors = require('cors')
 const expressJWT = require('express-jwt')
 require('./database/init.js')
@@ -17,6 +18,7 @@ app.use(cors())
 app.use(express.urlencoded({ extended:false }))
 app.use('/patient',patientRouter)
 app.use('/user',userRouter)
+app.use('/medicalRecord',medicalRecord)
 
 
 app.listen(4000,() => {
