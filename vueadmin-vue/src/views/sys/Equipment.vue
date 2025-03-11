@@ -22,12 +22,30 @@
                 width="50%"
                 :before-close="handleClose">
                 <div class="dialog-body">
-                    <div>编号：{{ selectedEquipment.code }}</div>
-                    <p>类型：{{ selectedEquipment.type }}</p>
-                    <p>科室：{{ selectedEquipment.partment }}</p>
-                    <p>状态：{{ selectedEquipment.status }}</p>
-                    <p>图片：</p>
-                    <img :src="selectedEquipment.image" alt="">
+                    <!-- <p>实拍图:</p> -->
+                    <div class="two-columns">
+                        <div class="left-column">
+                            <p>实拍图：<el-image 
+                                style="width: 100px; height: 100px ;vertical-align: top;"
+                                fit="contain"
+                                src="https://i.ibb.co/PQDZ2s1/jnu.jpg" 
+                                :preview-src-list=[selectedEquipment.image]>
+                            </el-image></p>
+                            <p>类型：{{ selectedEquipment.type }}</p>
+                            <p>科室：{{ selectedEquipment.partment }}</p>
+                            <p>位置：{{ selectedEquipment.position }}</p>
+                        </div>
+                        <div class="right-column">
+                            <p>状态：{{ selectedEquipment.status }}</p>
+                            <p>编号：{{ selectedEquipment.code }}</p>
+                            <p>型号：{{ selectedEquipment.model }}</p>
+                            <p>采购日期：{{ selectedEquipment.purchaseDate }}</p>
+                            <p>使用年限：{{ selectedEquipment.useYear }}</p>
+                            <p>制造商：{{ selectedEquipment.manufacturer }}</p>
+                            
+                
+                        </div>
+                    </div>
                 </div>
                 <span slot="footer" class="dialog-footer">
                     <el-button @click="dialogVisible = false">取 消</el-button>
@@ -55,7 +73,11 @@
                     partment:'放射科',
                     code:'123456',
                     status:'正常',
-                    image:'@/assets/jinan.jpg'
+                    model:'CT-1000',
+                    position:'病房',
+                    purchaseDate:'2021-01-01',
+                    manufacturer:'GE',
+                    image:"https://i.ibb.co/PQDZ2s1/jnu.jpg"
                 },{
                     id:2,
                     name:'MRI机',
@@ -63,7 +85,11 @@
                     partment:'内科',
                     code:'1234567',
                     status:'正常',
-                    image:'@/assets/jinan.jpg'
+                    model:'MRI-1000',
+                    position:'病房',
+                    purchaseDate:'2021-01-01',
+                    manufacturer:'GE',
+                    image:"https://i.ibb.co/PQDZ2s1/jnu.jpg"
                 }],
                 selectedEquipment: {},
                 currentDate: 'hello',
@@ -102,8 +128,6 @@
         justify-content: space-between;
     }
 
-
-
     .image{
         width: 100%;
         display: block;
@@ -134,10 +158,30 @@
 
     .dialog-body{
         display: flex;
+        width: 100%;
         flex-direction: column;
-        justify-content: space-between;
-        align-items: start;
     }
+
+    .two-columns {
+        display: flex;
+        width: 100%;
+        margin-left: 10%;
+    }
+
+    
+    .left-column, .right-column {
+        flex: 1;
+        text-align: left;
+    }
+    p{
+        text-decoration: underline;
+        text-underline-offset: 3px; /* 下划线与文字的间距 */
+        margin-bottom: 20px;
+    }
+    /* .right-column {
+        margin-right: 0;
+        margin-left: 10px;
+    } */
 
 
 </style>
