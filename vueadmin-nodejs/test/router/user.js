@@ -1,5 +1,5 @@
 const express = require('express');
-const User = require('../database/models/user')
+const User = require('../database/models/User')
 const router = express.Router()
 const jwt = require('jsonwebtoken')
 const bcrypt = require('bcryptjs')
@@ -10,13 +10,13 @@ router.get('/test',(req,res) => {
 
 // 注册功能
 router.post('/register', async (req,res) => {
-    const {username,password} = req.body
+    const {username,password,authority} = req.body
     const model = await User.findOne({where:{username}})
     if(model){
         return res.send({msg:'用户名已存在'})
     }
     //用户密码加密
-    const user = await User.create({username,password:bcrypt.hashSync(password,5)})
+    const user = await User.create({username,password:bcrypt.hashSync(password,5),authority})
     res.send({msg:"注册成功!"})
 })
 

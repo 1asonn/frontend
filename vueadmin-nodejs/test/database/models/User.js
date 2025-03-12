@@ -12,6 +12,9 @@ const User = sequelize.define('user',{
         validate:{
             notEmpty:true
         } 
+     },
+     authority:{
+        type:Sequelize.STRING
      }
 })
 

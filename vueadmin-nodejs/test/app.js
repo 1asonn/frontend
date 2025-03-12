@@ -5,8 +5,9 @@ const medicalRecord = require('./router/medicalRecord.js')
 const cors = require('cors')
 const expressJWT = require('express-jwt')
 const role = require('./router/role.js')
+const uploadRouter = require('./router/upload.js'); 
 require('./database/init.js')
-require('./database/models/user.js')
+require('./database/models/User.js')
 
 
 const config = {
@@ -22,6 +23,8 @@ app.use('/patient',patientRouter)
 app.use('/user',userRouter)
 app.use('/medicalRecord',medicalRecord)
 app.use('/role',role)
+app.use('/upload', uploadRouter);
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
 app.listen(4000,() => {

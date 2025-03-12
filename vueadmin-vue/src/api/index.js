@@ -8,3 +8,12 @@ export const GetPatientList = async () => {
             console.error("error",error)
         }
     }
+
+export const GetUserAuth = async () => {
+    try {
+        const response = await request.get('http://localhost:4000/role/getRoleAuthoritys')
+        return response.data
+    } catch (error) {
+        console.log("error",error)
+    }
+}

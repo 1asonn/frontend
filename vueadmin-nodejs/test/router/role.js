@@ -3,11 +3,10 @@ const Role = require('../database/models/Role')
 const router = express.Router()
 const jwt = require('jsonwebtoken')
 const bcrypt = require('bcryptjs')
-router.get('/test',(req,res) => {
-    res.send({msg:'test'})
-})
+const filterNav = require('../utils/funcs')
+const user = require('../database/models/User')
 
-router.get('/getRoleAuthoritys',(req,res) => {
+router.get('/getRoleAuthoritys',async (req,res) => {
     let nav = [
         {
             name: 'PatientManager',
@@ -92,8 +91,14 @@ router.get('/getRoleAuthoritys',(req,res) => {
             children: []
         }
     ];
-
-    
+    const token = req.headers['authorization'].split(' ')[1]
+    const username = jwt.verify(token,"yyjkn").username
+    const userInfo = await user.findOne({where:{username:username}})
+    const menu = filterNav(nav,userInfo.authority.split(','))
+    res.send({
+        code:200,
+        data:menu
+    })
 })
 
 

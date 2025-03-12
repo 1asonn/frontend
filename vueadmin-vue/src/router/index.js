@@ -3,6 +3,7 @@ import VueRouter from 'vue-router'
 import Home from '../views/Home.vue'
 import store from '../store'
 import axios from '../axios.js'
+import {GetUserAuth} from '../api/index.js'
 
 //解决多次点击重复跳转
 const originalPush = VueRouter.prototype.push
@@ -62,21 +63,16 @@ router.beforeEach((to,from,next) => {
 
   //检查是否已经获得路由授权
   if(!hasRoute){
-    axios.get('/sys/menu/nav').then(res => {
-
-      store.commit('setMenuList',res.data.data.nav)
-  
-      store.commit('setPermitList',res.data.data.authoritys)
-  
-  
-      /* 尽管 newRoutes 和 router.options.routes 指向同一个数组，
+    GetUserAuth().then(nav =>{
+      store.commit('setMenuList',nav.data)
+       /* 尽管 newRoutes 和 router.options.routes 指向同一个数组，
       但直接修改这个数组并不会触发 Vue Router 内部状态的更新。
       Vue Router 维护了一个内部的路由记录列表，这个列表在初始化时根据 routes 数组创建，
       并且不会自动同步后续对 routes 数组的修改。 */
       let newRoutes = router.options.routes
       
   
-      res.data.data.nav.forEach(menu =>{
+      nav.data.forEach(menu =>{
         if(menu.children){
           menu.children.forEach(child =>{
   
@@ -98,7 +94,9 @@ router.beforeEach((to,from,next) => {
         newRoutes.forEach(route => {
           router.addRoute(route);
         });
-    
+
+
+      
     })
     hasRoute = true
     store.commit("changeRouteStatus",hasRoute)

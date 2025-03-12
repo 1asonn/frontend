@@ -24,7 +24,7 @@ const Role = sequelize.define('user',{
 })
 
 
-User.sync().then(() => {
+Role.sync().then(() => {
     console.log("角色表模型已同步!")
 })
 

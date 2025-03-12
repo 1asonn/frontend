@@ -28,7 +28,7 @@
                             <p>实拍图：<el-image 
                                 style="width: 100px; height: 100px ;vertical-align: top;"
                                 fit="contain"
-                                src="https://i.ibb.co/PQDZ2s1/jnu.jpg" 
+                                src="http://localhost:4000/uploads/1741791098337.JPG" 
                                 :preview-src-list=[selectedEquipment.image]>
                             </el-image></p>
                             <p>类型：{{ selectedEquipment.type }}</p>
@@ -57,16 +57,16 @@
                 :visible.sync="EditdialogVisible"
                 width="50%"
                 :before-close="handleClose">
-                <el-upload
+                <!-- <el-upload
                     action="https://jsonplaceholder.typicode.com/posts/"
                     list-type="picture-card"
                     :on-preview="handlePictureCardPreview"
                     :on-remove="handleRemove">
                     <i class="el-icon-plus"></i>
-                </el-upload>
-                <el-dialog :visible.sync="dialogVisible">
+                </el-upload> -->
+                <!-- <el-dialog :visible.sync="dialogVisible">
                     <img width="100%" :src="dialogImageUrl" alt="">
-                </el-dialog>
+                </el-dialog> -->
                 <span slot="footer" class="dialog-footer">
                     <el-button @click="dialogVisible = false">取 消</el-button>
                     <el-button type="primary" @click="dialogVisible = false">确 定</el-button>
