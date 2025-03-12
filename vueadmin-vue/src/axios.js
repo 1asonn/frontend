@@ -13,7 +13,7 @@ const request = axios.create({
 
 /* 请求拦截器 */
 request.interceptors.request.use(config =>{       
-    const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IlRlc3QyIiwiaWF0IjoxNzQwOTIwMjcwfQ.8LolkvGyfcbHeoB8YM4iT09F6c5KVWNxp9UaQfwpoAM'                            
+    const token = localStorage.getItem('token')                            
     config.headers['Authorization'] = `Bearer ${token}`
     return config
 })
@@ -31,7 +31,7 @@ request.interceptors.response.use(
         return response }
 
     else{
-        // Element.Message.error(res.msg,res.msg,'System Error!')  //弹窗错误警告
+        Element.Message.error(res.msg,res.msg,'System Error!')  //弹窗错误警告
         return Promise.reject(response.data.msg)}   
     },
     error =>{

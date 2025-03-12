@@ -38,8 +38,8 @@ router.get('/getPatientsPage', async (req,res) => {
 router.put('/updatePatients/:id', async (req,res) => {
     const {id} = req.params
     const parsedId = parseInt(id, 10); // 转换为整数
-    const {name, gender, phone, birthday, idCard, medicalId, adress, medicalHistory} = req.body
-    const patientModel = await patient.update({name, gender, phone, birthday, idCard, medicalId, adress, medicalHistory},{where:{id:parsedId}})
+    const {name, gender, phone, birthday, idCard, medicalId, address, medicalHistory} = req.body
+    const patientModel = await patient.update({name, gender, phone, birthday, idCard, medicalId, address, medicalHistory},{where:{id:parsedId}})
     if(patientModel){
         console.log(patientModel,'=-=-=-=-=')
     res.send({msg: '患者信息更新成功', data: patientModel})}

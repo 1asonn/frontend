@@ -4,7 +4,7 @@ const express = require('express');
 const router = express.Router();
 
 // 引入 MedicalRecord 模型
-const MedicalRecord = require('../database/models/MedicalRecord');
+const MedicalRecord = require('../database/models/medicalRecord');
 
 // 获取医疗记录列表
 router.get('/medical_records', async (req, res) => {

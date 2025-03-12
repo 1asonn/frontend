@@ -11,7 +11,7 @@
                 <div style="position:relative;padding: 14px;">
                     <span>{{ item.name }}</span>
                     <div class="bottom">
-                        <el-button type="text" class="button">编辑</el-button>
+                        <el-button type="text" class="button" @click="editDetail(item)">编辑</el-button>
                         <el-button type="text" class="button">维护记录</el-button>
                     </div>
                 </div>
@@ -47,6 +47,26 @@
                         </div>
                     </div>
                 </div>
+                <span slot="footer" class="dialog-footer">
+                    <el-button @click="dialogVisible = false">取 消</el-button>
+                    <el-button type="primary" @click="dialogVisible = false">确 定</el-button>
+                </span>
+            </el-dialog>
+            <el-dialog
+                :title="selectedEquipment.name"
+                :visible.sync="EditdialogVisible"
+                width="50%"
+                :before-close="handleClose">
+                <el-upload
+                    action="https://jsonplaceholder.typicode.com/posts/"
+                    list-type="picture-card"
+                    :on-preview="handlePictureCardPreview"
+                    :on-remove="handleRemove">
+                    <i class="el-icon-plus"></i>
+                </el-upload>
+                <el-dialog :visible.sync="dialogVisible">
+                    <img width="100%" :src="dialogImageUrl" alt="">
+                </el-dialog>
                 <span slot="footer" class="dialog-footer">
                     <el-button @click="dialogVisible = false">取 消</el-button>
                     <el-button type="primary" @click="dialogVisible = false">确 定</el-button>
@@ -94,6 +114,7 @@
                 selectedEquipment: {},
                 currentDate: 'hello',
                 dialogVisible:false,
+                EditdialogVisible:false
             }
         },
         methods:{
@@ -101,8 +122,18 @@
             checkDetail(item){
                 this.selectedEquipment = item;
                 this.dialogVisible = true;
+            },
+            editDetail(item){
+                this.EditdialogVisible = true
+            },
+            handleRemove(file, fileList) {
+            console.log(file, fileList);
+            },
+            handlePictureCardPreview(file) {
+            this.dialogImageUrl = file.url;
+            this.dialogVisible = true;
             }
-        }
+            }
     }
 </script>
 

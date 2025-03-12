@@ -28,7 +28,7 @@ router.post('/login',async (req,res) => {
     const model = await User.findOne({where:{username}})
     //用户不存在
     if(!model){
-        return res.send({msg:"用户不存在,请注册!"})
+        return res.send({msg:"用户不存在,请联系管理员!"})
     }
     
     //比较用户输入的密码与数据库中的密码
@@ -41,7 +41,7 @@ router.post('/login',async (req,res) => {
     //生成token返回给浏览器
     //生成token
     const token = jwt.sign({username},"yyjkn")
-    const code = 777
+    const code = 200
     res.send({code,token})
 })
 

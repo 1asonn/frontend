@@ -4,8 +4,10 @@ const patientRouter = require('./router/patient.js')
 const medicalRecord = require('./router/medicalRecord.js')
 const cors = require('cors')
 const expressJWT = require('express-jwt')
+const role = require('./router/role.js')
 require('./database/init.js')
 require('./database/models/user.js')
+
 
 const config = {
     jwtSecretKey: 'yyjkn' // 与签发 token 时使用的密钥相同
@@ -19,6 +21,7 @@ app.use(express.urlencoded({ extended:false }))
 app.use('/patient',patientRouter)
 app.use('/user',userRouter)
 app.use('/medicalRecord',medicalRecord)
+app.use('/role',role)
 
 
 app.listen(4000,() => {

@@ -59,10 +59,19 @@
                 return new URLSearchParams(data).toString();
               }
             }).then((response) => {
-            console.log("response",response)
+            this.$notify({
+                title: '登录成功',
+                message: '欢迎回来',
+                type: 'success'
+            });
+            const jwt = response.data['token']
+            this.$store.commit('SET_TOKEN',jwt)
+            this.$router.push('/index')
+
             }).catch(
             (error) => {
-                Element.Message.error(error)
+                // Element.Message.error(error)
+                console.log("error",error)
             })
             },
             changeLang(){
