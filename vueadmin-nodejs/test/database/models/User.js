@@ -13,8 +13,12 @@ const User = sequelize.define('user',{
             notEmpty:true
         } 
      },
-     authority:{
-        type:Sequelize.STRING
+     roleId:{
+        type:Sequelize.INTEGER,
+        references:{
+            model:'roles',
+            key:'id'
+        }    
      }
 })
 

@@ -1,6 +1,6 @@
 const {sequelize,Sequelize} = require('../init.js')
 
-const Role = sequelize.define('user',{
+const Role = sequelize.define('role',{
      id:{
         type:Sequelize.INTEGER,
         primaryKey:true,
