@@ -49,7 +49,7 @@ router.get('/getRoleAuthorities', async (req, res) => {
             data: filteredNav
         });
     } catch (error) {
-        console.error('Error fetching role authorities:', error);
+        console.log('Error fetching role authorities:', error);
         res.status(500).send({ code: 500, message: 'Internal Server Error' });
     }
 });
@@ -63,7 +63,7 @@ router.post('/addRole', async (req, res) => {
             code: 200,
             msg: '角色添加成功'
         })
-    }catch(errot){
+    }catch(error){
         console.log(error)
     }
 })

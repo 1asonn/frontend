@@ -11,15 +11,46 @@
     <el-input v-model="passwordForm.name"></el-input>
   </el-form-item>
 </el-form> 
+<TreeSelect :initialData="authTreeData" 
+            :defaultProps="defaultProps" 
+            :defaultCheckedKeys="defaultCheckedKeys" 
+            v-if="authTreeData"
+            @get-checkedNodes="handleCheckedNodes">
+</TreeSelect>
+
+<div>{{ selectedAuth }}</div>
 </div>     
 </template>
 
 
 <script>
- 
+ import TreeSelect from '@/components/TreeSelect.vue'
+ import {GetAuthTree} from '@/api/index.js'
 export default {
+    components:{
+        TreeSelect
+    },
+    created(){
+            GetAuthTree().then((res) => {
+                this.authTreeData = res
+            })
+        },
+
     data(){
         return{
+            selectedAuth:'',
+            // 传入树组件的数据
+            authTreeData:null,
+            // 树组件自定义节点属性
+            defaultProps: {
+                label: "title", 
+                children: "children" ,
+                value:"name"
+            },
+            // 默认选中的树节点
+            defaultCheckedKeys:[
+                "EquipmentManager","SysEquipment"
+            ],
             passwordForm:{
                 oldPassword:"",
                 newPassword:"",
@@ -44,7 +75,13 @@ export default {
             }
         }
     },
-    name:"userCenter"
+    name:"userCenter",
+
+    methods:{
+        handleCheckedNodes(payload){
+            this.selectedAuth = payload
+        }
+    }
 
 }
 
@@ -57,6 +94,7 @@ export default {
 
     .form-container{
         display: flex;
+        flex-direction: column;
         justify-content: center;
         
     }

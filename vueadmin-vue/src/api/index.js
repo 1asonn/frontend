@@ -27,7 +27,7 @@ export const GetUserAuth = async () => {
 export const GetAuthTree = async () => {
     try {
         const response = await request.get('http://localhost:4000/role/getAuthorityTree')
-        return response.data
+        return response.data.data
     } catch (error) {
         console.log(error)
     }
