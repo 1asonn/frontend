@@ -1,5 +1,6 @@
 require('./database/init.js')
 const express = require('express')
+const bodyParser = require('body-parser');
 const role = require('./router/role.js')
 const userRouter = require('./router/user.js')
 const patientRouter = require('./router/patient.js')
@@ -23,6 +24,7 @@ const config = {
 const app =express()
 
 //配置token校验
+app.use(bodyParser.json()); // 解析 JSON 格式的请求体
 app.use(expressJWT({ secret: config.jwtSecretKey ,algorithms: ['HS256']}).unless({ path: [/^\/user\//] }));
 app.use(cors())
 app.use(express.urlencoded({ extended:false }))

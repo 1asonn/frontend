@@ -3,6 +3,7 @@ const User = require('../database/models/User')
 const router = express.Router()
 const jwt = require('jsonwebtoken')
 const bcrypt = require('bcryptjs')
+const Role = require('../database/models/Role')
 router.get('/test',(req,res) => {
     res.send({msg:'test'})
 })
@@ -61,4 +62,55 @@ router.post('/auth',async (req,res) => {
 })
 
 
+// 获取用户列表
+router.get('/getUserList',async (req,res) => {
+    const token = req.headers.authorization.split(' ').pop()
+    if(!token){
+        return res.send({msg:'token为空!'})
+    }
+
+    const data = await User.findAll()
+    res.send({
+        code:200,
+        data:data
+    })
+})
+
+
+//获取某个用户的信息
+router.get('/getUserInfo/:id',async (req,res) => {
+    const {id} = req.params
+    const token = req.headers.authorization.split(' ').pop()
+    if(!token){
+        return res.send({msg:'token为空!'})
+    }
+    const userInfo = await User.findOne({
+        where: { id },
+        include: [
+            {
+                model: Role,
+                as: 'role', // 假设 user 模型中有关联的 role
+                attributes: ['id', 'authoritys']
+            }
+        ]
+    });
+    res.send({
+        code:200,
+        data:userInfo
+    })
+
+})
+
+
+// //更新某个用户的信息
+// router.post('/updatedUserInfo' ,async (req,res) => {
+//     const {id,authority} = req.body
+//     const data = await User.update({authority},{
+//         where: { id }
+//     })
+//     res.send({
+//         code:200,
+//         msg:'success'
+//     })
+// })
 module.exports = router

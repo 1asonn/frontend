@@ -6,7 +6,7 @@
             <el-input v-model="searchForm.name" placeholder="名称" clearable></el-input>
             </el-form-item>
             <el-form-item>
-                <el-button  @click="getRoleList">搜索</el-button>
+                <el-button  @click="">搜索</el-button>
             </el-form-item>
 
             <el-form-item>
@@ -33,7 +33,7 @@
         <!-- <el-table-column label="日期" width="120">
         <template slot-scope="scope">{{ scope.row.date }}</template>
         </el-table-column> -->
-        <el-table-column prop="name" label="名称" width="120">
+        <el-table-column prop="role_name" label="角色名称" width="120">
         </el-table-column>
         <el-table-column prop="code" label="唯一编码" show-overflow-tooltip>
         </el-table-column>
@@ -47,7 +47,7 @@
         </el-table-column>
         <el-table-column prop="operate" label="操作">
             <template slot-scope="scope">
-                <el-button type="text" @click="permHandle(scope.row.id)">分配权限</el-button>
+                <el-button type="text" @click="permHandle(scope.row.id,scope.row.authoritys)">分配权限</el-button>
                 <el-divider direction="vertical"></el-divider>
 
                 <el-button type="text" @click="editHandle(scope.row.id)">编辑</el-button>
@@ -78,7 +78,7 @@
         width="600px"
         :before-close="handleClose">
         <el-form :model="editForm" :rules="editFormRules" ref="editForm">
-            <el-form-item label="角色名称" prop="name" label-width="100px" >
+            <el-form-item label="角色名称" prop="role_name" label-width="100px" >
                 <el-input v-model="editForm.name"></el-input>
             </el-form-item>
          
@@ -110,16 +110,13 @@
 				width="600px">
 
 			<el-form :model="permForm">
-
-				<el-tree
-						:data="permTreeData"
-						show-checkbox
-						ref="permTree"
-						:default-expand-all=true
-						node-key="id"
-						:check-strictly=true
-						:props="defaultProps">
-				</el-tree>
+                <TreeSelect :initialData="permTreeData"
+                            :defaultProps="defaultProps"
+                            :default-checked-keys="defaultCheckedKeys"
+                            v-if="permTreeData"
+                            @get-checkedNodes="handleCheckedNodes"
+                    >
+                </TreeSelect>
 
 			</el-form>
 
@@ -134,9 +131,14 @@
 </template>
 
 <script>
+    import {GetRoleList,GetAuthTree,GetUserInfo,SetRoleAuthority} from '@/api/index.js'
+    import TreeSelect from '@/components/TreeSelect.vue'
     export default {
         data(){
             return{
+                roleId:'',
+                defaultCheckedKeys:[],
+                selectedAuth:'',
                 searchForm:{},
                 delBtnStatus:true,
                 tableData: [],
@@ -161,16 +163,36 @@
                     ]
                 },
                 defaultProps: {
-					children: 'children',
-					label: 'name'
-				},
+                    label: "title", 
+                    children: "children" ,
+                    value:"name"
+                },
                 permTreeData: [],
                 permForm: {}
             }
         },
-
+        created(){
+            this.Async_GetRoleList()
+            this.Async_GetAuthTree()
+        },
         methods: {
-
+        async getUserAuthority(id){
+            const res = await GetUserInfo(id)
+            return res.role.authoritys
+            console.log("this is what i get",res)
+        },
+        handleCheckedNodes(payload){
+            console.log("these are selected~",payload.join(','))
+            this.selectedAuth = payload.join(',')
+        },
+        async Async_GetRoleList(){
+            const res = await GetRoleList()
+            this.tableData = res
+        },
+        async Async_GetAuthTree(){
+            const res = await GetAuthTree()
+            this.permTreeData = res
+        },
         toggleSelection(rows) {
             if (rows) {
             rows.forEach(row => {
@@ -190,13 +212,13 @@
         handleSizeChange(val) {
             // console.log(`每页 ${val} 条`);
             this.size = val
-            this.getRoleList()
+
             },
 
         handleCurrentChange(val) {
             // console.log(`当前页: ${val}`);
             this.current = val
-            this.getRoleList()
+
             },
 
         resetForm(formName){
@@ -219,7 +241,7 @@
                 message:'提交成功',
                 type:'success',
                 onClose:() => {                               //弹窗关闭时更新列表数据
-                  this.getRoleList()
+
                 }
                }),
                this.dialogVisible = false                     //表单提交成功后关闭弹窗
@@ -232,36 +254,13 @@
         })
       },
 
-      getRoleList(){
-        this.$axios.get('/sys/role/list',{
-            params:{
-                name:this.searchForm.name,
-                current:this.current,
-                size:this.size
-            }
-        }).then(res =>{
-            this.tableData = res.data.data.records
-            this.current = res.data.data.current
-            this.size = res.data.data.size
-            this.total = res.data.data.total
-        })
+      permHandle(id,authoritys) {
+        this.roleId = id
+        this.permDialogVisible = true
+        this.defaultCheckedKeys = authoritys.split(',')
       },
 
-      permHandle(id) {
-				this.permDialogVisible = true
-
-				this.$axios.get("/sys/role/info/" + id).then(res => {
-
-					this.$refs.permTree.setCheckedKeys(res.data.data.menuIds)
-					this.permForm = res.data.data
-				})
-			},
-
       editHandle(id){
-        this.$axios.get('/sys/role/info/' + id).then(res => {
-          this.editForm = res.data.data
-          this.dialogVisible = true
-        })
       },
 
       deleteHandle(id){
@@ -274,49 +273,28 @@
                 ids.push(item.id)
             })
         }
-
-        this.$axios.post('/sys/role/delete/',ids).then(res => {
-          this.$message({
-            showClose:true,
-            message:'删除成功',
-            type:'success',
-            onClose:() =>{
-              this.getRoleList()
-            }
-          })
-        })
       },
 
       submitPermFormHandle(formName) {
-				var menuIds = this.$refs.permTree.getCheckedKeys()
-
-				console.log(menuIds)
-
-				this.$axios.post('/sys/role/perm/' + this.permForm.id, menuIds).then(res => {
-					this.$message({
-						showClose: true,
-						message: '恭喜你，操作成功',
-						type: 'success',
-						onClose:() => {
-							this.getRoleList()
-						}
-					});
-					this.permDialogVisible = false
-					this.resetForm(formName)
-				})
-			}
-
-        },
-        name: 'Role',
-        created(){
-            this.getRoleList()
-
-            this.$axios.get('/sys/menu/list').then(res => {
-				this.permTreeData = res.data.data
-			})
+        if (this.selectedAuth) {
+            SetRoleAuthority(this.roleId,this.selectedAuth).then(() =>{
+                this.$message({
+                showClose: true,
+                message: '恭喜你，操作成功',
+                type: 'success',
+                onClose:() => {}
+                })
+            })
         }
-        
+            this.permDialogVisible = false
+            // this.resetForm(formName)
+        }
+    },
+    name: 'Role',
+    components:{
+        TreeSelect
     }
+}
 </script>
 
 <style scoped>

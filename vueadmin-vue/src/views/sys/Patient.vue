@@ -39,14 +39,14 @@
 			</el-table-column>
 
 			<el-table-column
-					prop="username"
-					label="账号"
+					prop="medicalId"
+					label="就诊卡号"
 					width="120">
 			</el-table-column>
 
 			<el-table-column
 					prop="name"
-					label="姓名"
+					label="患者姓名"
 					width="120">
 			</el-table-column>
 			<el-table-column
@@ -91,10 +91,11 @@
 					<el-button type="text" @click="checkHandle(scope.row.id)">查看</el-button>
 					<el-divider direction="vertical"></el-divider>
 					<el-button type="text" @click="editHandle(scope.row.id)">编辑</el-button>
-					<el-divider direction="vertical"></el-divider>       
+					<el-divider direction="vertical"></el-divider>
+
 					<template>
 						<el-popconfirm title="这是一段内容确定删除吗？" @confirm="delHandle(scope.row.id)">
-							<el-button type="text" slot="reference">注销</el-button>
+							<el-button type="text" slot="reference">删除</el-button>
 						</el-popconfirm>
 					</template>
 
@@ -216,23 +217,40 @@
         </el-table-column>
       </el-table>
 		</el-drawer>
-		<!-- <el-dialog title="详情" :visible.sync="dialogTableVisible">
+		<el-dialog title="详情" :visible.sync="dialogTableVisible">
 			<el-table :data="gridData">
 				<el-table-column property="date" label="日期" width="150"></el-table-column>
 				<el-table-column property="name" label="姓名" width="200"></el-table-column>
 				<el-table-column property="address" label="地址"></el-table-column>
 			</el-table>
-		</el-dialog> -->
+		</el-dialog>
 	</div>
 </template>
 
 <script>
-    import { GetUserList } from '@/api/index.js'  
+    import { GetPatientList } from '@/api/index.js'  
 	export default {
-		name: "User",
+		name: "patient",
 		data() {
 			return {
-                dialogTableVisible: false,
+				gridData: [{
+          date: '2016-05-02',
+          name: '王小虎',
+          address: '上海市普陀区金沙江路 1518 弄'
+        }, {
+          date: '2016-05-04',
+          name: '王小虎',
+          address: '上海市普陀区金沙江路 1518 弄'
+        }, {
+          date: '2016-05-01',
+          name: '王小虎',
+          address: '上海市普陀区金沙江路 1518 弄'
+        }, {
+          date: '2016-05-03',
+          name: '王小虎',
+          address: '上海市普陀区金沙江路 1518 弄'
+        }],
+        dialogTableVisible: false,
 				drawer: false,
         		direction: 'rtl',
 				searchForm: {},
@@ -284,13 +302,18 @@
             }
         },
 		created() {
-			this.getUserList()
+			this.getPatientList()
+			// this.getUserList()
+
+			// this.$axios.get("/sys/role/list").then(res => {
+			// 	this.roleTreeData = res.data.data.records
+			// })
 		},
 		methods: {
-			async getUserList() {
+			async getPatientList() {
 				try {
-					const res = await GetUserList()
-					this.tableData  = res
+					const res = await GetPatientList()
+					this.tableData  = res.data.data.records
 					console.log(res.data,"res")
 				} catch (error) {
 					console.log("Error fetching patient list", error)

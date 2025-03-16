@@ -107,4 +107,37 @@ router.get('/getAuthorityTree', async (req, res) => {
     }
 })
 
+
+//获取角色列表
+router.get('/getRoleList', async (req, res) => {
+    try {
+        const data = await Role.findAll()
+        res.send({
+            code: 200,
+            data: data
+        })
+    } catch (error) {
+        console.log(error)
+    }
+})
+
+//更新某个角色下的权限
+router.post('/updateRoleAuthority',async (req,res) => {
+    try {
+        
+        const {id,authoritys} = req.body
+        console.log(authoritys)
+        const data = await Role.update({authoritys},{where:{id}})
+        console.log(data)
+        res.send({
+            code:200,
+            msg:'角色权限更新成功'
+        })
+    } catch (error) {
+        console.log(error)
+    }
+})
+
+
+
 module.exports = router

@@ -7,11 +7,11 @@ let nav = [
         component: 'patient/Patient',
         children: [
             {
-                name: 'SysUser',
+                name: 'SysPatient',
                 title: '用户管理',
                 icon: 'el-icon-s-custom',
-                path: '/sys/users',
-                component: 'sys/User',
+                path: '/sys/patient',
+                component: 'sys/Patient',
                 children: []
             },
         ]
@@ -55,7 +55,24 @@ let nav = [
         icon: 'el-icon-s-custom',
         path: '/hr',
         component: 'hr/HR',
-        children: []
+        children: [
+            {
+                name: 'SysUser',
+                title: '用户列表',
+                icon: 'el-icon-s-custom',
+                path: '/sys/user',
+                component: 'sys/User',
+                children: []
+            },
+            {
+                name: 'SysRole',
+                title: '角色管理',
+                icon: 'el-icon-s-custom',
+                path:'/sys/role',
+                component: 'sys/Role',
+                children: []
+            }
+        ]
     },
     {
         name: 'FinanceManager',

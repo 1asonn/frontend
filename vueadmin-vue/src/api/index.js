@@ -32,3 +32,59 @@ export const GetAuthTree = async () => {
         console.log(error)
     }
 }
+
+
+//获取系统用户列表
+export const GetUserList = async () => {
+    try {
+        const response = await request.get('http://localhost:4000/user/getUserList')
+        return response.data.data
+    }catch(error){
+        console.log(error)
+    }
+}
+
+
+//获取角色列表
+export const GetRoleList = async () => {
+    try {
+        const response = await request.get('http://localhost:4000/role/getRoleList')
+        return response.data.data
+    } catch (error) {
+        console.log(error)
+    }
+}
+
+//获取某个系统用户的信息
+export const GetUserInfo = async (userId) => {
+    try {
+        const response = await request.get(`http://localhost:4000/user/getUserInfo/${userId}`)
+        return response.data.data
+    } catch (error) {
+        console.log(error)
+    }
+}
+
+//设置某个角色下的权限
+export const SetRoleAuthority = async (Id,authoritys) => {
+    try{
+        const res = await request.post('http://localhost:4000/role/updateRoleAuthority',
+        {
+            id:Id,
+            authoritys:authoritys
+        })
+    }catch(error){
+        console.log(error)
+    }
+}
+
+
+//获取某个角色的信息
+export const GetRoleInfo = async (roleId) => {
+    try {
+        const response = await request.get(`http://localhost:4000/role/getRoleInfo/${roleId}`)
+        return response.data.data    
+    } catch (error) {
+        console.log(error)
+    }
+}
