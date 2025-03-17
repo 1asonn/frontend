@@ -1,41 +1,69 @@
-require('./database/init.js')
-const express = require('express')
-const bodyParser = require('body-parser');
-const role = require('./router/role.js')
-const userRouter = require('./router/user.js')
-const patientRouter = require('./router/patient.js')
-const medicalRecord = require('./router/medicalRecord.js')
-const cors = require('cors')
-const expressJWT = require('express-jwt')
-const uploadRouter = require('./router/upload.js'); 
-const path = require('path')
-// 定义表之间的关系
-const User = require('./database/models/User')
-const Role = require('./database/models/Role')
+// Load environment variables and configuration
+const config = require('./config');
+require('./database/init.js');
 
+const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const expressJWT = require('express-jwt');
+const path = require('path');
+
+// Import routes
+const role = require('./router/role.js');
+const userRouter = require('./router/user.js');
+const patientRouter = require('./router/patient.js');
+const medicalRecord = require('./router/medicalRecord.js');
+const uploadRouter = require('./router/upload.js');
+
+// Import models for relationships
+const User = require('./database/models/User');
+const Role = require('./database/models/Role');
+
+// Define relationships between models
 User.belongsTo(Role, { foreignKey: 'roleId', as: 'role' });
 Role.hasMany(User, { foreignKey: 'roleId', as: 'users' });
 
+const app = express();
 
+// Middleware configuration
+app.use(bodyParser.json());
+app.use(cors(config.cors));
+app.use(express.urlencoded({ extended: false }));
 
-const config = {
-    jwtSecretKey: 'yyjkn' // 与签发 token 时使用的密钥相同
-  };
-const app =express()
+// JWT configuration
+app.use(
+    expressJWT({ 
+        secret: config.jwt.secret,
+        algorithms: config.jwt.algorithms 
+    }).unless({ 
+        path: [
+            /^\/user\/login/,
+            /^\/user\/register/,
+            /^\/user\/test/
+        ] 
+    })
+);
 
-//配置token校验
-app.use(bodyParser.json()); // 解析 JSON 格式的请求体
-app.use(expressJWT({ secret: config.jwtSecretKey ,algorithms: ['HS256']}).unless({ path: [/^\/user\//] }));
-app.use(cors())
-app.use(express.urlencoded({ extended:false }))
-app.use('/patient',patientRouter)
-app.use('/role',role)
-app.use('/user',userRouter)
-app.use('/medicalRecord',medicalRecord)
+// Error handling middleware
+app.use((err, req, res, next) => {
+    if (err.name === 'UnauthorizedError') {
+        return res.status(401).json({
+            success: false,
+            message: '无效的token或token已过期'
+        });
+    }
+    next(err);
+});
+
+// Routes
+app.use('/patient', patientRouter);
+app.use('/role', role);
+app.use('/user', userRouter);
+app.use('/medicalRecord', medicalRecord);
 app.use('/upload', uploadRouter);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-
-app.listen(4000,() => {
-    console.log('serve is running on port: 4000')
-})
+// Start server
+app.listen(config.port, () => {
+    console.log(`Server is running in ${config.nodeEnv} mode on port: ${config.port}`);
+});

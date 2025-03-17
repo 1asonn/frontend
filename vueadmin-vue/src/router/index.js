@@ -57,22 +57,25 @@ const router = new VueRouter({
   routes
 })
 
-router.beforeEach((to,from,next) => {
+router.beforeEach(async(to,from,next) => {
 
   let hasRoute = store.state.menu.hasRoutes
-
+  let token = store.state.token
   //检查是否已经获得路由授权
-  if(!hasRoute){
-    GetUserAuth().then(nav =>{
-      store.commit('setMenuList',nav.data)
+  if(!hasRoute && token){
+      const nav = await GetUserAuth()
+      console.log("nav",nav)
+      await store.dispatch('validateAndSetMenu',nav.data)
+      console.log("22222222222")
+      // store.commit('setMenuList',nav.data)
        /* 尽管 newRoutes 和 router.options.routes 指向同一个数组，
       但直接修改这个数组并不会触发 Vue Router 内部状态的更新。
       Vue Router 维护了一个内部的路由记录列表，这个列表在初始化时根据 routes 数组创建，
       并且不会自动同步后续对 routes 数组的修改。 */
       let newRoutes = router.options.routes
       
-  
-      nav.data.forEach(menu =>{
+      console.log(nav.data.data.menu,'-=-=-==-')
+      nav.data.data.menu.forEach(menu =>{
         if(menu.children){
           menu.children.forEach(child =>{
   
@@ -95,13 +98,10 @@ router.beforeEach((to,from,next) => {
           router.addRoute(route);
         });
 
-
-      
-    })
     hasRoute = true
     store.commit("changeRouteStatus",hasRoute)
   }
-
+  console.log("11111111")
   next()
 
 })

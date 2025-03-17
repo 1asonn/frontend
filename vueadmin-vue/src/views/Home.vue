@@ -31,6 +31,7 @@
 <script>
   import SideMenu from "./inc/SideMenu.vue"
   import Tabs from "./inc/Tabs.vue"
+  import { GetMenuPublicKey } from '@/api/index'
   export default{
       name:"Home",
       components:{
@@ -47,9 +48,10 @@
         }
       },
       methods:{
-        getUserInfo(){
-            this.$axios.get("/sys/userInfo").then(res => {
-                this.userInfo = res.data.data
+        setMenuPublicKey(){
+            GetMenuPublicKey().then(res => {
+                console.log("publicKey",res)
+                this.$store.commit("setMenuPublicKey", res)
             })
         },
         logout(){
@@ -64,7 +66,7 @@
         },
       },
       created(){
-        this.getUserInfo()
+        this.setMenuPublicKey()
       }
   }
 </script>

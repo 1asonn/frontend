@@ -17,9 +17,10 @@ export const GetPatientList = async () => {
 export const GetUserAuth = async () => {
     try {
         const response = await request.get('http://localhost:4000/role/getRoleAuthorities')
-        return response.data
+        return Promise.resolve(response.data)
     } catch (error) {
         console.log("error",error)
+        return Promise.reject(error)
     }
 }
 
@@ -84,6 +85,16 @@ export const GetRoleInfo = async (roleId) => {
     try {
         const response = await request.get(`http://localhost:4000/role/getRoleInfo/${roleId}`)
         return response.data.data    
+    } catch (error) {
+        console.log(error)
+    }
+}
+
+//获取菜单加密公钥
+export const GetMenuPublicKey = async () => {
+    try {
+        const publicKey = await request.get('http://localhost:4000/role/public-key')
+        return publicKey.data.data.publicKey
     } catch (error) {
         console.log(error)
     }

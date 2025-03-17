@@ -6,16 +6,53 @@ const bcrypt = require('bcryptjs')
 const filterNav = require('../utils/funcs')
 const user = require('../database/models/User')
 const nav = require('../assets/nav')
+const { encryptData } = require('../utils/crypto');
+const rateLimit = require('express-rate-limit');
+const { signData, getPublicKey } = require('../utils/crypto');
+
+// // 创建请求限制器
+// const menuLimiter = rateLimit({
+//     windowMs: 15 * 60 * 1000, // 15分钟窗口
+//     max: 1000000, // 每个IP在窗口期内最多100次请求
+//     message: { code: 429, message: '请求过于频繁，请稍后再试' }
+// });
+
+// 菜单缓存
+const menuCache = new Map();
+const CACHE_DURATION = 5 * 60 * 1000; // 5分钟缓存
+
+// 获取公钥接口
+router.get('/public-key', (req, res) => {
+    res.json({
+        code: 200,
+        data: {
+            publicKey: getPublicKey()
+        }
+    });
+});
 
 router.get('/getRoleAuthorities', async (req, res) => {
     try {
         // 从请求头中获取 token 并解析用户名
         const token = req.headers['authorization']?.split(' ')[1];
         if (!token) {
-            return res.status(401).send({ code: 401, message: 'Token is missing' });
+            return res.status(401).json({ 
+                code: 401, 
+                message: '未提供访问令牌' 
+            });
         }
 
-        const { username } = jwt.verify(token, "yyjkn");
+        const { username } = jwt.verify(token, process.env.JWT_SECRET || "yyjkn");
+
+        // 检查缓存
+        const cacheKey = `menu_${username}`;
+        const cachedMenu = menuCache.get(cacheKey);
+        if (cachedMenu && cachedMenu.timestamp > Date.now() - CACHE_DURATION) {
+            return res.json({
+                code: 200,
+                data: cachedMenu.data
+            });
+        }
 
         // 查询用户及其角色信息
         const userInfo = await user.findOne({
@@ -30,12 +67,18 @@ router.get('/getRoleAuthorities', async (req, res) => {
         });
 
         if (!userInfo) {
-            return res.status(404).send({ code: 404, message: 'User not found' });
+            return res.status(404).json({ 
+                code: 404, 
+                message: '用户不存在' 
+            });
         }
 
         const { role } = userInfo;
         if (!role) {
-            return res.status(401).send({ code: 401, message: 'User role does not exist' });
+            return res.status(401).json({ 
+                code: 401, 
+                message: '用户角色不存在' 
+            });
         }
 
         // 获取角色的权限列表
@@ -44,13 +87,46 @@ router.get('/getRoleAuthorities', async (req, res) => {
         // 根据权限过滤菜单
         const filteredNav = filterNav(nav, authorities);
 
-        res.send({
-            code: 200,
-            data: filteredNav
+        // 对菜单数据进行签名
+        const signedData = signData({
+            menu: filteredNav,
+            user: {
+                id: userInfo.id,
+                username: userInfo.username,
+                roleId: userInfo.roleId
+            }
         });
+
+        // 更新缓存
+        menuCache.set(cacheKey, {
+            data: signedData,
+            timestamp: Date.now()
+        });
+
+        // 返回签名后的数据
+        res.json({
+            code: 200,
+            data: signedData
+        });
+
     } catch (error) {
-        console.log('Error fetching role authorities:', error);
-        res.status(500).send({ code: 500, message: 'Internal Server Error' });
+        console.error('获取角色权限错误:', error);
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json({ 
+                code: 401, 
+                message: '无效的访问令牌' 
+            });
+        }
+        if (error.name === 'TokenExpiredError') {
+            return res.status(401).json({ 
+                code: 401, 
+                message: '访问令牌已过期' 
+            });
+        }
+        res.status(500).json({ 
+            code: 500, 
+            message: '服务器内部错误' 
+        });
     }
 });
 

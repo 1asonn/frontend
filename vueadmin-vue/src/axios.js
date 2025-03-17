@@ -23,26 +23,23 @@ request.interceptors.request.use(config =>{
 /* 响应拦截器 */
 request.interceptors.response.use(
     response =>{
-        
     const res = response.data
-    console.log("fired!",res)
 
-    if(res.id || res.code === 200){                 
+    if(response.status === 200){                 
         return response }
 
     else{
+        console.log("what is res?",res)
         Element.Message.error(res.msg,res.msg,'System Error!')  //弹窗错误警告
         return Promise.reject(response.data.msg)}   
     },
     error =>{
-    console.log("error",error)
     if(error.response.data){
-        error.message = error.response.data.msg}
+        error.message = error.response.data.message}
     
     if(error.response.data.code === 401){
-        this.$router.push('/login')}
-
-    Element.Message.error(error.message,{duration:3000}) //弹窗错误警告
+        router.push('/login')}
+    Element.Message.error(error.response.data.message,{duration:3000}) //弹窗错误警告
     return Promise.reject(error)
     }
 )

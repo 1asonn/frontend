@@ -64,7 +64,8 @@
                 message: '欢迎回来',
                 type: 'success'
             });
-            const jwt = response.data['token']
+            console.log("what is response?",response)
+            const jwt = response.data.data['token']
             this.$store.commit('SET_TOKEN',jwt)
             this.$router.push('/index')
 
