@@ -9,9 +9,7 @@ import {GetUserAuth} from '../api/index.js'
 const originalPush = VueRouter.prototype.push
 
 VueRouter.prototype.push = function push (location) {
-
   return originalPush.call(this, location).catch(err => err)
-
 }
 
 Vue.use(VueRouter)
@@ -37,7 +35,7 @@ const routes = [
   {
     path: '/Portal',
     name: 'Portal',
-    component: () => import('../views/Portal.vue')  //懒加载
+    component: () => import('../views/Portal.vue')
   },
   {
     path:'/Login',
@@ -57,57 +55,88 @@ const router = new VueRouter({
   routes
 })
 
-router.beforeEach(async(to,from,next) => {
+router.beforeEach(async(to, from, next) => {
+  const token = localStorage.getItem('token')
+  const hasRoute = store.state.menu.hasRoutes
 
-  let hasRoute = store.state.menu.hasRoutes
-  let token = store.state.token
-  //检查是否已经获得路由授权
-  if(!hasRoute && token){
-      const nav = await GetUserAuth()
-      console.log("nav",nav)
-      await store.dispatch('validateAndSetMenu',nav.data)
-      console.log("22222222222")
-      // store.commit('setMenuList',nav.data)
-       /* 尽管 newRoutes 和 router.options.routes 指向同一个数组，
-      但直接修改这个数组并不会触发 Vue Router 内部状态的更新。
-      Vue Router 维护了一个内部的路由记录列表，这个列表在初始化时根据 routes 数组创建，
-      并且不会自动同步后续对 routes 数组的修改。 */
-      let newRoutes = router.options.routes
-      
-      console.log(nav.data.data.menu,'-=-=-==-')
-      nav.data.data.menu.forEach(menu =>{
-        if(menu.children){
-          menu.children.forEach(child =>{
-  
-            //将菜单配置列表转换为路由数据类型
-            let route = Menu2Routes(child)
-  
-            //将路由添加到路由管理器中
-            if(route){
-              newRoutes[0].children.push(route)
+  if (to.path === '/login') {
+    next()
+    return
+  }
+
+  if (!token) {
+    next('/login')
+    return
+  }
+
+  // 如果有token但没有路由，重新获取菜单数据
+  if (!hasRoute) {
+    console.log(hasRoute,'hasRoute')
+    try {
+      // 从localStorage恢复菜单数据
+      const menuList = JSON.parse(localStorage.getItem('menuList') || '[]')
+      const signature = localStorage.getItem('menuSignature')
+   
+      if (menuList && signature) {
+        // 如果有本地缓存的菜单数据，尝试验证并使用
+        try {
+          await store.dispatch('validateAndSetMenu', {
+            data: menuList.menu,
+            metadata: { signature:signature }
+          })
+          console.log(menuList,'menuList')
+          // 添加路由
+          menuList.menu.menu.forEach(menu => {
+            if (menu.children) {
+              menu.children.forEach(child => {
+                let route = Menu2Routes(child)
+                if (route) {
+                  router.addRoute('Home', route)
+                }
+              })
             }
-  
+          })
+
+          store.commit('changeRouteStatus', true) 
+          console.log(hasRoute,'hasRoute')
+          next({ ...to, replace: true })
+          return
+        } catch (error) {
+          console.error('本地菜单数据验证失败，尝试重新获取:', error)
+        }
+      }
+
+      console.log('again')
+      
+      // 如果没有本地缓存或验证失败，从服务器获取
+      const nav = await GetUserAuth()
+      console.log(nav.data,'nav.data')
+      await store.dispatch('validateAndSetMenu', nav.data)
+      
+      // 添加路由
+      nav.data.data.menu.forEach(menu => {
+        if (menu.children) {
+          menu.children.forEach(child => {
+            let route = Menu2Routes(child)
+            if (route) {
+              router.addRoute('Home', route)
+            }
           })
         }
-        })
-  
-        /* 刷新路由 */
-        // router.addRoutes(newRoutes)  该方法已弃用 
-      
-        newRoutes.forEach(route => {
-          router.addRoute(route);
-        });
+      })
 
-    hasRoute = true
-    store.commit("changeRouteStatus",hasRoute)
+      store.commit('changeRouteStatus', true)
+      next({ ...to, replace: true })
+      return
+    } catch (error) {
+      console.error('获取菜单失败:', error)
+      next('/login')
+      return
+    }
   }
-  console.log("11111111")
+
   next()
-
 })
-
-
-
 
 const Menu2Routes = (menu) => {
   if(!menu.component){
@@ -115,18 +144,15 @@ const Menu2Routes = (menu) => {
   }
 
   let route = {
-    name : menu.name,
-    path : menu.path,
-    meta :{
-      title : menu.title,
-      icon : menu.icon
-    }
+    name: menu.name,
+    path: menu.path,
+    meta: {
+      title: menu.title,
+      icon: menu.icon
+    },
+    component: () => import('@/views/' + menu.component + '.vue')
   }
   
-  /* 动态导入组件 */
-  // route.component = () => import(`@/views/${menu.component}.vue`)
-  route.component = () => import('@/views/' + menu.component +'.vue')
-  console.log("comp",route)
   return route
 }
 

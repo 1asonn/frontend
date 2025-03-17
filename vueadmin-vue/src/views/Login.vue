@@ -29,6 +29,7 @@
 
 <script>
     import Element from "element-ui"
+    import {GetUserAuth} from '@/api/index.js'
     export default{
         data(){
             return{
@@ -68,7 +69,6 @@
             const jwt = response.data.data['token']
             this.$store.commit('SET_TOKEN',jwt)
             this.$router.push('/index')
-
             }).catch(
             (error) => {
                 // Element.Message.error(error)
