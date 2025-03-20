@@ -17,18 +17,18 @@ router.get('/medical_records', async (req, res) => {
     }
 });
 
-// 获取与特定 parentId 相关联的所有医疗记录
-router.get('/medical_records/:parentId', async (req, res) => {
+// 获取与特定 patientId 相关联的所有医疗记录
+router.get('/medical_records/:patientId', async (req, res) => {
     try {
       const records = await MedicalRecord.findAll({
        where: {
-         patientId: req.params.parentId // 通过外键 parentId 获取记录
+         patientId: req.params.patientId // 通过外键 patientId 获取记录
        }
      });
      if (records.length > 0) {
         res.status(200).json(records);
       } else {
-        res.status(404).json({ message: 'No records found for the given parentId'});
+        res.status(404).json({ message: 'No records found for the given patientId'});
       }
     } catch (error) {
       console.error('Error fetching medical records:', error);

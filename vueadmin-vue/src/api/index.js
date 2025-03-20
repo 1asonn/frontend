@@ -13,6 +13,15 @@ export const GetPatientList = async () => {
         }
     }
 
+export const GetPatientRecord = async (patientId) => {
+    try {
+        const response = await request.get(`http://localhost:4000/medicalRecord/medical_records/${patientId}`)
+        return response
+    } catch (error) {
+        console.log("error",error)
+    }
+}
+
 // 获取用户菜单
 export const GetUserAuth = async () => {
     try {
@@ -97,5 +106,15 @@ export const GetMenuPublicKey = async () => {
         return publicKey.data.data.publicKey
     } catch (error) {
         console.log(error)
+    }
+}
+
+// 获取AI分析结果
+export const GetAIAnalysis = async (patientId) => {
+    try {
+        const response = await request.get(`http://localhost:4000/ai/analyze/${patientId}`)
+        return response.data
+    } catch (error) {
+        console.log("error", error)
     }
 }

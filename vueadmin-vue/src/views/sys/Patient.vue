@@ -11,7 +11,7 @@
 			</el-form-item>
 
 			<el-form-item>
-				<el-button @click="getUserList">搜索</el-button>
+				<el-button @click="">搜索</el-button>
 			</el-form-item>
 
 			<el-form-item>
@@ -26,7 +26,7 @@
 
 		<el-table
 				ref="multipleTable"
-				:data="tableData"
+				:data="patientData"
 				tooltip-effect="dark"
 				style="width: 100%"
 				border
@@ -176,80 +176,92 @@
 		</el-dialog>
 
 		<el-drawer
-		    size="50%"
+		    size="60%"
 			title="患者信息详情"
 			:visible.sync="drawer"
 			:direction="direction"
 			:before-close="handleDrawerClose">
 
 			<span>我来啦!</span>
-			<el-table :data="tableData" style="width: 100%">
-        <el-table-column
-          prop="date"
-          label="日期"
-          width="180">
-        </el-table-column>
-        <el-table-column
-          prop="attendingDoctor"
-          label="主治医生"
-          width="180">
-        </el-table-column>
-        <el-table-column
-          prop="symptoms"
-          label="症状"
-          width="180">
-        </el-table-column>
-        <el-table-column
-          prop="diagnosticResults"
-          label="诊断结果"
-          width="180">
-        </el-table-column>
-        <el-table-column
-          prop="treatment"
-          label="治疗措施"
-          width="180">
-        </el-table-column>
-        <el-table-column label="操作" width="180">
-          <template slot-scope="scope">
-            <el-button type="text" @click="dialogTableVisible = true">编辑</el-button>
-            <el-button type="text" @click="delHandle(scope.row.recordId)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+			<div class="RecordBox">
+				<el-table :data="recordData" style="width: 100% ">
+			
+					<el-table-column
+					prop="date"
+					label="日期"
+					width="180">
+					</el-table-column>
+					<el-table-column
+					prop="attendingDoctor"
+					label="主治医生"
+					width="180">
+					</el-table-column>
+					<el-table-column
+					prop="symptoms"
+					label="症状"
+					width="180">
+					</el-table-column>
+					<el-table-column
+					prop="diagnosticResults"
+					label="诊断结果"
+					width="180">
+					</el-table-column>
+					<el-table-column
+					prop="treatment"
+					label="治疗措施"
+					width="180">
+					</el-table-column>
+					<el-table-column label="操作" width="180">
+					<template slot-scope="scope">
+						<el-button type="text" @click="dialogTableVisible = true">编辑</el-button>
+						<el-button type="text" @click="delHandle(scope.row.recordId)">删除</el-button>
+					</template>
+					</el-table-column>
+				</el-table>
+
+				<!-- AI分析结果展示 -->
+				<div class="ai-analysis" v-if="true">
+					<h3>AI诊疗分析报告</h3>
+					<el-card class="analysis-card">
+						<div class="analysis-item">
+							<h4>病情趋势分析</h4>
+							<p>{{aiAnalysis.trend}}</p>
+						</div>
+						<div class="analysis-item">
+							<h4>用药建议</h4>
+							<p>{{aiAnalysis.medicationAdvice}}</p>
+						</div>
+						<div class="analysis-item">
+							<h4>风险预警</h4>
+							<el-tag 
+								v-for="(risk, index) in aiAnalysis.risks" 
+								:key="index"
+								:type="risk.level === 'high' ? 'danger' : risk.level === 'medium' ? 'warning' : 'info'"
+								style="margin-right: 5px">
+								{{risk.description}}
+							</el-tag>
+						</div>
+					</el-card>
+				</div>
+			</div>
 		</el-drawer>
-		<el-dialog title="详情" :visible.sync="dialogTableVisible">
+		<!-- <el-dialog title="详情" :visible.sync="dialogTableVisible">
 			<el-table :data="gridData">
 				<el-table-column property="date" label="日期" width="150"></el-table-column>
 				<el-table-column property="name" label="姓名" width="200"></el-table-column>
 				<el-table-column property="address" label="地址"></el-table-column>
 			</el-table>
-		</el-dialog>
+		</el-dialog> -->
 	</div>
 </template>
 
 <script>
-    import { GetPatientList } from '@/api/index.js'  
+    import { GetPatientList, GetPatientRecord } from '@/api/index.js'  
 	export default {
 		name: "patient",
 		data() {
 			return {
-				gridData: [{
-          date: '2016-05-02',
-          name: '王小虎',
-          address: '上海市普陀区金沙江路 1518 弄'
-        }, {
-          date: '2016-05-04',
-          name: '王小虎',
-          address: '上海市普陀区金沙江路 1518 弄'
-        }, {
-          date: '2016-05-01',
-          name: '王小虎',
-          address: '上海市普陀区金沙江路 1518 弄'
-        }, {
-          date: '2016-05-03',
-          name: '王小虎',
-          address: '上海市普陀区金沙江路 1518 弄'
-        }],
+		
         dialogTableVisible: false,
 				drawer: false,
         		direction: 'rtl',
@@ -265,7 +277,17 @@
 
 				},
 
-				tableData: [],
+				patientData: [],
+				recordData: [],
+				aiAnalysis: {
+					trend: "患者近期血压呈波动上升趋势，最近三次测量值分别为130/85、135/88、142/92。建议加强血压监测频率，注意控制饮食和作息。",
+					medicationAdvice: "1. 建议继续服用当前降压药物方案；\n2. 可考虑适当调整服用时间，建议在早餐后服用；\n3. 如血压持续升高，可能需要调整剂量。",
+					risks: [
+						{ level: "high", description: "血压持续升高风险" },
+						{ level: "medium", description: "心血管并发症风险" },
+						{ level: "low", description: "用药不良反应风险" }
+					]
+				},
 
 				editFormRules: {
 					username: [
@@ -313,14 +335,18 @@
 			async getPatientList() {
 				try {
 					const res = await GetPatientList()
-					this.tableData  = res.data.data.records
+					this.patientData  = res.data.data.records
 					console.log(res.data,"res")
 				} catch (error) {
 					console.log("Error fetching patient list", error)
 				}
 			},
 			checkHandle(id){
+				GetPatientRecord(id).then(res => {
+					console.log(res,"this is record data")
+					this.recordData = res.data
 				this.drawer = true
+				})
 			},
 
             test(){
@@ -347,12 +373,10 @@
 			handleSizeChange(val) {
 				console.log(`每页 ${val} 条`);
 				this.size = val
-				this.getUserList()
 			},
 			handleCurrentChange(val) {
 				console.log(`当前页: ${val}`);
 				this.current = val
-				this.getUserList()
 			},
 
 			resetForm(formName) {
@@ -378,7 +402,6 @@
 									message: '恭喜你，操作成功',
 									type: 'success',
 									onClose:() => {
-										this.getUserList()
 									}
 								});
 
@@ -419,7 +442,6 @@
 						message: '恭喜你，操作成功',
 						type: 'success',
 						onClose:() => {
-							this.getUserList()
 						}
 					});
 				})
@@ -450,7 +472,6 @@
 						message: '恭喜你，操作成功',
 						type: 'success',
 						onClose:() => {
-							this.getUserList()
 						}
 					});
 
@@ -480,10 +501,27 @@
 </script>
 
 <style scoped>
+.ai-analysis {
+	margin-top: 20px;
+	padding: 15px;
+}
+.analysis-card {
+	margin-top: 10px;
+}
+.analysis-item {
+	margin-bottom: 15px;
+}
+.analysis-item h4 {
+	margin-bottom: 10px;
+	color: #606266;
+}
 
 	.el-pagination {
 		float: right;
 		margin-top: 22px;
 	}
 
+	.RecordBox {
+		padding: 20px;
+	}
 </style>
