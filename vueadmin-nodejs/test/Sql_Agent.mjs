@@ -3,7 +3,7 @@ import { SqlDatabase } from "langchain/sql_db";
 import { createSqlAgent } from "langchain/agents/toolkits/sql";
 import { SqlToolkit } from "langchain/agents/toolkits/sql";
 import { DataSource } from "typeorm";
-
+import { analyze } from "./services/aiService.mjs"
 
 
 const llm = new ChatOpenAI({
@@ -11,7 +11,7 @@ const llm = new ChatOpenAI({
   configuration: {
     baseURL: "https://api.stepfun.com/v1", // 自定义 API 端点
   },
-  modelName: "step-1v-8k", // 模型名称
+  modelName: "step-1v-32k", // 模型名称
   temperature: 0.7,
 });
 
@@ -35,7 +35,7 @@ export const run = async () => {
   const toolkit = new SqlToolkit(db, llm);
   const executor = createSqlAgent(llm, toolkit);
 
-  const input = `请帮我分析一下每个病人的所有就诊记录`;
+  const input = `查询全部患者的所有就诊记录信息`;
 
   console.log(`Executing with input "${input}"...`);
 
@@ -50,8 +50,11 @@ export const run = async () => {
       2
     )}`
   );
-
+  
+  const res = await analyze(result.output)
+  console.log("ai analysis",res)
   await datasource.destroy();
+  return 
 };
 
 run()

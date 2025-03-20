@@ -1,6 +1,9 @@
 <template>
   <div>
     <div>this is the page of index!</div>
+    <div class="time">
+      <span>{{ currentTime }}</span>
+    </div>
     <div class="AiAgent">
     </div>
   </div>
@@ -13,6 +16,18 @@
       name:"Index",
       components:{
         AiAgent
+      },
+      data(){
+        return{
+          currentTime: new Date().toLocaleString()
+        }
+      },
+      methods:{
+      },
+      created(){
+        setInterval(() => {
+            this.currentTime = new Date().toLocaleString()
+        })
       }
   }
 </script>

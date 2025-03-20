@@ -28,15 +28,15 @@
 </template>
 
 <script>
-    import Element from "element-ui"
-    import {GetUserAuth} from '@/api/index.js'
+    import {md5} from 'js-md5'
     export default{
         data(){
             return{
-               loginForm:{
-                username: '',
-                password: ''
-               }
+                verifyCode:'0277',
+                loginForm:{
+                    username: '',
+                    password: ''
+                }
             };
         },
         created(){
@@ -52,6 +52,9 @@
             if(!document.getElementById("usernameInput").validity.valid || !this.loginForm.password){
                 return 
             }
+
+            // 前端密码加密
+            this.loginForm.password = md5(this.loginForm.password,this.verifyCode)
             this.$axios.post('http://localhost:4000/user/login',this.loginForm,{
               headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'

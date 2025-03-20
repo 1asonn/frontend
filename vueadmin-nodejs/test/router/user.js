@@ -4,7 +4,7 @@ const router = express.Router()
 const jwt = require('jsonwebtoken')
 const bcrypt = require('bcryptjs')
 const Role = require('../database/models/Role')
-
+const md5 = require('js-md5')
 // JWT配置
 const JWT_SECRET = process.env.JWT_SECRET || 'yyjkn';
 const JWT_EXPIRES_IN = '24h';
@@ -52,7 +52,7 @@ router.post('/register', validateLoginInput, async (req, res) => {
         }
 
         // 密码加密
-        const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
+        const hashedPassword = await bcrypt.hash(md5(password,'0277'), BCRYPT_ROUNDS);
         
         // 创建用户
         const user = await User.create({
