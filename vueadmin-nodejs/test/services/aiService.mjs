@@ -13,11 +13,12 @@ const llm = new ChatOpenAI({
     baseURL: "https://api.stepfun.com/v1", // 自定义 API 端点
   },
   modelName: "step-1v-32k", // 模型名称
-  temperature: 0.7,
+  temperature: 0.,
 });
 
+
 // 定义提示模板
-const template = `你是一个归纳总结专家,你会用户输入的信息，合并特征相同的信息并输出一个markdown格式的总结。用户的输入是：{question}`;
+const template = `你是一个医学专家,请根据患者的过往病史，分析并预测疾病发展趋势。你的回答格式应该类似按照如下格式:{{"trend":"患者近期血压呈波动上升趋势，最近三次测量值分别为130/85、135/88、142/92。建议加强血压监测频率，注意控制饮食和作息。","medicationAdvice":"1. 建议继续服用当前降压药物方案；\n2. 可考虑适当调整服用时间，建议在早餐后服用；\n3. 如血压持续升高，可能需要调整剂量。","risks":[{{"level":"high","description":"血压持续升高风险"}},{{"level":"medium","description":"心血管并发症风险"}},{{"level":"low","description":"用药不良反应风险"}}]}}。患者的过往病史是：{question}`;
 
 const prompt = new PromptTemplate({
   template,

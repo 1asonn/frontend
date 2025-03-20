@@ -256,7 +256,8 @@
 </template>
 
 <script>
-    import { GetPatientList, GetPatientRecord } from '@/api/index.js'  
+    import { GetPatientList, GetPatientRecord } from '@/api/index.js' 
+	import { MedicalHistoryAnalysis } from '@/api/aiAgent.js' 
 	export default {
 		name: "patient",
 		data() {
@@ -345,7 +346,11 @@
 				GetPatientRecord(id).then(res => {
 					console.log(res,"this is record data")
 					this.recordData = res.data
-				this.drawer = true
+					this.drawer = true 
+					return MedicalHistoryAnalysis(this.recordData);
+				})
+				.then(res =>{
+						console.log("this is aiiii",res)
 				})
 			},
 

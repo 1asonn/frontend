@@ -1,8 +1,27 @@
-// const express = require('express');
-// const router = express.Router();
-// const AiAgent = require('../database/models/AiAgent');
-// const aiService = require('../services/aiService');
-
+const express = require('express');
+const router = express.Router();
+const AiAgent = require('../database/models/AiAgent');
+// const {analyze} = require('../services/aiService');
+// import {analyze} from '../services/aiService.mjs'
+(async () => {
+    try {
+        const aiService = await import('../services/aiService.mjs');
+        analyze = aiService.analyze;
+    } catch (error) {
+        console.error('Failed to load aiService:', error);
+    }
+})();
+router.post('/MedicalAnalyze',async (req,res) => {
+    try {
+        console.log("this is req",req)
+        const {record} = req.body
+        console.log("this is record",record)
+        const response = await analyze(record)
+        res.status(200).json({data:response})
+    } catch (error) {
+        console.log(error)
+    }
+})
 // // 创建新的AI Agent
 // router.post('/agents', async (req, res) => {
 //     try {
@@ -145,4 +164,4 @@
 //     }
 // });
 
-// module.exports = router;
+module.exports = router;
