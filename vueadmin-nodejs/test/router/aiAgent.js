@@ -6,7 +6,7 @@ const AiAgent = require('../database/models/AiAgent');
 (async () => {
     try {
         const aiService = await import('../services/aiService.mjs');
-        analyze = aiService.analyze;
+        getJsonReply = aiService.getJsonReply;
     } catch (error) {
         console.error('Failed to load aiService:', error);
     }
@@ -16,7 +16,7 @@ router.post('/MedicalAnalyze',async (req,res) => {
         console.log("this is req",req)
         const {record} = req.body
         console.log("this is record",record)
-        const response = await analyze(record)
+        const response = await getJsonReply((record).toString())
         res.status(200).json({data:response})
     } catch (error) {
         console.log(error)

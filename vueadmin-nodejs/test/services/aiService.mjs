@@ -2,9 +2,43 @@ import { ChatOpenAI } from "@langchain/openai";
 import { PromptTemplate } from "@langchain/core/prompts";
 import { LLMChain } from "langchain/chains";
 import * as dotenv from "dotenv";
+import OpenAI from 'openai'
+import { response } from "express";
 
 // 加载环境变量
 dotenv.config();
+
+const system_prompt = `你是一个医学专家，会根据患者的过往病史，分析并预测疾病发展趋势，并给出结果
+##输入内容
+患者的过往就诊记录
+##输出内容
+按照如下结构输出 JSON 结果
+ 
+class Response:
+    trend: str # 患者的身体健康趋势
+    medicationAdvice: str # 你对该患者的主治医生的辅助建议
+    risks: List #你对患者的风险评估,如: [{ level: "high", description: "..." },{ level: "medium", description: "..." },{ level: "low", description: "..." }]
+`
+
+const client = new OpenAI({
+  baseURL:"https://api.stepfun.com/v1",
+  apiKey:"4U6PWmOxJJpPjf56zZ0I22P7EKKnWzO9qvCrfTpxStmYntIllBCQ5hHALi6EOmCIB"
+  }
+)
+
+
+export const getJsonReply  = async (record) => {
+  const response = await client.chat.completions.create({
+    model:"step-1-32k",
+    messages:[
+      {role: "system", content: system_prompt},
+      {role: "user", content: record}
+    ],
+    response_format:{ type: "json_object" }
+})
+  return response
+}
+
 
 // 创建模型实例
 const llm = new ChatOpenAI({
