@@ -15,6 +15,7 @@ const patientRouter = require('./router/patient.js');
 const medicalRecord = require('./router/medicalRecord.js');
 const uploadRouter = require('./router/upload.js');
 const aiagent = require('./router/aiAgent.js')
+const medicineRouter = require('./router/medicine.js');
 
 // Import models for relationships
 const User = require('./database/models/User');
@@ -67,6 +68,7 @@ app.use('/medicalRecord', medicalRecord);
 app.use('/upload', uploadRouter);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/aiagent',aiagent)
+app.use('/medicine', medicineRouter)
 // Start server
 app.listen(config.port, () => {
     console.log(`Server is running in ${config.nodeEnv} mode on port: ${config.port}`);

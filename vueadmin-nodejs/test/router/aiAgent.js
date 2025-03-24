@@ -3,23 +3,49 @@ const router = express.Router();
 const AiAgent = require('../database/models/AiAgent');
 // const {analyze} = require('../services/aiService');
 // import {analyze} from '../services/aiService.mjs'
+let getJsonReply;
+let generateReport;
 (async () => {
     try {
         const aiService = await import('../services/aiService.mjs');
         getJsonReply = aiService.getJsonReply;
+        generateReport = aiService.generateReport;
     } catch (error) {
         console.error('Failed to load aiService:', error);
     }
 })();
-router.post('/MedicalAnalyze',async (req,res) => {
+router.post('/MedicalAnalyze', async (req, res) => {
     try {
-        console.log("this is req",req)
-        const {record} = req.body
-        console.log("this is record",record)
-        const response = await getJsonReply((record).toString())
-        res.status(200).json({data:response})
+        const { record } = req.body;
+        
+        // 验证输入
+        if (!Array.isArray(record)) {
+            return res.status(400).json({
+                code: 400,
+                message: '病历记录格式不正确，应为数组'
+            });
+        }
+
+        if (record.length === 0) {
+            return res.status(400).json({
+                code: 400,
+                message: '病历记录不能为空'
+            });
+        }
+
+        // 调用AI分析服务
+        const response = await getJsonReply(record);
+        
+        res.status(200).json({
+            code: 200,
+            data: response
+        });
     } catch (error) {
-        console.log(error)
+        console.error('AI分析失败:', error);
+        res.status(500).json({
+            code: 500,
+            message: error.message || 'AI分析服务暂时不可用'
+        });
     }
 })
 // // 创建新的AI Agent
@@ -163,5 +189,34 @@ router.post('/MedicalAnalyze',async (req,res) => {
 //         res.status(500).json({ message: 'Error streaming AI response', error: error.message });
 //     }
 // });
+
+// 生成数据报表
+router.post('/report/generate', async (req, res) => {
+    try {
+        const { data, requirements } = req.body;
+
+        // 验证输入
+        if (!data) {
+            return res.status(400).json({
+                code: 400,
+                message: '数据不能为空'
+            });
+        }
+
+        // 调用报表生成服务
+        const report = await generateReport(data, requirements);
+        
+        res.status(200).json({
+            code: 200,
+            data: report
+        });
+    } catch (error) {
+        console.error('报表生成失败:', error);
+        res.status(500).json({
+            code: 500,
+            message: error.message || '报表生成服务暂时不可用'
+        });
+    }
+});
 
 module.exports = router;

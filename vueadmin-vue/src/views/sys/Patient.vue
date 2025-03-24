@@ -220,26 +220,45 @@
 				</el-table>
 
 				<!-- AI分析结果展示 -->
-				<div class="ai-analysis" v-if="true">
+				<div class="ai-analysis" v-if="aiAnalysis">
 					<h3>AI诊疗分析报告</h3>
 					<el-card class="analysis-card">
 						<div class="analysis-item">
-							<h4>病情趋势分析</h4>
+							<h4><i class="el-icon-trend-charts"></i> 病情趋势分析</h4>
 							<p>{{aiAnalysis.trend}}</p>
 						</div>
 						<div class="analysis-item">
-							<h4>用药建议</h4>
+							<h4><i class="el-icon-medicine-box"></i> 用药建议</h4>
 							<p>{{aiAnalysis.medicationAdvice}}</p>
 						</div>
 						<div class="analysis-item">
-							<h4>风险预警</h4>
-							<el-tag 
-								v-for="(risk, index) in aiAnalysis.risks" 
-								:key="index"
-								:type="risk.level === 'high' ? 'danger' : risk.level === 'medium' ? 'warning' : 'info'"
-								style="margin-right: 5px">
-								{{risk.description}}
-							</el-tag>
+							<h4><i class="el-icon-warning-outline"></i> 风险预警</h4>
+							<div v-for="(risk, index) in aiAnalysis.risks" :key="index" class="risk-item">
+								<el-tag :type="risk.level === 'high' ? 'danger' : risk.level === 'medium' ? 'warning' : 'info'">
+									{{ risk.level === 'high' ? '高风险' : risk.level === 'medium' ? '中等风险' : '低风险' }}
+								</el-tag>
+								<div class="risk-content">
+									<p class="description">{{risk.description}}</p>
+									<p class="suggestion" v-if="risk.suggestion">建议：{{risk.suggestion}}</p>
+								</div>
+							</div>
+						</div>
+						<div class="analysis-item" v-if="aiAnalysis.lifestyle">
+							<h4><i class="el-icon-user"></i> 生活方式建议</h4>
+							<div class="lifestyle-content">
+								<div class="lifestyle-item" v-if="aiAnalysis.lifestyle.diet">
+									<h5><i class="el-icon-food"></i> 饮食建议</h5>
+									<p>{{aiAnalysis.lifestyle.diet}}</p>
+								</div>
+								<div class="lifestyle-item" v-if="aiAnalysis.lifestyle.exercise">
+									<h5><i class="el-icon-position"></i> 运动建议</h5>
+									<p>{{aiAnalysis.lifestyle.exercise}}</p>
+								</div>
+								<div class="lifestyle-item" v-if="aiAnalysis.lifestyle.monitoring">
+									<h5><i class="el-icon-monitor"></i> 监测建议</h5>
+									<p>{{aiAnalysis.lifestyle.monitoring}}</p>
+								</div>
+							</div>
 						</div>
 					</el-card>
 				</div>
@@ -280,15 +299,7 @@
 
 				patientData: [],
 				recordData: [],
-				aiAnalysis: {
-					trend: "患者近期血压呈波动上升趋势，最近三次测量值分别为130/85、135/88、142/92。建议加强血压监测频率，注意控制饮食和作息。",
-					medicationAdvice: "1. 建议继续服用当前降压药物方案；\n2. 可考虑适当调整服用时间，建议在早餐后服用；\n3. 如血压持续升高，可能需要调整剂量。",
-					risks: [
-						{ level: "high", description: "血压持续升高风险" },
-						{ level: "medium", description: "心血管并发症风险" },
-						{ level: "low", description: "用药不良反应风险" }
-					]
-				},
+				aiAnalysis: null,
 
 				editFormRules: {
 					username: [
@@ -326,11 +337,6 @@
         },
 		created() {
 			this.getPatientList()
-			// this.getUserList()
-
-			// this.$axios.get("/sys/role/list").then(res => {
-			// 	this.roleTreeData = res.data.data.records
-			// })
 		},
 		methods: {
 			async getPatientList() {
@@ -340,6 +346,7 @@
 					console.log(res.data,"res")
 				} catch (error) {
 					console.log("Error fetching patient list", error)
+					
 				}
 			},
 			checkHandle(id){
@@ -351,6 +358,8 @@
 				})
 				.then(res =>{
 						console.log("this is aiiii",res)
+						console.log('this is ai analysis',typeof(res))
+						this.aiAnalysis = res.data
 				})
 			},
 
@@ -512,13 +521,74 @@
 }
 .analysis-card {
 	margin-top: 10px;
+	padding: 10px;
 }
 .analysis-item {
-	margin-bottom: 15px;
+	margin-bottom: 20px;
+	padding: 10px;
+	border-radius: 4px;
+	background-color: #f8f9fa;
+}
+.analysis-item:last-child {
+	margin-bottom: 0;
 }
 .analysis-item h4 {
-	margin-bottom: 10px;
+	margin-bottom: 15px;
+	color: #303133;
+	font-weight: bold;
+	display: flex;
+	align-items: center;
+}
+.analysis-item h4 i {
+	margin-right: 8px;
+	font-size: 18px;
+}
+.analysis-item p {
+	line-height: 1.6;
 	color: #606266;
+	margin: 0;
+}
+.risk-item {
+	margin-bottom: 12px;
+	display: flex;
+	align-items: flex-start;
+}
+.risk-item:last-child {
+	margin-bottom: 0;
+}
+.risk-content {
+	margin-left: 10px;
+	flex: 1;
+}
+.risk-content .description {
+	margin-bottom: 5px;
+}
+.risk-content .suggestion {
+	color: #67c23a;
+	font-size: 14px;
+}
+.lifestyle-content {
+	margin-top: 10px;
+}
+.lifestyle-item {
+	margin-bottom: 15px;
+	padding: 10px;
+	background-color: #fff;
+	border-radius: 4px;
+	box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.lifestyle-item:last-child {
+	margin-bottom: 0;
+}
+.lifestyle-item h5 {
+	margin: 0 0 8px 0;
+	color: #409eff;
+	font-weight: bold;
+	display: flex;
+	align-items: center;
+}
+.lifestyle-item h5 i {
+	margin-right: 5px;
 }
 
 	.el-pagination {

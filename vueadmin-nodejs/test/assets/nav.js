@@ -30,7 +30,16 @@ let nav = [
         icon: 'el-icon-s-goods',
         path: '/medicine',
         component: 'medicine/Medicine',
-        children: []
+        children: [
+            {
+                name: 'MedicineList',
+                title: '药品列表',
+                icon: 'el-icon-s-goods',
+                path: '/medicine/list',
+                component: 'medicine/index',
+                children: []
+            }
+        ]
     },
     {
         name: 'EquipmentManager',

@@ -5,6 +5,7 @@ import Element from "element-ui";
 // axios.defaults.baseURL = "https://localhost:8080"
 
 const request = axios.create({
+    baseURL: 'http://localhost:4000',  // 添加baseURL，端口要和后端服务端口一致
     timeout:5000,
     headers:{
         'Content-Type':'application/json;charset=utf-8'
@@ -25,7 +26,7 @@ request.interceptors.response.use(
     response =>{
     const res = response.data
 
-    if(response.status === 200){                 
+    if(response.status === 200 || res.code === 200){                 
         return response }
 
     else{
