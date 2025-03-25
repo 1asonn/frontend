@@ -1,98 +1,97 @@
-const { Sequelize, DataTypes } = require('sequelize');
-const sequelize = require('../index');
+const { sequelize, Sequelize } = require('../init.js');
 
 const MedicalEquipment = sequelize.define('medical_equipment', {
     id: {
-        type: DataTypes.INTEGER,
+        type: Sequelize.INTEGER,
         primaryKey: true,
         autoIncrement: true,
         comment: '设备ID'
     },
     equipment_code: {
-        type: DataTypes.STRING(50),
+        type: Sequelize.STRING(50),
         allowNull: false,
         unique: true,
         comment: '设备编号'
     },
     name: {
-        type: DataTypes.STRING(100),
+        type: Sequelize.STRING(100),
         allowNull: false,
         comment: '设备名称'
     },
     model: {
-        type: DataTypes.STRING(100),
+        type: Sequelize.STRING(100),
         allowNull: false,
         comment: '设备型号'
     },
     manufacturer: {
-        type: DataTypes.STRING(200),
+        type: Sequelize.STRING(200),
         allowNull: false,
         comment: '生产厂商'
     },
     purchase_date: {
-        type: DataTypes.DATE,
+        type: Sequelize.DATE,
         allowNull: false,
         comment: '购买日期'
     },
     warranty_period: {
-        type: DataTypes.DATE,
+        type: Sequelize.DATE,
         allowNull: false,
         comment: '保修期限'
     },
     department: {
-        type: DataTypes.STRING(50),
+        type: Sequelize.STRING(50),
         allowNull: false,
-        comment: '所属科室'
+        comment: '使用科室'
     },
     location: {
-        type: DataTypes.STRING(100),
+        type: Sequelize.STRING(100),
         allowNull: false,
         comment: '存放位置'
     },
     status: {
-        type: DataTypes.ENUM('normal', 'maintenance', 'scrapped'),
+        type: Sequelize.ENUM('normal', 'maintenance', 'scrapped'),
         defaultValue: 'normal',
         comment: '设备状态：normal-正常使用，maintenance-维修中，scrapped-已报废'
     },
     last_maintenance_date: {
-        type: DataTypes.DATE,
+        type: Sequelize.DATE,
         comment: '上次维护日期'
     },
     next_maintenance_date: {
-        type: DataTypes.DATE,
+        type: Sequelize.DATE,
         comment: '下次维护日期'
     },
     responsible_person: {
-        type: DataTypes.STRING(50),
+        type: Sequelize.STRING(50),
         allowNull: false,
-        comment: '负责人'
+        comment: '责任人'
     },
     contact_number: {
-        type: DataTypes.STRING(20),
+        type: Sequelize.STRING(20),
         allowNull: false,
         comment: '联系电话'
     },
     purchase_price: {
-        type: DataTypes.DECIMAL(10, 2),
+        type: Sequelize.DECIMAL(10, 2),
         allowNull: false,
         comment: '购买价格'
     },
     service_life: {
-        type: DataTypes.INTEGER,
+        type: Sequelize.INTEGER,
         allowNull: false,
         comment: '预计使用年限'
     },
     description: {
-        type: DataTypes.TEXT,
+        type: Sequelize.TEXT,
         comment: '设备描述'
     },
     created_at: {
-        type: DataTypes.DATE,
+        type: Sequelize.DATE,
         defaultValue: Sequelize.NOW,
         comment: '创建时间'
     },
     updated_at: {
-        type: DataTypes.DATE,
+        type: Sequelize.DATE,
         defaultValue: Sequelize.NOW,
         comment: '更新时间'
     }
@@ -101,6 +100,11 @@ const MedicalEquipment = sequelize.define('medical_equipment', {
     underscored: true,
     tableName: 'medical_equipment',
     comment: '医疗设备表'
+});
+
+// 同步模型到数据库
+MedicalEquipment.sync().then(() => {
+    console.log("医疗设备表模型已同步!");
 });
 
 module.exports = MedicalEquipment;

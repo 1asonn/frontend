@@ -31,6 +31,12 @@ const MedicineStock = sequelize.define('medicine_stock', {
         },
         comment: '库存数量'
     },
+    status: {
+        type: Sequelize.ENUM('in_stock', 'consumed', 'expired', 'returned'),
+        defaultValue: 'in_stock',
+        allowNull: false,
+        comment: '库存状态：in_stock-在库，consumed-已使用，expired-已过期，returned-已退货'
+    },
     unit_price: {
         type: Sequelize.DECIMAL(10, 2),
         allowNull: false,

@@ -118,3 +118,60 @@ export const GetAIAnalysis = async (patientId) => {
         console.log("error", error)
     }
 }
+
+// 获取药品库存风险预警
+export const GetMedicineStockAlerts = async () => {
+    try {
+        const response = await request.get('/medicine/risk/alerts')
+        return response.data
+    } catch (error) {
+        console.error('获取药品库存风险预警失败:', error)
+        throw error
+    }
+}
+
+// 获取科室列表
+export const GetDepartments = async () => {
+    try {
+        const response = await request.get('/departments')
+        return response.data
+    } catch (error) {
+        console.error('获取科室列表失败:', error)
+        throw error
+    }
+}
+
+// 获取科室医生列表
+export const GetDepartmentDoctors = async (departmentId) => {
+    try {
+        const response = await request.get(`/departments/${departmentId}/doctors`)
+        return response.data
+    } catch (error) {
+        console.error('获取科室医生列表失败:', error)
+        throw error
+    }
+}
+
+// 获取医生排班
+export const GetDoctorSchedule = async (doctorId, date) => {
+    try {
+        const response = await request.get(`/doctors/${doctorId}/schedule`, {
+            params: { date }
+        })
+        return response.data
+    } catch (error) {
+        console.error('获取医生排班失败:', error)
+        throw error
+    }
+}
+
+// 创建预约挂号
+export const CreateAppointment = async (data) => {
+    try {
+        const response = await request.post('/appointments', data)
+        return response.data
+    } catch (error) {
+        console.error('创建预约挂号失败:', error)
+        throw error
+    }
+}

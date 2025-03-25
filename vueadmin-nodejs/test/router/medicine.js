@@ -32,15 +32,32 @@ router.get('/', async (req, res) => {
             include: [{
                 model: MedicineStock,
                 as: 'stocks',
-                attributes: ['quantity']
+                attributes: ['id', 'quantity', 'expiry_date'],
+                where: {
+                    expiry_date: {
+                        [Op.gt]: new Date() // 只查询未过期的库存
+                    },
+                    status: 'in_stock' // 只查询在库的药品
+                },
+                required: false
             }]
-        })
+        });
+
+        // 处理返回数据，计算有效库存总量
+        const formattedRows = rows.map(medicine => {
+            const medicineData = medicine.get({ plain: true });
+            // 计算有效库存总量
+            medicineData.totalStock = medicineData.stocks.reduce((sum, stock) => sum + stock.quantity, 0);
+            // 删除详细库存信息，只保留总量
+            delete medicineData.stocks;
+            return medicineData;
+        });
 
         res.send({
             code: 200,
             data: {
                 total: count,
-                list: rows,
+                list: formattedRows,
                 page: parseInt(page),
                 pageSize: parseInt(pageSize)
             }
@@ -215,7 +232,7 @@ router.get('/risk/alerts', async (req, res) => {
         const thirtyDaysFromNow = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
 
         console.log("开始查询数据库...");
-        // 查询所有药品及其未过期的库存
+        // 查询所有药品及其未过期且在库的库存
         const medicines = await Medicine.findAll({
             include: [{
                 model: MedicineStock,
@@ -224,7 +241,8 @@ router.get('/risk/alerts', async (req, res) => {
                 where: {
                     expiry_date: {
                         [Op.gt]: now // 只查询未过期的库存
-                    }
+                    },
+                    status: 'in_stock' // 只查询在库的药品
                 },
                 required: false // 即使没有库存记录也返回药品信息
             }]
@@ -234,9 +252,9 @@ router.get('/risk/alerts', async (req, res) => {
         const alerts = [];
 
         for (const medicine of medicines) {
-            // 计算有效库存总量（未过期）
+            // 计算有效库存总量（未过期且在库）
             const totalStock = medicine.stocks.reduce((sum, stock) => sum + stock.quantity, 0);
-            console.log(`药品 ${medicine.name} 的总库存: ${totalStock}`);
+            console.log(`药品 ${medicine.name} 的有效库存: ${totalStock}`);
             
             // 检查库存是否低于阈值
             if (totalStock <= medicine.stock_threshold) {

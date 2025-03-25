@@ -97,6 +97,8 @@ router.beforeEach(async(to, from, next) => {
             }
           })
 
+          
+
           store.commit('changeRouteStatus', true) 
           console.log(hasRoute,'hasRoute')
           next({ ...to, replace: true })

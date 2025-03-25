@@ -83,11 +83,6 @@
 					label="操作">
 
 				<template slot-scope="scope">
-					<!-- <el-button type="text" @click="roleHandle(scope.row.id)">分配角色</el-button>
-					<el-divider direction="vertical"></el-divider>
-
-					<el-button type="text" @click="repassHandle(scope.row.id, scope.row.username)">重置密码</el-button>
-					<el-divider direction="vertical"></el-divider> -->
 					<el-button type="text" @click="checkHandle(scope.row.id)">查看</el-button>
 					<el-divider direction="vertical"></el-divider>
 					<el-button type="text" @click="editHandle(scope.row.id)">编辑</el-button>
@@ -154,26 +149,7 @@
 			</div>
 		</el-dialog>
 
-		<!-- 分配权限对话框 -->
-		<el-dialog title="分配角色" :visible.sync="roleDialogFormVisible" width="600px">
 
-			<el-form :model="roleForm">
-				<el-tree
-						:data="roleTreeData"
-						show-checkbox
-						ref="roleTree"
-						:check-strictly=checkStrictly
-						node-key="id"
-						:default-expand-all=true
-						:props="defaultProps">
-				</el-tree>
-			</el-form>
-
-			<div slot="footer" class="dialog-footer">
-				<el-button @click="roleDialogFormVisible=false">取 消</el-button>
-				<el-button type="primary" @click="submitRoleHandle('roleForm')">确 定</el-button>
-			</div>
-		</el-dialog>
 
 		<el-drawer
 		    size="60%"
@@ -220,9 +196,11 @@
 				</el-table>
 
 				<!-- AI分析结果展示 -->
-				<div class="ai-analysis" v-if="aiAnalysis">
-					<h3>AI诊疗分析报告</h3>
-					<el-card class="analysis-card">
+				<div v-if="aiAnalysis">
+					<el-card class="ai-analysis">
+						<div slot="header">
+							<span>AI 诊疗分析报告</span>
+						</div>
 						<div class="analysis-item">
 							<h4><i class="el-icon-trend-charts"></i> 病情趋势分析</h4>
 							<p>{{aiAnalysis.trend}}</p>
@@ -261,6 +239,53 @@
 							</div>
 						</div>
 					</el-card>
+				</div>
+				<!-- Loading提示 -->
+				<div v-else class="analysis-loading">
+					<div style="text-align: center; margin: 20px;">
+						<el-button type="primary" @click="startAiAnalysis" :loading="loading">
+							开始 AI 分析
+						</el-button>
+					</div>
+
+					<div v-if="loading" class="analysis-progress">
+						<el-card>
+							<div slot="header">
+								<span>分析进度</span>
+							</div>
+							
+							<!-- 总体进度条 -->
+							<el-progress 
+								:percentage="analysisProgress" 
+								:status="progressStatus"
+								:format="progressFormat">
+							</el-progress>
+
+							<!-- 分析阶段 -->
+							<div class="analysis-stages">
+								<el-steps :active="currentStage" finish-status="success" simple>
+									<el-step 
+										v-for="(stage, index) in analysisStages" 
+										:key="index"
+										:title="stage.title"
+										:description="stage.status">
+									</el-step>
+								</el-steps>
+							</div>
+
+							<!-- 当前状态 -->
+							<div class="current-status" v-if="currentStageDetails">
+								<el-alert
+									:title="currentStageDetails"
+									type="info"
+									:closable="false"
+									show-icon>
+								</el-alert>
+							</div>
+						</el-card>
+					</div>
+
+					<el-skeleton v-if="loading" style="width: 100%; margin-top: 20px" :rows="6" animated />
 				</div>
 			</div>
 		</el-drawer>
@@ -323,8 +348,20 @@
 				roleForm: {},
 				roleTreeData:  [],
 				treeCheckedKeys: [],
-				checkStrictly: true
+				checkStrictly: true,
 
+				loading: false,
+				analysisProgress: 0,
+				progressStatus: '',
+				currentStage: 0,
+				currentStageDetails: '',
+				analysisStages: [
+					{ title: '收集信息', status: '收集患者历史数据' },
+					{ title: '分析症状', status: '分析症状特征和模式' },
+					{ title: '匹配数据', status: '匹配疾病数据库' },
+					{ title: '生成建议', status: '生成诊断建议' },
+					{ title: '风险评估', status: '评估潜在风险' }
+				],
 			}
 		},
         computed: {
@@ -354,12 +391,6 @@
 					console.log(res,"this is record data")
 					this.recordData = res.data
 					this.drawer = true 
-					return MedicalHistoryAnalysis(this.recordData);
-				})
-				.then(res =>{
-						console.log("this is aiiii",res)
-						console.log('this is ai analysis',typeof(res))
-						this.aiAnalysis = res.data
 				})
 			},
 
@@ -400,6 +431,12 @@
 			},
 			handleDrawerClose(){
 				this.drawer = false
+				this.aiAnalysis = null
+				this.loading = false
+				this.analysisProgress = 0
+				this.currentStage = 0
+				this.progressStatus = ''
+				this.currentStageDetails = ''
 			},
 			handleClose() {
 				this.resetForm('editForm')
@@ -509,7 +546,67 @@
 						});
 					})
 				})
-			}
+			},
+
+			async startAiAnalysis() {
+				if (!this.recordData) {
+					this.$message.error('无法获取患者信息')
+					return
+				}
+
+				this.loading = true
+				this.analysisProgress = 0
+				this.currentStage = 0
+				this.progressStatus = ''
+				this.currentStageDetails = this.analysisStages[0].status
+
+				// 模拟进度更新
+				const updateProgress = () => {
+					const stages = [
+						{ progress: 20, delay: 800 },
+						{ progress: 40, delay: 600 },
+						{ progress: 60, delay: 700 },
+						{ progress: 80, delay: 500 },
+						{ progress: 95, delay: 400 }
+					]
+
+					let currentIndex = 0
+					const nextStage = () => {
+						if (currentIndex < stages.length) {
+							this.analysisProgress = stages[currentIndex].progress
+							this.currentStage = currentIndex
+							this.currentStageDetails = this.analysisStages[currentIndex].status
+							currentIndex++
+							setTimeout(nextStage, stages[currentIndex - 1].delay)
+						}
+					}
+
+					nextStage()
+				}
+
+				// 开始模拟进度
+				updateProgress()
+
+				try {
+					const response = await MedicalHistoryAnalysis(this.recordData)
+					this.aiAnalysis = response.data
+					this.analysisProgress = 100
+					this.currentStage = this.analysisStages.length
+					this.progressStatus = 'success'
+					this.currentStageDetails = '分析完成'
+				} catch (error) {
+					console.error('AI分析失败:', error)
+					this.$message.error('AI分析失败，请稍后重试')
+					this.progressStatus = 'exception'
+					this.currentStageDetails = '分析过程中出现错误'
+				} finally {
+					this.loading = false
+				}
+			},
+
+			progressFormat(percentage) {
+				return percentage === 100 ? '完成' : `${percentage}%`
+			},
 		}
 	}
 </script>
@@ -598,5 +695,22 @@
 
 	.RecordBox {
 		padding: 20px;
+	}
+
+	.analysis-progress {
+		margin-bottom: 20px;
+	}
+
+	.analysis-stages {
+		margin: 20px 0;
+	}
+
+	.current-status {
+		margin-top: 20px;
+	}
+
+	.el-step__title.is-process {
+		color: #409EFF;
+		font-weight: 500;
 	}
 </style>
