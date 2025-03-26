@@ -1,10 +1,8 @@
-import {ChatOpenAI}  from '@langchain/openai'
+import { ChatOpenAI }  from '@langchain/openai'
 import { SqlDatabase } from "langchain/sql_db";
-import { createSqlAgent } from "langchain/agents/toolkits/sql";
-import { SqlToolkit } from "langchain/agents/toolkits/sql";
+import { createSqlAgent, SqlToolkit } from "langchain/agents/toolkits/sql";
 import { DataSource } from "typeorm";
-// import { analyze } from "./services/aiService.mjs"
-
+import { exportQueryResultToExcel } from './utils/exportToExcel.mjs';
 
 const llm = new ChatOpenAI({
   openAIApiKey: "4U6PWmOxJJpPjf56zZ0I22P7EKKnWzO9qvCrfTpxStmYntIllBCQ5hHALi6EOmCIB",
@@ -31,7 +29,7 @@ export const run = async () => {
   const db = await SqlDatabase.fromDataSourceParams({
     appDataSource: datasource,
   });
-  // const model = new OpenAI({ temperature: 0 });
+  
   const toolkit = new SqlToolkit(db, llm);
   const executor = createSqlAgent(llm, toolkit);
 
@@ -41,7 +39,7 @@ export const run = async () => {
 
   const result = await executor.call({ input });
 
-  console.log(`Got output ${result.output}`);
+  console.log(`Got output ${JSON.stringify(result)}`);
 
   console.log(
     `Got intermediate steps ${JSON.stringify(
@@ -51,61 +49,28 @@ export const run = async () => {
     )}`
   );
   
-  // const res = await analyze(result.output)
-  // console.log("ai analysis",res)
+  // 从intermediateSteps中查找query-sql工具的调用
+  const querySqlStep = result.intermediateSteps.find(
+    step => step.action.tool === 'query-sql'
+  );
+
+  if (!querySqlStep) {
+    throw new Error('未找到SQL查询步骤');
+  }
+
+  const sql = querySqlStep.action.toolInput;
+  console.log('提取的SQL语句:', sql);
+
+  // 导出查询结果到Excel
+  try {
+    const exportPath = await exportQueryResultToExcel(sql, 'patient_record_report');
+    console.log('导出成功，文件路径:', exportPath);
+  } catch (error) {
+    console.error('导出失败:', error);
+  }
+
   await datasource.destroy();
   return 
 };
 
 run()
-// import { ChatOpenAI } from "@langchain/openai";
-// import { PromptTemplate } from "@langchain/core/prompts";
-// import { LLMChain } from "langchain/chains";
-// import * as dotenv from "dotenv";
-
-// // 加载环境变量
-// dotenv.config();
-
-// // 创建模型实例
-// const llm = new ChatOpenAI({
-//   openAIApiKey: "4U6PWmOxJJpPjf56zZ0I22P7EKKnWzO9qvCrfTpxStmYntIllBCQ5hHALi6EOmCIB",
-//   configuration: {
-//     baseURL: "https://api.stepfun.com/v1", // 自定义 API 端点
-//   },
-//   modelName: "step-1v-8k", // 模型名称
-//   temperature: 0.7,
-// });
-
-// // 定义提示模板
-// const template = `你是阶跃星辰大模型开发的智能助手，你会根据用户的问题，一步一步的思考并回答。用户的问题是：问题：{question}`;
-
-// const prompt = new PromptTemplate({
-//   template,
-//   inputVariables: ["question"],
-// });
-
-// // 创建链式处理器
-// const chain = new LLMChain({
-//   llm,
-//   prompt,
-// });
-
-// // 异步执行查询
-// const run = async (question) => {
-//   try {
-//     const response = await chain.call({
-//       question: question,
-//     });
-//     return response.text;
-//   } catch (error) {
-//     console.error("请求失败:", error);
-//     return "服务暂时不可用";
-//   }
-// };
-
-// // 执行示例
-// const question = "阶跃星辰大模型如何帮助企业员工提升效率";
-
-// run(question)
-//   .then(console.log)
-//   .catch(console.error);

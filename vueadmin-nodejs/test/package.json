@@ -20,10 +20,12 @@
     "langchain": "^0.3.19",
     "multer": "^1.4.5-lts.1",
     "mysql": "^2.18.1",
+    "mysql2": "^3.14.0",
     "node-cache": "^5.1.2",
     "openai": "^4.89.0",
     "path": "^0.12.7",
-    "typeorm": "^0.3.21"
+    "typeorm": "^0.3.21",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"
