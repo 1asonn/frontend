@@ -3,7 +3,7 @@ import { SqlDatabase } from "langchain/sql_db";
 import { createSqlAgent } from "langchain/agents/toolkits/sql";
 import { SqlToolkit } from "langchain/agents/toolkits/sql";
 import { DataSource } from "typeorm";
-import { analyze } from "./services/aiService.mjs"
+// import { analyze } from "./services/aiService.mjs"
 
 
 const llm = new ChatOpenAI({
@@ -51,8 +51,8 @@ export const run = async () => {
     )}`
   );
   
-  const res = await analyze(result.output)
-  console.log("ai analysis",res)
+  // const res = await analyze(result.output)
+  // console.log("ai analysis",res)
   await datasource.destroy();
   return 
 };

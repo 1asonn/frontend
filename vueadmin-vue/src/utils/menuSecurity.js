@@ -52,7 +52,6 @@ function hexToArrayBuffer(hexString) {
  * @returns {Promise<boolean>} - 验证结果
  */
 async function verifySignature(data) {
-    console.log(data,'important!!!')
     try {
         // 获取公钥
         const publicKeyPem = await GetMenuPublicKey();
@@ -81,7 +80,6 @@ async function verifySignature(data) {
             signatureBuffer,
             dataBuffer
         );
-        console.log(isValid,'isValid')
         return isValid;
     } catch (error) {
         console.error('Signature verification error:', error);
