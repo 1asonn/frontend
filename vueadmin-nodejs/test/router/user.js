@@ -99,7 +99,7 @@ router.post('/login', validateLoginInput, async (req, res) => {
             {
                 userId: user.id,
                 username: user.username,
-                authority: user.authority
+                authority: user.role.authoritys
             },
             JWT_SECRET,
             {
@@ -113,7 +113,6 @@ router.post('/login', validateLoginInput, async (req, res) => {
             user: {
                 id: user.id,
                 username: user.username,
-                authority: user.authority,
                 role: user.role
             }
         }));
@@ -140,9 +139,18 @@ router.post('/auth',async (req,res) => {
 
 // 获取用户列表
 router.get('/getUserList',async (req,res) => {
+
     const token = req.headers.authorization.split(' ').pop()
+    const {authority} = jwt.verify(token,'yyjkn')
     if(!token){
         return res.send({msg:'token为空!'})
+    }
+    console.log(authority.split(','),"-=-=-=")
+    if((authority.split(',').includes("SysUser"))){
+        return res.status(403).json({
+            code:403,
+            message:'用户无权限'
+        })
     }
 
     const data = await User.findAll()
