@@ -97,7 +97,16 @@ let nav = [
         icon: 'el-icon-s-data',
         path: '/data',
         component: 'data/Data',
-        children: []
+        children: [
+            {
+                name: 'SysAiData',
+                title: 'AI报表',
+                icon: 'el-icon-s-custom',
+                path:'/sys/aiData',
+                component: 'sys/AiData',
+                children: []
+            }
+        ]
     },
     {
         name: 'AiManager',

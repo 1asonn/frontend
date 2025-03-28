@@ -175,3 +175,14 @@ export const CreateAppointment = async (data) => {
         throw error
     }
 }
+
+export const DownloadFiles = async (fileName) => {
+    try {
+        const response = await request.get(`http://localhost:4000/download/file/${fileName}`)
+        console.log("primaryRes",response)
+        return response.data
+    } catch (error) {
+        console.error('下载文件失败:', error)
+        throw error
+    }
+}

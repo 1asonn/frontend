@@ -17,6 +17,7 @@ const uploadRouter = require('./router/upload.js');
 const aiagent = require('./router/aiAgent.js')
 const medicineRouter = require('./router/medicine.js');
 const equipmentRouter = require('./router/equipment.js')
+const downloadRouter = require('./router/download.js');
 // Import models for relationships
 const User = require('./database/models/User');
 const Role = require('./database/models/Role');
@@ -69,7 +70,8 @@ app.use('/upload', uploadRouter);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/aiagent',aiagent)
 app.use('/medicine', medicineRouter)
-app.use('/equipment', equipmentRouter)
+app.use('/equipment', equipmentRouter);
+app.use('/download', downloadRouter)
 
 // Start server
 app.listen(config.port, () => {
