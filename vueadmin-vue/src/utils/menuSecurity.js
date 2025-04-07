@@ -58,7 +58,7 @@ async function verifySignature(data) {
         const publicKey = await importPublicKey(publicKeyPem);
 
         let menuData, signature;
-
+        
         if (data.data && data.metadata) {
             menuData = data.data;
             signature = data.metadata.signature;
@@ -72,7 +72,8 @@ async function verifySignature(data) {
         const jsonData = JSON.stringify(menuData);
         const dataBuffer = new TextEncoder().encode(jsonData);
         const signatureBuffer = hexToArrayBuffer(signature);
-
+        
+        
         // 验证签名
         const isValid = await window.crypto.subtle.verify(
             'RSASSA-PKCS1-v1_5',

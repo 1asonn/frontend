@@ -146,7 +146,7 @@ router.get('/getUserList',async (req,res) => {
         return res.send({msg:'token为空!'})
     }
     console.log(authority.split(','),"-=-=-=")
-    if((authority.split(',').includes("SysUser"))){
+    if(!(authority.split(',').includes("SysUser"))){
         return res.status(403).json({
             code:403,
             message:'用户无权限'
@@ -194,10 +194,5 @@ router.get('/getUserInfo/:id',async (req,res) => {
 //         msg:'success'
 //     })
 // })
-
-// 测试接口
-router.get('/test',(req,res) => {
-    res.send({msg:'test'})
-})
 
 module.exports = router

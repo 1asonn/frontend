@@ -492,3 +492,120 @@ Mock.mock(RegExp('/sys/user/info/*'), 'get', () => {
 	}
 	return Result
 })
+
+// 排班系统相关接口
+// 1. 获取部门列表
+Mock.mock('/departments', 'get', () => {
+    Result.data = [
+        { id: 1, name: '技术部' },
+        { id: 2, name: '销售部' },
+        { id: 3, name: '人事部' },
+        { id: 4, name: '财务部' }
+    ]
+    return Result
+})
+
+// 2. 获取班次列表
+let shifts = [
+    { 
+        id: 1, 
+        name: '早班', 
+        startTime: '08:00:00',
+        endTime: '16:00:00',
+        description: '标准早班时间'
+    },
+    { 
+        id: 2, 
+        name: '中班', 
+        startTime: '16:00:00',
+        endTime: '24:00:00',
+        description: '标准中班时间'
+    },
+    { 
+        id: 3, 
+        name: '晚班', 
+        startTime: '00:00:00',
+        endTime: '08:00:00',
+        description: '标准晚班时间'
+    }
+]
+
+Mock.mock('/shifts', 'get', () => {
+    Result.data = shifts
+    return Result
+})
+
+// 3. 创建班次
+Mock.mock('/shifts', 'post', (options) => {
+    const shift = JSON.parse(options.body)
+    shift.id = shifts.length + 1
+    shifts.push(shift)
+    Result.data = shift
+    return Result
+})
+
+// 4. 更新班次
+Mock.mock(RegExp('/shifts/\\d+'), 'put', (options) => {
+    const id = parseInt(options.url.match(/\/shifts\/(\d+)/)[1])
+    const updateData = JSON.parse(options.body)
+    const index = shifts.findIndex(s => s.id === id)
+    if (index !== -1) {
+        shifts[index] = { ...shifts[index], ...updateData }
+        Result.data = shifts[index]
+    }
+    return Result
+})
+
+// 5. 删除班次
+Mock.mock(RegExp('/shifts/\\d+'), 'delete', (options) => {
+    const id = parseInt(options.url.match(/\/shifts\/(\d+)/)[1])
+    const index = shifts.findIndex(s => s.id === id)
+    if (index !== -1) {
+        shifts.splice(index, 1)
+    }
+    return Result
+})
+
+// 6. 获取部门员工排班数据
+const generateSchedules = (employeeId) => {
+    const schedules = []
+    const currentDate = new Date()
+    const year = currentDate.getFullYear()
+    const month = currentDate.getMonth()
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        if (Random.boolean(0.7)) { // 70%的概率有排班
+            const shift = shifts[Random.integer(0, shifts.length - 1)]
+            schedules.push({
+                date: `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+                shift: {
+                    id: shift.id,
+                    name: shift.name
+                }
+            })
+        }
+    }
+    return schedules
+}
+
+Mock.mock(RegExp('/schedules/department/\\d+'), 'get', (options) => {
+    const departmentId = parseInt(options.url.match(/\/department\/(\d+)/)[1])
+    const employees = Array(5).fill(null).map((_, index) => ({
+        id: departmentId * 100 + index,
+        name: Random.cname(),
+        schedules: generateSchedules(departmentId * 100 + index)
+    }))
+    Result.data = employees
+    return Result
+})
+
+// 7. 分配班次
+Mock.mock('/schedules/assign', 'post', () => {
+    return Result
+})
+
+// 8. 删除班次安排
+Mock.mock('/schedules/assign', 'delete', () => {
+    return Result
+})

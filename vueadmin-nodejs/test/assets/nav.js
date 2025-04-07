@@ -80,6 +80,22 @@ let nav = [
                 path:'/sys/role',
                 component: 'sys/Role',
                 children: []
+            },
+            {
+                name:'SysSchedule',
+                title:'排班管理',
+                icon:'el-icon-s-custom',
+                path:'/sys/schedule',
+                component:'sys/Scheduling',
+                children:[]
+            },
+            {
+                name:'SysSet',
+                title:'班次设置',
+                icon:'el-icon-s-custom',
+                path:'/sys/set',
+                component:'sys/ShiftManagement',
+                children:[]
             }
         ]
     },

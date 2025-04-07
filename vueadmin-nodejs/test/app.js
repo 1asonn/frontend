@@ -18,11 +18,14 @@ const aiagent = require('./router/aiAgent.js')
 const medicineRouter = require('./router/medicine.js');
 const equipmentRouter = require('./router/equipment.js')
 const downloadRouter = require('./router/download.js');
+const scheduleRouter = require('./router/schedule.js');
+const departmentRouter = require('./router/department.js');
 // Import models for relationships
 const User = require('./database/models/User');
 const Role = require('./database/models/Role');
 const MedicalRecord = require('./database/models/MedicalRecord');
 const Patient = require('./database/models/Patients');
+
 
 // Define relationships between models
 User.belongsTo(Role, { foreignKey: 'roleId', as: 'role' });
@@ -72,7 +75,8 @@ app.use('/aiagent',aiagent)
 app.use('/medicine', medicineRouter)
 app.use('/equipment', equipmentRouter);
 app.use('/download', downloadRouter)
-
+app.use('/schedule', scheduleRouter);
+app.use('/department', departmentRouter);
 // Start server
 app.listen(config.port, () => {
     console.log(`Server is running in ${config.nodeEnv} mode on port: ${config.port}`);

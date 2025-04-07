@@ -19,7 +19,7 @@ const { signData, getPublicKey } = require('../utils/crypto');
 
 // 菜单缓存
 const menuCache = new Map();
-const CACHE_DURATION = 5 * 60 * 1000; // 5分钟缓存
+const CACHE_DURATION = 5; // 5分钟缓存
 
 // 获取公钥接口
 router.get('/public-key', (req, res) => {
@@ -31,6 +31,7 @@ router.get('/public-key', (req, res) => {
     });
 });
 
+//获取角色下的可用菜单
 router.get('/getRoleAuthorities', async (req, res) => {
     try {
         // 从请求头中获取 token 并解析用户名
@@ -202,7 +203,7 @@ router.post('/updateRoleAuthority',async (req,res) => {
     try {
         
         const {id,authoritys} = req.body
-        console.log(authoritys)
+        console.log("this is Newauthoritys",authoritys)
         const data = await Role.update({authoritys},{where:{id}})
         console.log(data)
         res.send({

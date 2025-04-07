@@ -71,7 +71,6 @@ router.beforeEach(async(to, from, next) => {
 
   // 如果有token但没有路由，重新获取菜单数据
   if (!hasRoute) {
-    console.log(hasRoute,'hasRoute')
     try {
       // 从localStorage恢复菜单数据
       const menuList = JSON.parse(localStorage.getItem('menuList') || '[]')
@@ -84,7 +83,7 @@ router.beforeEach(async(to, from, next) => {
             data: menuList.menu,
             metadata: { signature:signature }
           })
-          console.log(menuList,'menuList')
+
           // 添加路由
           menuList.menu.menu.forEach(menu => {
             if (menu.children) {
@@ -95,20 +94,15 @@ router.beforeEach(async(to, from, next) => {
                 }
               })
             }
-          })
-
-          
+          })   
 
           store.commit('changeRouteStatus', true) 
-          console.log(hasRoute,'hasRoute')
           next({ ...to, replace: true })
           return
         } catch (error) {
           console.error('本地菜单数据验证失败，尝试重新获取:', error)
         }
       }
-
-      console.log('again')
       
       // 如果没有本地缓存或验证失败，从服务器获取
       const nav = await GetUserAuth()

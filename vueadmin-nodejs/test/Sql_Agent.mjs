@@ -13,8 +13,6 @@ const llm = new ChatOpenAI({
   temperature: 0.7,
 });
 
-export const run = async () => {
-
   // connect to database
   const datasource = new DataSource({
     type: "mysql",
@@ -24,7 +22,9 @@ export const run = async () => {
     password: "root",
     database: "test",
     synchronize: true,
-});
+  });
+
+export const run = async () => {
 
   const db = await SqlDatabase.fromDataSourceParams({
     appDataSource: datasource,
