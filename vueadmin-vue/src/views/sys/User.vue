@@ -223,15 +223,28 @@
 				<el-table-column property="address" label="地址"></el-table-column>
 			</el-table>
 		</el-dialog> -->
+		<FullCalendar
+		:plugins="calendarPlugins"
+		:events="events"
+		:editable="true"
+		:selectable="true"
+		@select="handleSelect"
+		@eventChange="handleEventChange"
+		initialView="dayGridMonth"
+		/>
 	</div>
 </template>
 
 <script>
     import { GetUserList } from '@/api/index.js'  
+    import dayGridPlugin from '@fullcalendar/daygrid'
+    import interactionPlugin from '@fullcalendar/interaction'
 	export default {
 		name: "User",
 		data() {
 			return {
+				calendarPlugins: [dayGridPlugin, interactionPlugin],
+				events: [],
                 dialogTableVisible: false,
 				drawer: false,
         		direction: 'rtl',
@@ -278,7 +291,7 @@
         computed: {
             hasSysUserSaveAuth() {
                 return this.hasAuth('sys:user:save');
-            },
+            },	
             hasSysUserDeleteAuth() {
                 return this.hasAuth('sys:user:delete');
             }
@@ -287,6 +300,19 @@
 			this.getUserList()
 		},
 		methods: {
+			handleSelect(selectionInfo) {
+				const { start, end } = selectionInfo;
+				this.events.push({
+					title: '新班次',
+					start,
+					end,
+					color: '#FF69B4'
+			});
+			},
+			handleEventChange(eventInfo) {
+				const { event } = eventInfo;
+				console.log('班次变更：', event.title, event.start, event.end);
+			},
 			async getUserList() {
 				try {
 					const res = await GetUserList()

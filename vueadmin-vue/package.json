@@ -8,6 +8,10 @@
   },
   "dependencies": {
     "@coze/api": "^1.1.0",
+    "@fullcalendar/core": "^6.1.17",
+    "@fullcalendar/daygrid": "^6.1.17",
+    "@fullcalendar/interaction": "^6.1.17",
+    "@fullcalendar/vue": "^6.1.17",
     "axios": "^1.7.7",
     "bcryptjs": "^3.0.2",
     "core-js": "^3.8.3",
