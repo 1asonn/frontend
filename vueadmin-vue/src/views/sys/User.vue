@@ -224,25 +224,29 @@
 			</el-table>
 		</el-dialog> -->
 		<FullCalendar
-		:plugins="calendarPlugins"
-		:events="events"
-		:editable="true"
-		:selectable="true"
-		@select="handleSelect"
-		@eventChange="handleEventChange"
-		initialView="dayGridMonth"
+			:options="calendarOptions"
 		/>
 	</div>
 </template>
 
 <script>
-    import { GetUserList } from '@/api/index.js'  
+    import { GetUserList } from '@/api/index.js'
+	import FullCalendar from '@fullcalendar/vue'  
     import dayGridPlugin from '@fullcalendar/daygrid'
     import interactionPlugin from '@fullcalendar/interaction'
+	import { options } from 'marked'
 	export default {
+		components:{
+			FullCalendar
+		},
 		name: "User",
 		data() {
 			return {
+				calendarOptions: {
+					plugins: [ dayGridPlugin, interactionPlugin ],
+					initialView: 'dayGridMonth',
+					selectable:false
+      			},
 				calendarPlugins: [dayGridPlugin, interactionPlugin],
 				events: [],
                 dialogTableVisible: false,
