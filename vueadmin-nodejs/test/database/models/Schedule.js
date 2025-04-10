@@ -1,4 +1,5 @@
 const { sequelize, Sequelize } = require('../init.js');
+const User = require('./user');
 
 const Schedule = sequelize.define('schedule', {
   id: {
@@ -82,6 +83,12 @@ const Schedule = sequelize.define('schedule', {
 }, {
   tableName: 'schedules',
   timestamps: true
+});
+
+// 定义关联关系
+Schedule.belongsTo(User, {
+  foreignKey: 'employeeId',
+  targetKey: 'id'
 });
 
 Schedule.sync().then(() => {

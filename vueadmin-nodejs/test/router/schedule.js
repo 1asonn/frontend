@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Schedule = require('../database/models/Schedule');
+const User = require('../database/models/user');
 const jwt = require('jsonwebtoken')
 // 创建或更新排班
 router.post('/schedule', async (req, res) => {
@@ -117,19 +118,41 @@ router.get('/scheduleByDepartment', async (req, res) => {
 });
 
 // 获取对应部门下的职工排班信息
-router.get('/department/:departmentId', async (req, res) => {
+router.get('/getSchListBydepartment/:departmentId', async (req, res) => {
   try {
     const { departmentId } = req.params;
     
-    const schedules = await Schedule.findAll({
+    // 先找到该部门的所有用户
+    const users = await User.findAll({
       where: { departmentId },
+      attributes: ['id', 'username']
+    });
+
+    if (!users || users.length === 0) {
+      return res.status(404).json({
+        code: 404,
+        message: '该部门下未找到任何用户'
+      });
+    }
+
+    // 获取这些用户的排班信息
+    const userIds = users.map(user => user.id);
+    const schedules = await Schedule.findAll({
+      where: { 
+        employeeId: userIds 
+      },
+      include: [{
+        model: User,
+        attributes: ['id', 'username'],
+        required: true
+      }],
       attributes: [
-        'id', 'employeeId', 'employeeName', 'departmentId',
+        'id', 'employeeId',
         'monday', 'tuesday', 'wednesday', 'thursday',
         'friday', 'saturday', 'sunday',
         'createdAt', 'updatedAt'
       ],
-      order: [['employeeName', 'ASC']]
+      order: [['createdAt', 'DESC']]
     });
 
     if (!schedules || schedules.length === 0) {

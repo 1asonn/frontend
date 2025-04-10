@@ -27,7 +27,7 @@
       <el-table :data="scheduleData" border style="width: 100%">
         <el-table-column prop="name" label="员工姓名" width="120" />
         
-        <!-- 周一到周五的排班列 -->
+        <!-- 周一到周日的排班列 -->
         <el-table-column v-for="(day, index) in weekDays" :key="day" :label="day">
           <template #default="scope">
             <div class="shift-cell">
@@ -68,7 +68,7 @@
           </template>
         </el-table-column>
       </el-table>
-
+      <el-button @click="checkData">checkData</el-button>
       <!-- 保存按钮 -->
       <div class="actions">
         <el-button type="primary" @click="saveSchedules">保存排班</el-button>
@@ -78,7 +78,7 @@
 </template>
 
 <script>
-import { getDepartments, getShifts, getSchedulesByDepartment, assignShift } from '@/api/scheduling'
+import { getShifts, getSchedulesByDepartment, assignShift } from '@/api/scheduling'
 import { GetDepartmentList } from '@/api/index'
 export default {
   name: 'Scheduling',
@@ -88,7 +88,7 @@ export default {
       shifts: [],
       selectedDepartment: null,
       scheduleData: [],
-      weekDays: ['周一', '周二', '周三', '周四', '周五'],
+      weekDays: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
       loading: false
     }
   },
@@ -97,6 +97,9 @@ export default {
     this.fetchShifts()
   },
   methods: {
+    checkData(){
+      console.log("checkData",this.scheduleData)
+    },
     async fetchDepartments() {
       try {
         const res = await GetDepartmentList()

@@ -21,7 +21,7 @@ const downloadRouter = require('./router/download.js');
 const scheduleRouter = require('./router/schedule.js');
 const departmentRouter = require('./router/department.js');
 // Import models for relationships
-const User = require('./database/models/User');
+const User = require('./database/models/user');
 const Role = require('./database/models/Role');
 const MedicalRecord = require('./database/models/MedicalRecord');
 const Patient = require('./database/models/Patients');

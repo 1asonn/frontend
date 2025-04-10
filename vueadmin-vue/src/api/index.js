@@ -12,7 +12,7 @@ export const GetPatientList = async () => {
             console.error("error",error)
         }
     }
-
+    
 export const GetPatientRecord = async (patientId) => {
     try {
         const response = await request.get(`http://localhost:4000/medicalRecord/medical_records/${patientId}`)
@@ -198,4 +198,17 @@ export const GetDepartmentList = async () => {
         throw error
     }
 }
+
+// 批量更新职工排班情况
+export const UpdateSchedule = async (data) => {
+    try {
+        const response = await request.post('/schedule/update', data)
+        return response.data
+    } catch (error) {
+        console.error('更新职工排班情况失败:', error)
+        throw error
+    }
+}
+
+
 

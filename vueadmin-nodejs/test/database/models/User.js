@@ -30,8 +30,7 @@ const User = sequelize.define('user',{
      }
 })
 
-
-User.sync({alter: true}).then(() => {
+User.sync().then(() => {
     console.log("用户表模型已同步!")
 })
 
