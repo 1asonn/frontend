@@ -16,6 +16,20 @@ const Schedule = sequelize.define('schedule', {
     },
     comment: '职工ID'
   },
+  departmentId: {
+    type: Sequelize.INTEGER,
+    validate: {
+      notEmpty: true
+    },
+    comment: '部门ID'
+  },
+  employeeName: {
+    type: Sequelize.STRING,
+    validate: {
+      notEmpty: true
+    },
+    comment: '职工姓名'
+  },
   monday: {
     type: Sequelize.STRING,
     validate: {

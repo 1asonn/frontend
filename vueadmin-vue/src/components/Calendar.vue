@@ -31,56 +31,55 @@
                     events: this.generateEvents(),
                     eventContent: this.renderEventContent,
                     locale: zhCnLocale,
-                    firstDay: 1, // Start week from Monday
+                    firstDay: 1,
                     headerToolbar: {
-                        left: 'prev,next today',
+                        left: '',
                         center: 'title',
-                        right: 'dayGridMonth,dayGridWeek'
-                    },
-                    buttonText: {
-                        today: '今天',
-                        month: '月',
-                        week: '周'
+                        right: ''
                     },
                     dayHeaderFormat: { weekday: 'short' },
                     slotMinTime: '06:00:00',
-                    slotMaxTime: '22:00:00'
+                    slotMaxTime: '22:00:00',
+                    navLinks: false,
+                    fixedWeekCount: false,
+                    validRange: {
+                        start: new Date().toISOString().split('T')[0]
+                    }
                 },
             }
         },
         methods: {
             generateEvents() {
                 const events = [];
-                const startDate = new Date(); // Current date
                 const daysOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
                 
-                // Get the start of the current week
+                // Get the first day of current month
                 const currentDate = new Date();
+                currentDate.setDate(1); // Set to first day of month
                 currentDate.setHours(0, 0, 0, 0);
-                const currentDay = currentDate.getDay();
-                currentDate.setDate(currentDate.getDate() - currentDay);
-
-                // Generate events for next 12 weeks
-                for (let week = 0; week < 12; week++) {
-                    daysOfWeek.forEach((day, index) => {
-                        const scheduleTime = this.scheduleData[day];
-                        if (scheduleTime && scheduleTime !== '休息') {
-                            const [startTime, endTime] = scheduleTime.split('-');
-                            const eventDate = new Date(currentDate);
-                            eventDate.setDate(currentDate.getDate() + (week * 7) + index);
-                            
-                            events.push({
-                                title: scheduleTime,
-                                start: `${eventDate.toISOString().split('T')[0]}T${startTime}:00`,
-                                end: `${eventDate.toISOString().split('T')[0]}T${endTime}:00`,
-                                backgroundColor: '#42b983',
-                                borderColor: '#42b983',
-                                classNames: ['work-schedule-event']
-                            });
-                        }
-                    });
+                
+                // Get the last day of current month
+                const lastDay = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+                
+                // Generate events for current month only
+                for (let date = new Date(currentDate); date <= lastDay; date.setDate(date.getDate() + 1)) {
+                    const dayOfWeek = daysOfWeek[date.getDay()];
+                    const scheduleTime = this.scheduleData[dayOfWeek];
+                    
+                    if (scheduleTime && scheduleTime !== '休息') {
+                        const [startTime, endTime] = scheduleTime.split('-');
+                        events.push({
+                            title: scheduleTime,
+                            start: `${date.toISOString().split('T')[0]}T${startTime}:00`,
+                            end: `${date.toISOString().split('T')[0]}T${endTime}:00`,
+                            backgroundColor: '#42b983',
+                            borderColor: '#42b983',
+                            classNames: ['work-schedule-event']
+                        });
+                    }
                 }
-                console.log("events",events)
+                
+                console.log("events", events);
                 return events;
             },
             renderEventContent(eventInfo) {

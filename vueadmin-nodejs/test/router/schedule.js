@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Schedule = require('../database/models/Schedule');
-
+const jwt = require('jsonwebtoken')
 // 创建或更新排班
 router.post('/schedule', async (req, res) => {
   try {
@@ -58,11 +58,19 @@ router.get('/schedulePage', async (req, res) => {
   }
 });
 
-// 获取职工排班信息
-router.get('/schedule/:employeeId', async (req, res) => {
+// 获取某一职工的排班信息
+router.get('/schedule ', async (req, res) => {
   try {
-    const { employeeId } = req.params;
-    const schedule = await Schedule.findOne({ where: { employeeId } });
+    const token = req.headers['authorization']?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({
+        code: 401,
+        message: '未提供访问令牌'
+      });
+    }
+    const { userId } = jwt.verify(token, process.env.JWT_SECRET || "yyjkn");
+    
+    const schedule = await Schedule.findOne({ where: { employeeId: userId } });
     
     if (!schedule) {
       return res.status(404).json({
@@ -80,6 +88,66 @@ router.get('/schedule/:employeeId', async (req, res) => {
     res.status(500).json({
       code: 500,
       message: '获取排班信息失败',
+      error: error.message
+    });
+  }
+});
+
+// 获取对应部门下的职工排班信息
+router.get('/scheduleByDepartment', async (req, res) => {
+  try {
+    const { departmentId } = req.query;
+    const userId = await User.findOne({
+      where: { departmentId },
+      attributes: ['id']
+    });
+    const schedules = await Schedule.findAll({ where: { employeeId: userId.id } });
+    res.json({
+      code: 200,
+      data: schedules,
+      message: '获取排班信息成功'
+    });
+  } catch (error) {
+    res.status(500).json({
+      code: 500,
+      message: '获取排班信息失败',
+      error: error.message
+    });
+  }
+});
+
+// 获取对应部门下的职工排班信息
+router.get('/department/:departmentId', async (req, res) => {
+  try {
+    const { departmentId } = req.params;
+    
+    const schedules = await Schedule.findAll({
+      where: { departmentId },
+      attributes: [
+        'id', 'employeeId', 'employeeName', 'departmentId',
+        'monday', 'tuesday', 'wednesday', 'thursday',
+        'friday', 'saturday', 'sunday',
+        'createdAt', 'updatedAt'
+      ],
+      order: [['employeeName', 'ASC']]
+    });
+
+    if (!schedules || schedules.length === 0) {
+      return res.status(404).json({
+        code: 404,
+        message: '该部门下未找到任何排班信息'
+      });
+    }
+
+    res.json({
+      code: 200,
+      data: schedules,
+      message: '获取部门排班信息成功'
+    });
+  } catch (error) {
+    res.status(500).json({
+      code: 500,
+      message: '获取部门排班信息失败',
       error: error.message
     });
   }

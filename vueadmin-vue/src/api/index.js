@@ -186,3 +186,16 @@ export const DownloadFiles = async (fileName) => {
         throw error
     }
 }
+
+
+// 获取部门列表
+export const GetDepartmentList = async () => {
+    try {
+        const response = await request.get('/department/list')
+        return response.data
+    } catch (error) {
+        console.error('获取部门列表失败:', error)
+        throw error
+    }
+}
+

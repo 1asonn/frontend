@@ -28,13 +28,14 @@
  import TreeSelect from '@/components/TreeSelect.vue'
  import {GetAuthTree} from '@/api/index.js'
  import Calendar from '../components/Calendar.vue'
- import axios from 'axios'
+ import {GetCurrentSchedule} from '../api/schedule.js'
 
 export default {
     components:{
         TreeSelect,
         Calendar
     },
+    
     data(){
         return{
             selectedAuth:[],
@@ -78,15 +79,7 @@ export default {
                     }
                 ]
             },
-            scheduleData: {
-                monday: "07:00-15:00",
-                tuesday: "07:00-15:00",
-                wednesday: "07:00-15:00",
-                thursday: "休息",
-                friday: "休息",
-                saturday: "07:00-15:00",
-                sunday: "07:00-15:00"
-            }
+            scheduleData: {}
         }
     },
     created(){
@@ -96,18 +89,29 @@ export default {
         this.getScheduleData()
     },
     methods:{
-        async getScheduleData() {
+        async getScheduleData(){
             try {
-                // Replace this with your actual API endpoint
-                const response = await axios.get('/api/schedule/employee/4')
-                if (response.data.code === 200) {
-                    const { monday, tuesday, wednesday, thursday, friday, saturday, sunday } = response.data.data
-                    this.scheduleData = { monday, tuesday, wednesday, thursday, friday, saturday, sunday }
-                }
+                const response = await GetCurrentSchedule()
+                console.log("schedule",response)
+                const { monday, tuesday, wednesday, thursday, friday, saturday, sunday } = response.data.data
+                this.scheduleData = { monday, tuesday, wednesday, thursday, friday, saturday, sunday }
             } catch (error) {
-                console.error('Error fetching schedule:', error)
+                console.error('获取排班失败:', error)
+                throw error
             }
         },
+        // async getScheduleData() {
+        //     try {
+        //         // Replace this with your actual API endpoint
+        //         const response = await axios.get('/api/schedule/employee/4')
+        //         if (response.data.code === 200) {
+        //             const { monday, tuesday, wednesday, thursday, friday, saturday, sunday } = response.data.data
+        //             this.scheduleData = { monday, tuesday, wednesday, thursday, friday, saturday, sunday }
+        //         }
+        //     } catch (error) {
+        //         console.error('Error fetching schedule:', error)
+        //     }
+        // },
         handleAuthChange(payload){
             this.selectedAuth = payload
         }
