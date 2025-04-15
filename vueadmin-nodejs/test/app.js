@@ -22,18 +22,9 @@ const scheduleRouter = require('./router/schedule.js');
 const departmentRouter = require('./router/department.js');
 const shiftSettingRouter = require('./router/shiftSetting.js');
 
-// Import models for relationships
-const User = require('./database/models/user');
-const Role = require('./database/models/Role');
-const MedicalRecord = require('./database/models/MedicalRecord');
-const Patient = require('./database/models/Patients');
+// Initialize model associations
+require('./database/models');
 
-
-// Define relationships between models
-User.belongsTo(Role, { foreignKey: 'roleId', as: 'role' });
-Role.hasMany(User, { foreignKey: 'roleId', as: 'users' });
-// MedicalRecord.belongsTo(Patient,{ foreignKey: 'patientId', as: 'patient' })
-// Patient.hasMany(MedicalRecord,{ foreignKey: 'patientId', as: 'medicalRecords' })
 const app = express();
 
 // Middleware configuration

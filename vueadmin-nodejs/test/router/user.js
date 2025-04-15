@@ -1,10 +1,9 @@
 const express = require('express');
-const User = require('../database/models/user')
-const router = express.Router()
-const jwt = require('jsonwebtoken')
-const bcrypt = require('bcryptjs')
-const Role = require('../database/models/Role')
-const md5 = require('js-md5')
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const md5 = require('js-md5');
+const { User, Role, Department } = require('../database/models');
+
 // JWT配置
 const JWT_SECRET = process.env.JWT_SECRET || 'yyjkn';
 const JWT_EXPIRES_IN = '24h';
@@ -41,14 +40,36 @@ const validateLoginInput = (req, res, next) => {
 };
 
 // 注册功能
+const router = express.Router();
 router.post('/register', validateLoginInput, async (req, res) => {
     try {
-        const { username, password, authority } = req.body;
+        const { 
+            username, 
+            password, 
+            realname,
+            gender,
+            birthDate,
+            address,
+            roleId,
+            departmentId 
+        } = req.body;
         
         // 检查用户是否已存在
         const existingUser = await User.findOne({ where: { username } });
         if (existingUser) {
             return res.status(409).json(createResponse(false, '用户名已存在'));
+        }
+
+        // 检查角色是否存在
+        const role = await Role.findByPk(roleId);
+        if (!role) {
+            return res.status(400).json(createResponse(false, '指定的角色不存在'));
+        }
+
+        // 检查部门是否存在
+        const department = await Department.findByPk(departmentId);
+        if (!department) {
+            return res.status(400).json(createResponse(false, '指定的部门不存在'));
         }
 
         // 密码加密
@@ -58,10 +79,19 @@ router.post('/register', validateLoginInput, async (req, res) => {
         const user = await User.create({
             username,
             password: hashedPassword,
-            authority
+            realname,
+            gender,
+            birth_date: birthDate,
+            address,
+            role_id: roleId,
+            department_id: departmentId
         });
 
-        res.status(201).json(createResponse(true, '注册成功', { username: user.username }));
+        res.status(201).json(createResponse(true, '注册成功', { 
+            id: user.id,
+            username: user.username,
+            realname: user.realname
+        }));
     } catch (error) {
         console.error('注册错误:', error);
         res.status(500).json(createResponse(false, '服务器内部错误'));
@@ -76,11 +106,18 @@ router.post('/login', validateLoginInput, async (req, res) => {
         // 查找用户
         const user = await User.findOne({
             where: { username },
-            include: [{
-                model: Role,
-                as: 'role',
-                attributes: ['id', 'authoritys']
-            }]
+            include: [
+                {
+                    model: Role,
+                    as: 'role',
+                    attributes: ['id', 'role_name', 'authoritys']
+                },
+                {
+                    model: Department,
+                    as: 'department',
+                    attributes: ['id', 'name']
+                }
+            ]
         });
 
         // 用户名或密码错误（不指明具体是哪个错误）
@@ -99,7 +136,9 @@ router.post('/login', validateLoginInput, async (req, res) => {
             {
                 userId: user.id,
                 username: user.username,
-                authority: user.role.authoritys
+                roleId: user.role_id,
+                departmentId: user.department_id,
+                authorities: user.role.authoritys
             },
             JWT_SECRET,
             {
@@ -113,7 +152,9 @@ router.post('/login', validateLoginInput, async (req, res) => {
             user: {
                 id: user.id,
                 username: user.username,
-                role: user.role
+                realname: user.realname,
+                role: user.role,
+                department: user.department
             }
         }));
     } catch (error) {
@@ -122,77 +163,158 @@ router.post('/login', validateLoginInput, async (req, res) => {
     }
 });
 
-// 权限校验功能
-router.post('/auth',async (req,res) => {
-    const token = req.headers.authorization.split(' ').pop()
-    if(!token){
-        return res.send({msg:'token为空!'})
-    }
-    const {username} = jwt.verify(token,"yyjkn")
-    // 查询该用户是否存在
-    const model = await User.findOne({where:{username}})
-    if(!model){
-        return res.send({msg:'用户不存在'})
-    }
-    res.send({msg:'通过权限校验'})
-})
-
 // 获取用户列表
-router.get('/getUserList',async (req,res) => {
+router.get('/getUserList', async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(' ').pop();
+        if (!token) {
+            return res.status(401).json(createResponse(false, 'token为空!'));
+        }
 
-    const token = req.headers.authorization.split(' ').pop()
-    const {authority} = jwt.verify(token,'yyjkn')
-    if(!token){
-        return res.send({msg:'token为空!'})
-    }
-    console.log(authority.split(','),"-=-=-=")
-    if(!(authority.split(',').includes("SysUser"))){
-        return res.status(403).json({
-            code:403,
-            message:'用户无权限'
-        })
-    }
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const authorities = decoded.authorities.split(',');
+        
+        if (!authorities.includes("SysUser")) {
+            return res.status(403).json(createResponse(false, '用户无权限'));
+        }
 
-    const data = await User.findAll()
-    res.send({
-        code:200,
-        data:data
-    })
-})
-
-//获取某个用户的信息
-router.get('/getUserInfo/:id',async (req,res) => {
-    const {id} = req.params
-    const token = req.headers.authorization.split(' ').pop()
-    if(!token){
-        return res.send({msg:'token为空!'})
-    }
-    const userInfo = await User.findOne({
-        where: { id },
-        include: [
-            {
-                model: Role,
-                as: 'role', // 假设 user 模型中有关联的 role
-                attributes: ['id', 'authoritys']
+        const users = await User.findAll({
+            include: [
+                {
+                    model: Role,
+                    as: 'role',
+                    attributes: ['id', 'role_name', 'authoritys']
+                },
+                {
+                    model: Department,
+                    as: 'department',
+                    attributes: ['id', 'name']
+                }
+            ],
+            attributes: { 
+                exclude: ['password'] // 排除密码字段
             }
-        ]
-    });
-    res.send({
-        code:200,
-        data:userInfo
-    })
-})
+        });
 
-// //更新某个用户的信息
-// router.post('/updatedUserInfo' ,async (req,res) => {
-//     const {id,authority} = req.body
-//     const data = await User.update({authority},{
-//         where: { id }
-//     })
-//     res.send({
-//         code:200,
-//         msg:'success'
-//     })
-// })
+        res.json(createResponse(true, '获取用户列表成功', users));
+    } catch (error) {
+        console.error('获取用户列表错误:', error);
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json(createResponse(false, '无效的token'));
+        }
+        res.status(500).json(createResponse(false, '服务器内部错误'));
+    }
+});
+
+// 获取用户信息
+router.get('/getUserInfo/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const token = req.headers.authorization?.split(' ').pop();
+        
+        if (!token) {
+            return res.status(401).json(createResponse(false, 'token为空!'));
+        }
+
+        const user = await User.findOne({
+            where: { id },
+            include: [
+                {
+                    model: Role,
+                    as: 'role',
+                    attributes: ['id', 'role_name', 'authoritys']
+                },
+                {
+                    model: Department,
+                    as: 'department',
+                    attributes: ['id', 'name']
+                }
+            ],
+            attributes: { 
+                exclude: ['password'] // 排除密码字段
+            }
+        });
+
+        if (!user) {
+            return res.status(404).json(createResponse(false, '用户不存在'));
+        }
+
+        res.json(createResponse(true, '获取用户信息成功', user));
+    } catch (error) {
+        console.error('获取用户信息错误:', error);
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json(createResponse(false, '无效的token'));
+        }
+        res.status(500).json(createResponse(false, '服务器内部错误'));
+    }
+});
+
+// 更新用户信息
+router.put('/updateUser/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const token = req.headers.authorization?.split(' ').pop();
+        
+        if (!token) {
+            return res.status(401).json(createResponse(false, 'token为空!'));
+        }
+
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const authorities = decoded.authorities.split(',');
+        
+        if (!authorities.includes("SysUser")) {
+            return res.status(403).json(createResponse(false, '用户无权限'));
+        }
+
+        const {
+            realname,
+            gender,
+            birthDate,
+            address,
+            roleId,
+            departmentId
+        } = req.body;
+
+        // 检查用户是否存在
+        const user = await User.findByPk(id);
+        if (!user) {
+            return res.status(404).json(createResponse(false, '用户不存在'));
+        }
+
+        // 如果要更新角色，检查角色是否存在
+        if (roleId) {
+            const role = await Role.findByPk(roleId);
+            if (!role) {
+                return res.status(400).json(createResponse(false, '指定的角色不存在'));
+            }
+        }
+
+        // 如果要更新部门，检查部门是否存在
+        if (departmentId) {
+            const department = await Department.findByPk(departmentId);
+            if (!department) {
+                return res.status(400).json(createResponse(false, '指定的部门不存在'));
+            }
+        }
+
+        // 更新用户信息
+        await user.update({
+            realname,
+            gender,
+            birth_date: birthDate,
+            address,
+            role_id: roleId,
+            department_id: departmentId
+        });
+
+        res.json(createResponse(true, '更新用户信息成功'));
+    } catch (error) {
+        console.error('更新用户信息错误:', error);
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json(createResponse(false, '无效的token'));
+        }
+        res.status(500).json(createResponse(false, '服务器内部错误'));
+    }
+});
 
 module.exports = router

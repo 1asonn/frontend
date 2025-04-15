@@ -1,94 +1,80 @@
 const { sequelize, Sequelize } = require('../init.js');
 const User = require('./user');
+const Department = require('./department');
 
 const Schedule = sequelize.define('schedule', {
   id: {
     type: Sequelize.INTEGER,
     primaryKey: true,
     autoIncrement: true,
-    validate: {
-      notEmpty: true
-    }
+    comment: '排班ID'
   },
-  employeeId: {
+  employee_id: {
     type: Sequelize.INTEGER,
-    validate: {
-      notEmpty: true
+    allowNull: false,
+    references: {
+      model: 'users',
+      key: 'id'
     },
     comment: '职工ID'
   },
-  departmentId: {
+  department_id: {
     type: Sequelize.INTEGER,
-    validate: {
-      notEmpty: true
+    allowNull: false,
+    references: {
+      model: 'departments',
+      key: 'id'
     },
     comment: '部门ID'
   },
-  employeeName: {
+  employee_name: {
     type: Sequelize.STRING,
-    validate: {
-      notEmpty: true
-    },
+    allowNull: false,
     comment: '职工姓名'
   },
   monday: {
     type: Sequelize.STRING,
-    validate: {
-      notEmpty: false
-    },
-    comment: '周一工作时间'
+    comment: '周一'
   },
   tuesday: {
     type: Sequelize.STRING,
-    validate: {
-      notEmpty: false
-    },
-    comment: '周二工作时间'
+    comment: '周二'
   },
   wednesday: {
     type: Sequelize.STRING,
-    validate: {
-      notEmpty: false
-    },
-    comment: '周三工作时间'
+    comment: '周三'
   },
   thursday: {
     type: Sequelize.STRING,
-    validate: {
-      notEmpty: false
-    },
-    comment: '周四工作时间'
+    comment: '周四'
   },
   friday: {
     type: Sequelize.STRING,
-    validate: {
-      notEmpty: false
-    },
-    comment: '周五工作时间'
+    comment: '周五'
   },
   saturday: {
     type: Sequelize.STRING,
-    validate: {
-      notEmpty: false
-    },
-    comment: '周六工作时间'
+    comment: '周六'
   },
   sunday: {
     type: Sequelize.STRING,
-    validate: {
-      notEmpty: false
-    },
-    comment: '周日工作时间'
+    comment: '周日'
   }
 }, {
-  tableName: 'schedules',
-  timestamps: true
+  timestamps: true,
+  underscored: true,
+  tableName: 'schedules'
 });
 
 // 定义关联关系
 Schedule.belongsTo(User, {
-  foreignKey: 'employeeId',
-  targetKey: 'id'
+  foreignKey: 'employee_id',
+  as: 'employee'
+});
+
+Schedule.belongsTo(Department, {
+  foreignKey: 'department_id',
+  as: 'department'
 });
 
 Schedule.sync().then(() => {

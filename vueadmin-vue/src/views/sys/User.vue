@@ -45,7 +45,7 @@
 			</el-table-column>
 
 			<el-table-column
-					prop="name"
+					prop="realname"
 					label="姓名"
 					width="120">
 			</el-table-column>
@@ -54,14 +54,15 @@
 					label="性别">
 			</el-table-column>
 			<el-table-column
-					prop="birthday"
+					prop="birth_date"
 					label="出生日期">
 			</el-table-column>
 			<el-table-column
-					prop="age"
 					label="年龄">
+				<template slot-scope="scope">
+					{{ calculateAge(scope.row.birth_date) }}
+				</template>
 			</el-table-column>
-
 			<el-table-column
 					prop="idCard"
 					label="身份证号码"
@@ -124,28 +125,42 @@
 			<el-form :model="editForm" :rules="editFormRules" ref="editForm">
 				<el-form-item label="用户名" prop="username" label-width="100px">
 					<el-input v-model="editForm.username" autocomplete="off"></el-input>
-					<el-alert
-							title="初始密码为888888"
-							:closable="false"
-							type="info"
-							style="line-height: 12px;"
-					></el-alert>
 				</el-form-item>
 
-				<el-form-item label="邮箱"  prop="email" label-width="100px">
-					<el-input v-model="editForm.email" autocomplete="off"></el-input>
-				</el-form-item>
-				<el-form-item label="手机号"  prop="phone" label-width="100px">
-					<el-input v-model="editForm.phone" autocomplete="off"></el-input>
+				<el-form-item label="密码" prop="password" label-width="100px">
+					<el-input v-model="editForm.password" type="password" autocomplete="off"></el-input>
 				</el-form-item>
 
-				<el-form-item label="状态"  prop="statu" label-width="100px">
-					<el-radio-group v-model="editForm.statu">
-						<el-radio :label="0">禁用</el-radio>
-						<el-radio :label="1">正常</el-radio>
-					</el-radio-group>
+				<el-form-item label="真实姓名" prop="realname" label-width="100px">
+					<el-input v-model="editForm.realname" autocomplete="off"></el-input>
 				</el-form-item>
 
+				<el-form-item label="性别" prop="gender" label-width="100px">
+					<el-select v-model="editForm.gender" placeholder="请选择性别">
+						<el-option label="男" value="male"></el-option>
+						<el-option label="女" value="female"></el-option>
+					</el-select>
+				</el-form-item>
+
+				<el-form-item label="出生日期" prop="birthDate" label-width="100px">
+					<el-date-picker v-model="editForm.birthDate" type="date" placeholder="选择日期"></el-date-picker>
+				</el-form-item>
+
+				<el-form-item label="地址" prop="address" label-width="100px">
+					<el-input v-model="editForm.address" autocomplete="off"></el-input>
+				</el-form-item>
+
+				<el-form-item label="角色" prop="roleId" label-width="100px">
+					<el-select v-model="editForm.roleId" placeholder="请选择角色">
+						<el-option v-for="role in roles" :key="role.id" :label="role.name" :value="role.id"></el-option>
+					</el-select>
+				</el-form-item>
+
+				<el-form-item label="部门" prop="departmentId" label-width="100px">
+					<el-select v-model="editForm.departmentId" placeholder="请选择部门">
+						<el-option v-for="dept in departments" :key="dept.id" :label="dept.name" :value="dept.id"></el-option>
+					</el-select>
+				</el-form-item>
 			</el-form>
 			<div slot="footer" class="dialog-footer">
 				<el-button @click="resetForm('editForm')">取 消</el-button>
@@ -261,20 +276,42 @@
 
 				dialogVisible: false,
 				editForm: {
-
+					id: '',
+					username: '',
+					password: '',
+					realname: '',
+					gender: '',
+					birthDate: '',
+					address: '',
+					roleId: '',
+					departmentId: ''
 				},
 
 				tableData: [],
 
 				editFormRules: {
 					username: [
-						{required: true, message: '请输入用户名称', trigger: 'blur'}
+						{ required: true, message: '请输入用户名', trigger: 'blur' },
+						{ min: 3, max: 20, message: '长度在 3 到 20 个字符', trigger: 'blur' }
 					],
-					email: [
-						{required: true, message: '请输入邮箱', trigger: 'blur'}
+					password: [
+						{ required: true, message: '请输入密码', trigger: 'blur' },
+						{ min: 6, max: 20, message: '长度在 6 到 20 个字符', trigger: 'blur' }
 					],
-					statu: [
-						{required: true, message: '请选择状态', trigger: 'blur'}
+					realname: [
+						{ required: true, message: '请输入真实姓名', trigger: 'blur' }
+					],
+					gender: [
+						{ required: true, message: '请选择性别', trigger: 'change' }
+					],
+					birthDate: [
+						{ required: true, message: '请选择出生日期', trigger: 'change' }
+					],
+					roleId: [
+						{ required: true, message: '请选择角色', trigger: 'change' }
+					],
+					departmentId: [
+						{ required: true, message: '请选择部门', trigger: 'change' }
 					]
 				},
 
@@ -288,8 +325,10 @@
 				roleForm: {},
 				roleTreeData:  [],
 				treeCheckedKeys: [],
-				checkStrictly: true
+				checkStrictly: true,
 
+				roles: [],
+				departments: []
 			}
 		},
         computed: {
@@ -302,6 +341,8 @@
         },
 		created() {
 			this.getUserList()
+			this.getRoles()
+			this.getDepartments()
 		},
 		methods: {
 			handleSelect(selectionInfo) {
@@ -365,7 +406,17 @@
 			resetForm(formName) {
 				this.$refs[formName].resetFields();
 				this.dialogVisible = false
-				this.editForm = {}
+				this.editForm = {
+					id: '',
+					username: '',
+					password: '',
+					realname: '',
+					gender: '',
+					birthDate: '',
+					address: '',
+					roleId: '',
+					departmentId: ''
+				}
 			},
 			handleDrawerClose(){
 				this.drawer = false
@@ -377,25 +428,38 @@
 			submitForm(formName) {
 				this.$refs[formName].validate((valid) => {
 					if (valid) {
-						this.$axios.post('/sys/user/' + (this.editForm.id?'update' : 'save'), this.editForm)
+						const url = this.editForm.id ? '/sys/user/update' : '/sys/user/register'
+						this.$axios.post(url, this.editForm)
 							.then(res => {
-
 								this.$message({
 									showClose: true,
-									message: '恭喜你，操作成功',
+									message: '操作成功',
 									type: 'success',
-									onClose:() => {
+									onClose: () => {
 										this.getUserList()
 									}
 								});
-
 								this.dialogVisible = false
+								this.editForm = {
+									id: '',
+									username: '',
+									password: '',
+									realname: '',
+									gender: '',
+									birthDate: '',
+									address: '',
+									roleId: '',
+									departmentId: ''
+								}
+							})
+							.catch(error => {
+								console.error('操作失败:', error)
+								this.$message.error(error.response?.data?.message || '操作失败')
 							})
 					} else {
-						console.log('error submit!!');
-						return false;
+						return false
 					}
-				});
+				})
 			},
 
 			editHandle(id) {
@@ -481,6 +545,35 @@
 						});
 					})
 				})
+			},
+			async getRoles() {
+				try {
+					const res = await this.$axios.get('/sys/role/list')
+					this.roles = res.data.data
+				} catch (error) {
+					console.error('获取角色列表失败:', error)
+					this.$message.error('获取角色列表失败')
+				}
+			},
+			async getDepartments() {
+				try {
+					const res = await this.$axios.get('/sys/department/list')
+					this.departments = res.data.data
+				} catch (error) {
+					console.error('获取部门列表失败:', error)
+					this.$message.error('获取部门列表失败')
+				}
+			},
+			calculateAge(birthDate) {
+				if (!birthDate) return '';
+				const today = new Date();
+				const birth = new Date(birthDate);
+				let age = today.getFullYear() - birth.getFullYear();
+				const monthDiff = today.getMonth() - birth.getMonth();
+				if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+					age--;
+				}
+				return age;
 			}
 		}
 	}
