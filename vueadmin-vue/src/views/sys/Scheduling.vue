@@ -36,7 +36,9 @@
                 placeholder="选择班次"
                 @change="(val) => handleShiftChange(scope.row, index, val)"
               >
-                <el-option label="休息" value="rest" />
+                <el-option label="休息" value="rest">
+                  <span>休息</span>
+                </el-option>
                 <el-option
                   v-for="shift in shifts"
                   :key="shift.id"
@@ -44,22 +46,31 @@
                   :value="shift.id"
                 >
                   <span>{{ shift.name }}</span>
-                  <span class="shift-time">{{ shift.weekSchedule[index].startTime }}-{{ shift.weekSchedule[index].endTime }}</span>
+                  <span class="shift-time">{{ shift.startTime }}-{{ shift.endTime }}</span>
                 </el-option>
-                <el-option label="自定义" value="custom" />
+                <el-option label="自定义" value="custom">
+                  <span>自定义</span>
+                </el-option>
               </el-select>
+              
+              <!-- 显示已选班次的时间 -->
+              <div v-if="scope.row.schedules[index] && scope.row.schedules[index] !== 'rest'" class="selected-time">
+                {{ scope.row.customTimes[index].start || '--:--' }} - {{ scope.row.customTimes[index].end || '--:--' }}
+              </div>
               
               <!-- 自定义时间选择器 -->
               <div v-if="scope.row.schedules[index] === 'custom'" class="custom-time">
                 <el-time-picker
                   v-model="scope.row.customTimes[index].start"
                   format="HH:mm"
+                  value-format="HH:mm"
                   placeholder="开始时间"
                   @change="updateCustomTime(scope.row, index)"
                 />
                 <el-time-picker
                   v-model="scope.row.customTimes[index].end"
                   format="HH:mm"
+                  value-format="HH:mm"
                   placeholder="结束时间"
                   @change="updateCustomTime(scope.row, index)"
                 />
@@ -78,8 +89,9 @@
 </template>
 
 <script>
-import { getShifts, getSchedulesByDepartment, assignShift } from '@/api/scheduling'
+import { GetShifts, GetDepartmentSchedule, SaveSchedule } from '@/api/schedule'
 import { GetDepartmentList } from '@/api/index'
+
 export default {
   name: 'Scheduling',
   data() {
@@ -110,8 +122,10 @@ export default {
     },
     async fetchShifts() {
       try {
-        const res = await getShifts()
-        this.shifts = res.data
+        const res = await GetShifts()
+        if (res.code === 200) {
+          this.shifts = res.data.rows.filter(shift => shift.isEnabled)
+        }
       } catch (error) {
         this.$message.error('获取班次列表失败')
       }
@@ -121,13 +135,45 @@ export default {
       
       try {
         this.loading = true
-        const res = await getSchedulesByDepartment(this.selectedDepartment)
-        // 初始化每个员工的排班数据
-        this.scheduleData = res.data.map(emp => ({
-          ...emp,
-          schedules: Array(5).fill(null), // 周一到周五的班次
-          customTimes: Array(5).fill().map(() => ({ start: null, end: null })) // 自定义时间
-        }))
+        const res = await GetDepartmentSchedule(this.selectedDepartment)
+        if (res.code === 200) {
+          // 初始化每个员工的排班数据
+          this.scheduleData = res.data.map(emp => {
+            // 为每个员工初始化一周的排班数据
+            const schedules = Array(7).fill(null)
+            const customTimes = Array(7).fill().map(() => ({ start: null, end: null }))
+
+            // 如果员工已有排班数据，填充到对应的数组中
+            if (emp.schedules && Array.isArray(emp.schedules)) {
+              emp.schedules.forEach((schedule, index) => {
+                if (schedule) {
+                  if (schedule.shiftId) {
+                    // 如果是预设班次
+                    schedules[index] = schedule.shiftId
+                  } else if (schedule.startTime && schedule.endTime) {
+                    // 如果是自定义时间
+                    schedules[index] = 'custom'
+                  } else {
+                    // 休息
+                    schedules[index] = 'rest'
+                  }
+                  
+                  // 保存时间信息
+                  customTimes[index] = {
+                    start: schedule.startTime || null,
+                    end: schedule.endTime || null
+                  }
+                }
+              })
+            }
+
+            return {
+              ...emp,
+              schedules,
+              customTimes
+            }
+          })
+        }
       } catch (error) {
         this.$message.error('获取员工排班失败')
       } finally {
@@ -139,6 +185,15 @@ export default {
         // 如果选择自定义，确保customTimes已初始化
         if (!employee.customTimes[dayIndex]) {
           employee.customTimes[dayIndex] = { start: null, end: null }
+        }
+      } else if (shiftId !== 'rest' && shiftId) {
+        // 如果选择预设班次，自动填充时间
+        const shift = this.shifts.find(s => s.id === shiftId)
+        if (shift) {
+          employee.customTimes[dayIndex] = {
+            start: shift.startTime,
+            end: shift.endTime
+          }
         }
       }
     },
@@ -156,35 +211,34 @@ export default {
           return {
             employeeId: emp.id,
             departmentId: this.selectedDepartment,
-            weekSchedule: emp.schedules.map((shiftId, index) => {
-              if (!shiftId) return { enabled: false }
-              if (shiftId === 'rest') return { enabled: false }
-              if (shiftId === 'custom') {
-                const customTime = emp.customTimes[index]
-                return {
-                  enabled: true,
-                  startTime: this.formatTime(customTime.start),
-                  endTime: this.formatTime(customTime.end)
-                }
+            schedules: emp.schedules.map((shiftId, index) => {
+              if (!shiftId) return null
+              if (shiftId === 'rest') return null
+              
+              const customTime = emp.customTimes[index]
+              return {
+                shiftId: shiftId === 'custom' ? null : shiftId,
+                startTime: customTime.start,
+                endTime: customTime.end
               }
-              // 使用预设班次
-              const shift = this.shifts.find(s => s.id === shiftId)
-              return shift.weekSchedule[index]
             })
           }
         })
 
-        await Promise.all(schedules.map(schedule => assignShift(schedule)))
-        this.$message.success('保存排班成功')
+        const res = await SaveSchedule({
+          departmentId: this.selectedDepartment,
+          schedules
+        })
+
+        if (res.code === 200) {
+          this.$message.success('保存排班成功')
+          this.getEmployeesByDepartment()
+        }
       } catch (error) {
         this.$message.error('保存排班失败')
       } finally {
         this.loading = false
       }
-    },
-    formatTime(date) {
-      if (!date) return ''
-      return date.toTimeString().slice(0, 5)
     }
   }
 }
@@ -218,6 +272,12 @@ export default {
   margin-left: 8px;
   color: #909399;
   font-size: 12px;
+}
+
+.selected-time {
+  color: #409EFF;
+  font-size: 12px;
+  text-align: center;
 }
 
 .actions {

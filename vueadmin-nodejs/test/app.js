@@ -20,6 +20,8 @@ const equipmentRouter = require('./router/equipment.js')
 const downloadRouter = require('./router/download.js');
 const scheduleRouter = require('./router/schedule.js');
 const departmentRouter = require('./router/department.js');
+const shiftSettingRouter = require('./router/shiftSetting.js');
+
 // Import models for relationships
 const User = require('./database/models/user');
 const Role = require('./database/models/Role');
@@ -77,6 +79,8 @@ app.use('/equipment', equipmentRouter);
 app.use('/download', downloadRouter)
 app.use('/schedule', scheduleRouter);
 app.use('/department', departmentRouter);
+app.use('/shiftSetting', shiftSettingRouter);
+
 // Start server
 app.listen(config.port, () => {
     console.log(`Server is running in ${config.nodeEnv} mode on port: ${config.port}`);
