@@ -61,8 +61,15 @@ router.post('/register', validateLoginInput, async (req, res) => {
         }
 
         // 检查角色是否存在
-        const role = await Role.findByPk(roleId);
+        // 确保roleId是整数类型
+        const roleIdInt = parseInt(roleId, 10);
+        if (isNaN(roleIdInt)) {
+            return res.status(400).json(createResponse(false, '无效的角色ID格式'));
+        }
+        
+        const role = await Role.findByPk(roleIdInt);
         if (!role) {
+            console.log(`未找到角色ID: ${roleIdInt}`);
             return res.status(400).json(createResponse(false, '指定的角色不存在'));
         }
 

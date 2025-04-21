@@ -16,6 +16,10 @@ const Role = sequelize.define('role',{
         type: Sequelize.STRING,
         allowNull: false,
         comment: '权限列表'
+    },
+    description: {
+        type: Sequelize.STRING,
+        comment: '角色描述'
     }
 }, {
     timestamps: true,
