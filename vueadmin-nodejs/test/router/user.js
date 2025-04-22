@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const md5 = require('js-md5');
 const { User, Role, Department } = require('../database/models');
+const { Op } = require('sequelize');
 
 // JWT配置
 const JWT_SECRET = process.env.JWT_SECRET || 'yyjkn';
@@ -185,7 +186,19 @@ router.get('/getUserList', async (req, res) => {
             return res.status(403).json(createResponse(false, '用户无权限'));
         }
 
-        const users = await User.findAll({
+        // 读取分页和筛选参数
+        let { current = 1, size = 10, username = '' } = req.query;
+        current = parseInt(current, 10) || 1;
+        size = parseInt(size, 10) || 10;
+        const offset = (current - 1) * size;
+        const where = {};
+        if (username && username.trim() !== '') {
+            where.realname = { [Op.like]: `%${username.trim()}%` };
+        }
+
+        // findAndCountAll 支持分页和条件筛选
+        const result = await User.findAndCountAll({
+            where,
             include: [
                 {
                     model: Role,
@@ -198,12 +211,20 @@ router.get('/getUserList', async (req, res) => {
                     attributes: ['id', 'name']
                 }
             ],
-            attributes: { 
-                exclude: ['password'] // 排除密码字段
-            }
+            attributes: {
+                exclude: ['password']
+            },
+            limit: size,
+            offset,
+            order: [['id', 'ASC']]
         });
 
-        res.json(createResponse(true, '获取用户列表成功', users));
+        res.json(createResponse(true, '获取用户列表成功', {
+            records: result.rows,
+            size,
+            current,
+            total: result.count
+        }));
     } catch (error) {
         console.error('获取用户列表错误:', error);
         if (error.name === 'JsonWebTokenError') {

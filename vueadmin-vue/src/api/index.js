@@ -45,12 +45,25 @@ export const GetAuthTree = async () => {
 
 
 //获取系统用户列表
-export const GetUserList = async () => {
+export const GetUserList = async ({ current = 1, size = 10, username = '' }) => {
     try {
-        const response = await request.get('http://localhost:4000/user/getUserList')
+        const response = await request.get('http://localhost:4000/user/getUserList', {
+            params: {
+                current,
+                size,
+                username
+            }
+        })
         return response.data.data
-    }catch(error){
-        console.log(error)
+    } catch(error) {
+        console.error('获取用户列表失败:', error)
+        if (error.response?.status === 401) {
+            throw new Error('token为空或无效')
+        } else if (error.response?.status === 403) {
+            throw new Error('用户无权限')
+        } else {
+            throw new Error('获取用户列表失败')
+        }
     }
 }
 
@@ -210,5 +223,24 @@ export const UpdateSchedule = async (data) => {
     }
 }
 
+// 注册新用户
+export const UserRegiste = async (data) => {
+    try {
+        const response = await request.post('/user/register', {
+            username: data.username,
+            password: data.password,
+            realname: data.realname,
+            gender: data.gender,
+            birthDate: data.birth_date,
+            address: data.address,
+            roleId: parseInt(data.roleId, 10),
+            departmentId: parseInt(data.departmentId, 10)
+        })
+        return response.data
+    } catch (error) {
+        console.error('注册用户失败:', error)
+        throw error
+    }
+}
 
 

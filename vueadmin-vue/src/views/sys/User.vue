@@ -14,13 +14,9 @@
 				<el-button @click="getUserList">搜索</el-button>
 			</el-form-item>
 
+
 			<el-form-item>
-				<el-button type="primary" @click="dialogVisible = true" v-if="hasAuth('sys:user:save')">新增</el-button>
-			</el-form-item>
-			<el-form-item>
-				<el-popconfirm title="这是确定批量删除吗？" @confirm="delHandle(null)">
-					<el-button type="danger" slot="reference" :disabled="delBtlStatu" v-if="hasAuth('sys:user:delete')">批量删除</el-button>
-				</el-popconfirm>
+				<el-button type="success" @click="handleRegister">用户注册</el-button>
 			</el-form-item>
 		</el-form>
 
@@ -56,6 +52,9 @@
 			<el-table-column
 					prop="birth_date"
 					label="出生日期">
+				<template slot-scope="scope">
+					{{ formatDate(scope.row.birth_date) }}
+				</template>
 			</el-table-column>
 			<el-table-column
 					label="年龄">
@@ -117,10 +116,10 @@
 
 		<!--新增对话框-->
 		<el-dialog
-				title="提示"
+				title="用户信息"
 				:visible.sync="dialogVisible"
 				width="600px"
-				:before-close="handleClose">
+				@close="handleClose">
 
 			<el-form :model="editForm" :rules="editFormRules" ref="editForm">
 				<el-form-item label="用户名" prop="username" label-width="100px">
@@ -128,7 +127,8 @@
 				</el-form-item>
 
 				<el-form-item label="密码" prop="password" label-width="100px">
-					<el-input v-model="editForm.password" type="password" autocomplete="off"></el-input>
+					<el-input v-model="editForm.password" disabled autocomplete="off"></el-input>
+					<div class="el-form-item__info" style="font-size: 12px; color: #909399; line-height: 1; padding-top: 4px;">初始密码默认为123456</div>
 				</el-form-item>
 
 				<el-form-item label="真实姓名" prop="realname" label-width="100px">
@@ -145,15 +145,14 @@
 				<el-form-item label="出生日期" prop="birthDate" label-width="100px">
 					<el-date-picker v-model="editForm.birthDate" type="date" placeholder="选择日期"></el-date-picker>
 				</el-form-item>
-
-				<el-form-item label="地址" prop="address" label-width="100px">
-					<el-input v-model="editForm.address" autocomplete="off"></el-input>
-				</el-form-item>
-
 				<el-form-item label="角色" prop="roleId" label-width="100px">
 					<el-select v-model="editForm.roleId" placeholder="请选择角色">
-						<el-option v-for="role in roles" :key="role.id" :label="role.name" :value="role.id"></el-option>
+						<el-option v-for="role in roles" :key="role.id" :label="role.role_name" :value="role.id"></el-option>
 					</el-select>
+				</el-form-item>
+
+				<el-form-item label="地址" prop="address" label-width="100px">
+					<el-input v-model="editForm.address" type="textarea" :rows="2"></el-input>
 				</el-form-item>
 
 				<el-form-item label="部门" prop="departmentId" label-width="100px">
@@ -188,74 +187,32 @@
 				<el-button type="primary" @click="submitRoleHandle('roleForm')">确 定</el-button>
 			</div>
 		</el-dialog>
-
-		<el-drawer
-		    size="50%"
-			title="患者信息详情"
-			:visible.sync="drawer"
-			:direction="direction"
-			:before-close="handleDrawerClose">
-
-			<span>我来啦!</span>
-			<el-table :data="tableData" style="width: 100%">
-        <el-table-column
-          prop="date"
-          label="日期"
-          width="180">
-        </el-table-column>
-        <el-table-column
-          prop="attendingDoctor"
-          label="主治医生"
-          width="180">
-        </el-table-column>
-        <el-table-column
-          prop="symptoms"
-          label="症状"
-          width="180">
-        </el-table-column>
-        <el-table-column
-          prop="diagnosticResults"
-          label="诊断结果"
-          width="180">
-        </el-table-column>
-        <el-table-column
-          prop="treatment"
-          label="治疗措施"
-          width="180">
-        </el-table-column>
-        <el-table-column label="操作" width="180">
-          <template slot-scope="scope">
-            <el-button type="text" @click="dialogTableVisible = true">编辑</el-button>
-            <el-button type="text" @click="delHandle(scope.row.recordId)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-		</el-drawer>
-		<!-- <el-dialog title="详情" :visible.sync="dialogTableVisible">
-			<el-table :data="gridData">
-				<el-table-column property="date" label="日期" width="150"></el-table-column>
-				<el-table-column property="name" label="姓名" width="200"></el-table-column>
-				<el-table-column property="address" label="地址"></el-table-column>
-			</el-table>
-		</el-dialog> -->
-		<FullCalendar
-			:options="calendarOptions"
-		/>
 	</div>
 </template>
 
 <script>
-    import { GetUserList } from '@/api/index.js'
+    import { GetUserList,GetRoleList,GetDepartmentList } from '@/api/index.js'
 	import FullCalendar from '@fullcalendar/vue'  
-    import dayGridPlugin from '@fullcalendar/daygrid'
-    import interactionPlugin from '@fullcalendar/interaction'
-	import { options } from 'marked'
+    import { dayGridPlugin } from '@fullcalendar/daygrid'
+	import { interactionPlugin } from '@fullcalendar/interaction'
+	import { UserRegiste } from '@/api'
 	export default {
 		components:{
 			FullCalendar
 		},
 		name: "User",
 		data() {
+			// 自定义验证规则
+			const validatePassword = (rule, value, callback) => {
+				if (value === '') {
+					callback(new Error('请输入密码'))
+				} else if (value.length < 6) {
+					callback(new Error('密码长度不能少于6个字符'))
+				} else {
+					callback()
+				}
+			}
+
 			return {
 				calendarOptions: {
 					plugins: [ dayGridPlugin, interactionPlugin ],
@@ -295,6 +252,7 @@
 						{ min: 3, max: 20, message: '长度在 3 到 20 个字符', trigger: 'blur' }
 					],
 					password: [
+						{ required: true, validator: validatePassword, trigger: 'blur' },
 						{ required: true, message: '请输入密码', trigger: 'blur' },
 						{ min: 6, max: 20, message: '长度在 6 到 20 个字符', trigger: 'blur' }
 					],
@@ -332,19 +290,51 @@
 			}
 		},
         computed: {
-            hasSysUserSaveAuth() {
-                return this.hasAuth('sys:user:save');
-            },	
-            hasSysUserDeleteAuth() {
-                return this.hasAuth('sys:user:delete');
-            }
         },
-		created() {
-			this.getUserList()
-			this.getRoles()
-			this.getDepartments()
+		async created() {
+			try {
+				await Promise.all([
+					this.getUserList(),
+					this.getRoles(),
+					this.getDepartments()
+				])
+			} catch (error) {
+				console.error('初始化数据失败:', error)
+				this.$message.error('初始化数据失败，请刷新页面重试')
+			}
 		},
 		methods: {
+			UserRegiste,
+			async handleRegister() {
+			try {
+				// 确保角色和部门数据已加载
+				if (!this.roles || this.roles.length === 0) {
+					await this.getRoles()
+				}
+				if (!this.departments || this.departments.length === 0) {
+					await this.getDepartments()
+				}
+
+				// 清空表单并设置默认密码
+				this.$refs['editForm']?.resetFields()
+				this.editForm = {
+					id: '',
+					username: '',
+					password: '123456',  // 设置默认密码
+					realname: '',
+					gender: '',
+					birthDate: '',
+					address: '',
+					roleId: '',
+					departmentId: ''
+				}
+				// 打开注册对话框
+				this.dialogVisible = true
+			} catch (error) {
+				console.error('打开注册对话框失败:', error)
+				this.$message.error('加载必要数据失败，请重试')
+			}
+		},
 			handleSelect(selectionInfo) {
 				const { start, end } = selectionInfo;
 				this.events.push({
@@ -360,11 +350,19 @@
 			},
 			async getUserList() {
 				try {
-					const res = await GetUserList()
-					this.tableData  = res
-					console.log(res.data,"res")
+					const res = await GetUserList({
+						current: this.current,
+						size: this.size,
+						username: this.searchForm.username
+					})
+					console.log("userList",res)
+					this.tableData = res.records
+					this.size = res.size
+					this.current = res.current
+					this.total = res.total
 				} catch (error) {
-					console.log("Error fetching patient list", error)
+					console.error('获取用户列表失败:', error)
+					this.$message.error('获取用户列表失败')
 				}
 			},
 			checkHandle(id){
@@ -422,40 +420,55 @@
 				this.drawer = false
 			},
 			handleClose() {
-				this.resetForm('editForm')
+				this.dialogVisible = false
+				this.$nextTick(() => {
+					this.$refs['editForm'].resetFields()
+				})
 			},
 
 			submitForm(formName) {
-				this.$refs[formName].validate((valid) => {
+				this.$refs[formName].validate(async (valid) => {
 					if (valid) {
-						const url = this.editForm.id ? '/sys/user/update' : '/sys/user/register'
-						this.$axios.post(url, this.editForm)
-							.then(res => {
-								this.$message({
-									showClose: true,
-									message: '操作成功',
-									type: 'success',
-									onClose: () => {
-										this.getUserList()
-									}
-								});
-								this.dialogVisible = false
-								this.editForm = {
-									id: '',
-									username: '',
-									password: '',
-									realname: '',
-									gender: '',
-									birthDate: '',
-									address: '',
-									roleId: '',
-									departmentId: ''
+						try {
+							const formData = {
+								...this.editForm,
+								birth_date: this.editForm.birthDate
+							}
+
+							let response
+							if (this.editForm.id) {
+								// 更新用户
+								response = await this.$axios.post('/sys/user/update', formData)
+							} else {
+								// 新增用户
+								response = await this.UserRegiste(formData)
+							}
+
+							this.$message({
+								showClose: true,
+								message: response.message || '操作成功',
+								type: 'success',
+								onClose: () => {
+									this.getUserList()
 								}
 							})
-							.catch(error => {
-								console.error('操作失败:', error)
-								this.$message.error(error.response?.data?.message || '操作失败')
-							})
+
+							this.dialogVisible = false
+							this.editForm = {
+								id: '',
+								username: '',
+								password: '',
+								realname: '',
+								gender: '',
+								birthDate: '',
+								address: '',
+								roleId: '',
+								departmentId: ''
+							}
+						} catch (error) {
+							console.error('操作失败:', error)
+							this.$message.error(error.response?.data?.message || '操作失败')
+						}
 					} else {
 						return false
 					}
@@ -548,8 +561,9 @@
 			},
 			async getRoles() {
 				try {
-					const res = await this.$axios.get('/sys/role/list')
-					this.roles = res.data.data
+					const res = await GetRoleList()
+					console.log("11111",res)
+					this.roles = res
 				} catch (error) {
 					console.error('获取角色列表失败:', error)
 					this.$message.error('获取角色列表失败')
@@ -557,8 +571,9 @@
 			},
 			async getDepartments() {
 				try {
-					const res = await this.$axios.get('/sys/department/list')
-					this.departments = res.data.data
+					const res = await GetDepartmentList()
+					console.log("111111111",res)
+					this.departments = res.data
 				} catch (error) {
 					console.error('获取部门列表失败:', error)
 					this.$message.error('获取部门列表失败')
@@ -574,6 +589,14 @@
 					age--;
 				}
 				return age;
+			},
+			formatDate(date) {
+				if (!date) return '';
+				const d = new Date(date);
+				const year = d.getFullYear();
+				const month = String(d.getMonth() + 1).padStart(2, '0');
+				const day = String(d.getDate()).padStart(2, '0');
+				return `${year}-${month}-${day}`;
 			}
 		}
 	}
