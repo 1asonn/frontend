@@ -33,7 +33,7 @@ export const run = async () => {
   const toolkit = new SqlToolkit(db, llm);
   const executor = createSqlAgent(llm, toolkit);
 
-  const input = `查询id为1的患者的所有就诊记录信息`;
+  const input = `查询所有用户的信息`;
 
   console.log(`Executing with input "${input}"...`);
 

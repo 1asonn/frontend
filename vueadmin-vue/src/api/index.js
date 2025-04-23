@@ -22,6 +22,27 @@ export const GetPatientRecord = async (patientId) => {
     }
 }
 
+// 查询患者信息（支持卡号和姓名）
+export const GetPatientInfo = async ({ medicalId = '', name = '' }) => {
+    try {
+        // 确保 medicalId 作为字符串处理
+        const medicalIdStr = String(medicalId).trim();
+        const nameStr = String(name).trim();
+        
+        const response = await request.get('http://localhost:4000/patient/getPatients', {
+            params: { 
+                medicalId: medicalIdStr, 
+                name: nameStr 
+            }
+        });
+        // 返回 records 数组
+        return response.data.data.records;
+    } catch (error) {
+        console.error("获取患者信息失败", error);
+        return [];
+    }
+}
+
 // 获取用户菜单
 export const GetUserAuth = async () => {
     try {
