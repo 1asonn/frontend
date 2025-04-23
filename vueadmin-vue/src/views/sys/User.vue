@@ -52,9 +52,6 @@
 			<el-table-column
 					prop="birth_date"
 					label="出生日期">
-				<template slot-scope="scope">
-					{{ formatDate(scope.row.birth_date) }}
-				</template>
 			</el-table-column>
 			<el-table-column
 					label="年龄">
@@ -589,14 +586,6 @@
 					age--;
 				}
 				return age;
-			},
-			formatDate(date) {
-				if (!date) return '';
-				const d = new Date(date);
-				const year = d.getFullYear();
-				const month = String(d.getMonth() + 1).padStart(2, '0');
-				const day = String(d.getDate()).padStart(2, '0');
-				return `${year}-${month}-${day}`;
 			}
 		}
 	}
