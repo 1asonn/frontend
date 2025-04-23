@@ -1,28 +1,142 @@
 <template>
 	<div style="padding: 5px;">
-		<el-form :inline="true" style="text-align: left;">
-			<el-form-item>
-				<el-input
-						v-model="searchForm.username"
-						placeholder="用户名"
+		<el-card class="search-card">
+			<div slot="header">
+				<span>患者信息查询</span>
+			</div>
+			<el-form :inline="true" style="text-align: left;">
+				<el-form-item label="就诊卡号">
+					<el-input
+						v-model="searchForm.medicalId"
+						placeholder="请输入就诊卡号"
 						clearable
-				>
-				</el-input>
-			</el-form-item>
+					>
+					</el-input>
+				</el-form-item>
 
-			<el-form-item>
-				<el-button @click="">搜索</el-button>
-			</el-form-item>
+				<el-form-item label="患者姓名">
+					<el-input
+						v-model="searchForm.name"
+						placeholder="请输入患者姓名"
+						clearable
+					>
+					</el-input>
+				</el-form-item>
 
-			<el-form-item>
-				<el-button type="primary" @click="dialogVisible = true" v-if="hasAuth('sys:user:save')">新增</el-button>
-			</el-form-item>
-			<el-form-item>
-				<el-popconfirm title="这是确定批量删除吗？" @confirm="delHandle(null)">
-					<el-button type="danger" slot="reference" :disabled="delBtlStatu" v-if="hasAuth('sys:user:delete')">批量删除</el-button>
-				</el-popconfirm>
-			</el-form-item>
-		</el-form>
+				<el-form-item>
+					<el-button type="primary" @click="searchPatients">搜索</el-button>
+					<el-button @click="resetSearch">重置</el-button>
+				</el-form-item>
+
+				<el-form-item>
+					<el-button type="success" @click="dialogVisible = true" v-if="hasAuth('sys:user:save')">新增患者</el-button>
+				</el-form-item>
+				<el-form-item>
+					<el-popconfirm title="确定要批量删除选中的患者吗？" @confirm="delHandle(null)">
+						<el-button type="danger" slot="reference" :disabled="delBtlStatu" v-if="hasAuth('sys:user:delete')">批量删除</el-button>
+					</el-popconfirm>
+				</el-form-item>
+			</el-form>
+		</el-card>
+
+		<!-- 单个患者信息平铺展示 -->
+		<div v-if="searchResults.length === 1" class="single-patient-info">
+			<el-card class="single-patient-card">
+				<div slot="header" class="single-patient-header">
+					<div class="header-title">
+						<i class="el-icon-user"></i>
+						<span>患者信息</span>
+					</div>
+					<div class="patient-card-actions">
+						<el-button size="small" type="primary" @click="checkHandle(searchResults[0].id)">查看病历</el-button>
+						<el-button size="small" type="success" @click="editHandle(searchResults[0].id)">编辑信息</el-button>
+					</div>
+				</div>
+				
+				<el-row :gutter="20" class="patient-detail-row">
+					<el-col :span="24">
+						<div class="patient-name">
+							<h2>{{searchResults[0].name}}</h2>
+							<el-tag type="success" v-if="searchResults[0].gender === '男'">男</el-tag>
+							<el-tag type="danger" v-else-if="searchResults[0].gender === '女'">女</el-tag>
+							<el-tag v-else>其他</el-tag>
+						</div>
+					</el-col>
+				</el-row>
+				
+				<el-row :gutter="20" class="patient-detail-row">
+					<el-col :span="8">
+						<div class="detail-item">
+							<div class="detail-label">就诊卡号</div>
+							<div class="detail-value">{{searchResults[0].medicalId}}</div>
+						</div>
+					</el-col>
+					<el-col :span="8">
+						<div class="detail-item">
+							<div class="detail-label">年龄</div>
+							<div class="detail-value">{{searchResults[0].age}}岁</div>
+						</div>
+					</el-col>
+					<el-col :span="8">
+						<div class="detail-item">
+							<div class="detail-label">出生日期</div>
+							<div class="detail-value">{{searchResults[0].birthday}}</div>
+						</div>
+					</el-col>
+				</el-row>
+				
+				<el-row :gutter="20" class="patient-detail-row">
+					<el-col :span="8">
+						<div class="detail-item">
+							<div class="detail-label">联系电话</div>
+							<div class="detail-value">{{searchResults[0].phone}}</div>
+						</div>
+					</el-col>
+					<el-col :span="16">
+						<div class="detail-item">
+							<div class="detail-label">身份证号</div>
+							<div class="detail-value">{{searchResults[0].idCard}}</div>
+						</div>
+					</el-col>
+				</el-row>
+				
+				<el-row :gutter="20" class="patient-detail-row" v-if="searchResults[0].createdAt">
+					<el-col :span="24">
+						<div class="detail-item">
+							<div class="detail-label">创建时间</div>
+							<div class="detail-value">{{searchResults[0].createdAt}}</div>
+						</div>
+					</el-col>
+				</el-row>
+			</el-card>
+		</div>
+		
+		<!-- 多个患者信息卡片展示 -->
+		<div v-if="searchResults.length > 1" class="patient-cards">
+			<el-row :gutter="20">
+				<el-col :span="8" v-for="(patient, index) in searchResults" :key="index">
+					<el-card class="patient-card" shadow="hover">
+						<div slot="header" class="patient-card-header">
+							<span><i class="el-icon-user"></i> {{patient.name}}</span>
+							<div class="patient-card-actions">
+								<el-button type="text" @click="checkHandle(patient.id)">查看</el-button>
+								<el-button type="text" @click="editHandle(patient.id)">编辑</el-button>
+							</div>
+						</div>
+						<div class="patient-info">
+							<p><span class="info-label">就诊卡号：</span>{{patient.medicalId}}</p>
+							<p><span class="info-label">性别：</span>{{patient.gender}}</p>
+							<p><span class="info-label">年龄：</span>{{patient.age}}岁</p>
+							<p><span class="info-label">联系电话：</span>{{patient.phone}}</p>
+							<p><span class="info-label">身份证号：</span>{{patient.idCard}}</p>
+						</div>
+					</el-card>
+				</el-col>
+			</el-row>
+		</div>
+
+		<!-- 无搜索结果提示 -->
+		<el-empty v-if="hasSearched && searchResults.length === 0" description="未找到符合条件的患者信息"></el-empty>
 
 		<el-table
 				ref="multipleTable"
@@ -152,49 +266,224 @@
 
 
 		<el-drawer
-		    size="60%"
-			title="患者信息详情"
+		    size="70%"
+			:title="currentPatientName ? currentPatientName + ' 的病历记录' : '患者病历记录'"
 			:visible.sync="drawer"
 			:direction="direction"
-			:before-close="handleDrawerClose">
+			:before-close="handleDrawerClose"
+			custom-class="medical-record-drawer">
 
-			<span>我来啦!</span>
-			<div class="RecordBox">
-				<el-table :data="recordData" style="width: 100% ">
-			
-					<el-table-column
-					prop="date"
-					label="日期"
-					width="180">
-					</el-table-column>
-					<el-table-column
-					prop="attendingDoctor"
-					label="主治医生"
-					width="180">
-					</el-table-column>
-					<el-table-column
-					prop="symptoms"
-					label="症状"
-					width="180">
-					</el-table-column>
-					<el-table-column
-					prop="diagnosticResults"
-					label="诊断结果"
-					width="180">
-					</el-table-column>
-					<el-table-column
-					prop="treatment"
-					label="治疗措施"
-					width="180">
-					</el-table-column>
-					<el-table-column label="操作" width="180">
-					<template slot-scope="scope">
-						<el-button type="text" @click="dialogTableVisible = true">编辑</el-button>
-						<el-button type="text" @click="delHandle(scope.row.recordId)">删除</el-button>
-					</template>
-					</el-table-column>
-				</el-table>
+			<!-- 患者基本信息卡片 -->
+			<el-card class="patient-summary-card" v-if="currentPatient">
+				<div class="patient-summary-header">
+					<div class="patient-avatar">
+						<i class="el-icon-user-solid"></i>
+					</div>
+					<div class="patient-basic-info">
+						<h2>{{currentPatient.name}} 
+							<el-tag size="small" type="success" v-if="currentPatient.gender === '男'">男</el-tag>
+							<el-tag size="small" type="danger" v-else-if="currentPatient.gender === '女'">女</el-tag>
+							<el-tag size="small" v-else>其他</el-tag>
+						</h2>
+						<div class="patient-meta">
+							<span><i class="el-icon-document"></i> 就诊卡号: {{currentPatient.medicalId}}</span>
+							<span><i class="el-icon-date"></i> 年龄: {{currentPatient.age}}岁</span>
+							<span><i class="el-icon-phone"></i> 电话: {{currentPatient.phone}}</span>
+						</div>
+					</div>
+					<div class="patient-actions">
+						<el-button type="primary" size="small" @click="startAiAnalysis" :loading="loading" icon="el-icon-data-analysis">
+							AI 分析
+						</el-button>
+						<el-button type="success" size="small" icon="el-icon-plus">
+							新增病历
+						</el-button>
+					</div>
+				</div>
+			</el-card>
 
+			<!-- 病历记录标签页 -->
+			<el-tabs type="border-card" class="medical-record-tabs">
+				<el-tab-pane label="病历记录">
+					<div class="record-header">
+						<h3><i class="el-icon-document-copy"></i> 病历记录</h3>
+						<div class="record-filters">
+							<el-radio-group v-model="recordViewType" size="small">
+								<el-radio-button label="table">表格视图</el-radio-button>
+								<el-radio-button label="timeline">时间线视图</el-radio-button>
+							</el-radio-group>
+						</div>
+					</div>
+
+					<!-- 表格视图 -->
+					<div v-if="recordViewType === 'table'" class="table-view">
+						<el-table 
+							:data="recordData" 
+							style="width: 100%"
+							row-key="recordId"
+							:row-class-name="tableRowClassName"
+							:expand-row-keys="expandedRows"
+							@expand-change="handleExpandChange"
+							:header-cell-style="{backgroundColor: '#f5f7fa', color: '#606266'}"
+							:cell-style="{padding: '8px 0'}">
+							
+							<el-table-column type="expand">
+								<template slot-scope="props">
+									<div class="expanded-record">
+										<el-row :gutter="20">
+											<el-col :span="24">
+												<div class="detail-section">
+													<h4><i class="el-icon-document"></i> 症状描述</h4>
+													<p>{{props.row.symptoms}}</p>
+												</div>
+											</el-col>
+										</el-row>
+										<el-row :gutter="20">
+											<el-col :span="12">
+												<div class="detail-section">
+													<h4><i class="el-icon-first-aid-kit"></i> 诊断结果</h4>
+													<p>{{props.row.diagnosticResults}}</p>
+												</div>
+											</el-col>
+											<el-col :span="12">
+												<div class="detail-section">
+													<h4><i class="el-icon-medicine-box"></i> 治疗措施</h4>
+													<p>{{props.row.treatment}}</p>
+												</div>
+											</el-col>
+										</el-row>
+										<el-row v-if="props.row.prescription || props.row.notes">
+											<el-col :span="props.row.prescription && props.row.notes ? 12 : 24" v-if="props.row.prescription">
+												<div class="detail-section">
+													<h4><i class="el-icon-shopping-cart-full"></i> 处方药品</h4>
+													<p>{{props.row.prescription}}</p>
+												</div>
+											</el-col>
+											<el-col :span="props.row.prescription && props.row.notes ? 12 : 24" v-if="props.row.notes">
+												<div class="detail-section">
+													<h4><i class="el-icon-notebook-2"></i> 备注</h4>
+													<p>{{props.row.notes}}</p>
+												</div>
+											</el-col>
+										</el-row>
+									</div>
+								</template>
+							</el-table-column>
+							
+							<el-table-column
+								prop="date"
+								label="就诊日期"
+								width="120">
+								<template slot-scope="scope">
+									<span class="date-cell">
+										<i class="el-icon-date"></i> {{scope.row.date}}
+									</span>
+								</template>
+							</el-table-column>
+							
+							<el-table-column
+								prop="attendingDoctor"
+								label="主治医生"
+								width="120">
+								<template slot-scope="scope">
+									<el-tag size="medium" type="info">
+										<i class="el-icon-user"></i> {{scope.row.attendingDoctor}}
+									</el-tag>
+								</template>
+							</el-table-column>
+							
+							<el-table-column
+								prop="symptoms"
+								label="症状"
+								min-width="180">
+								<template slot-scope="scope">
+									<div class="symptoms-cell">
+										{{scope.row.symptoms | truncate(50)}}
+									</div>
+								</template>
+							</el-table-column>
+							
+							<el-table-column
+								prop="diagnosticResults"
+								label="诊断结果"
+								min-width="180">
+								<template slot-scope="scope">
+									<div class="diagnosis-cell">
+										{{scope.row.diagnosticResults | truncate(50)}}
+									</div>
+								</template>
+							</el-table-column>
+							
+							<el-table-column
+								prop="treatment"
+								label="治疗措施"
+								min-width="200">
+								<template slot-scope="scope">
+									<div class="treatment-cell">
+										{{scope.row.treatment | truncate(50)}}
+									</div>
+								</template>
+							</el-table-column>
+							
+							<el-table-column label="操作" width="120" fixed="right">
+								<template slot-scope="scope">
+									<el-button type="text" size="small" @click="dialogTableVisible = true">
+										<i class="el-icon-edit"></i> 编辑
+									</el-button>
+									<el-divider direction="vertical"></el-divider>
+									<el-button type="text" size="small" class="delete-btn" @click="delHandle(scope.row.recordId)">
+										<i class="el-icon-delete"></i> 删除
+									</el-button>
+								</template>
+							</el-table-column>
+						</el-table>
+					</div>
+					
+					<!-- 时间线视图 -->
+					<div v-else class="timeline-view">
+						<el-timeline>
+							<el-timeline-item
+								v-for="(record, index) in recordData"
+								:key="index"
+								:timestamp="record.date"
+								placement="top"
+								:type="getTimelineItemType(record)">
+								<el-card class="timeline-card">
+									<div class="timeline-header">
+										<h4>
+											<span class="diagnosis-tag">
+												{{record.diagnosticResults | truncate(30)}}
+											</span>
+										</h4>
+										<div class="doctor-info">
+											<i class="el-icon-user"></i> 主治医生: {{record.attendingDoctor}}
+										</div>
+									</div>
+									<div class="timeline-content">
+										<div class="content-section">
+											<h5>症状</h5>
+											<p>{{record.symptoms}}</p>
+										</div>
+										<div class="content-section">
+											<h5>治疗措施</h5>
+											<p>{{record.treatment}}</p>
+										</div>
+									</div>
+									<div class="timeline-footer">
+										<el-button type="text" size="small" @click="dialogTableVisible = true">
+											<i class="el-icon-edit"></i> 编辑
+										</el-button>
+										<el-button type="text" size="small" class="delete-btn" @click="delHandle(record.recordId)">
+											<i class="el-icon-delete"></i> 删除
+										</el-button>
+									</div>
+								</el-card>
+							</el-timeline-item>
+						</el-timeline>
+					</div>
+				</el-tab-pane>
+				
+				<el-tab-pane label="AI 分析">
 				<!-- AI分析结果展示 -->
 				<div v-if="aiAnalysis">
 					<el-card class="ai-analysis">
@@ -240,8 +529,9 @@
 						</div>
 					</el-card>
 				</div>
+				
 				<!-- Loading提示 -->
-				<div v-else class="analysis-loading">
+				<div v-else-if="!aiAnalysis" class="analysis-loading">
 					<div style="text-align: center; margin: 20px;">
 						<el-button type="primary" @click="startAiAnalysis" :loading="loading">
 							开始 AI 分析
@@ -287,7 +577,8 @@
 
 					<el-skeleton v-if="loading" style="width: 100%; margin-top: 20px" :rows="6" animated />
 				</div>
-			</div>
+				</el-tab-pane>
+			</el-tabs>
 		</el-drawer>
 		<!-- <el-dialog title="详情" :visible.sync="dialogTableVisible">
 			<el-table :data="gridData">
@@ -304,13 +595,29 @@
 	import { MedicalHistoryAnalysis } from '@/api/aiAgent.js' 
 	export default {
 		name: "patient",
+		filters: {
+			truncate(value, length = 30) {
+				if (!value) return '';
+				if (value.length <= length) return value;
+				return value.substr(0, length) + '...';
+			}
+		},
 		data() {
 			return {
 		
         dialogTableVisible: false,
 				drawer: false,
         		direction: 'rtl',
-				searchForm: {},
+				searchForm: {
+					medicalId: '',
+					name: ''
+				},
+				searchResults: [],
+				hasSearched: false,
+				recordViewType: 'table',
+				expandedRows: [],
+				currentPatient: null,
+				currentPatientName: '',
 				delBtlStatu: true,
 
 				total: 10,
@@ -379,19 +686,85 @@
 			async getPatientList() {
 				try {
 					const res = await GetPatientList()
-					this.patientData  = res.data.data.records
+					this.patientData = res.data.data.records
 					console.log(res.data,"res")
 				} catch (error) {
 					console.log("Error fetching patient list", error)
-					
+					this.$message.error('获取患者列表失败')
 				}
 			},
+			
+			async searchPatients() {
+				try {
+					const params = {}
+					if (this.searchForm.medicalId) {
+						params.medicalId = this.searchForm.medicalId
+					}
+					if (this.searchForm.name) {
+						params.name = this.searchForm.name
+					}
+					
+					const res = await GetPatientList(params)
+					this.searchResults = res.data.data.records
+					this.hasSearched = true
+					
+					if (this.searchResults.length === 0) {
+						this.$message.info('未找到符合条件的患者')
+					}
+				} catch (error) {
+					console.error("搜索患者失败", error)
+					this.$message.error('搜索患者失败')
+				}
+			},
+			
+			resetSearch() {
+				this.searchForm = {
+					medicalId: '',
+					name: ''
+				}
+				this.searchResults = []
+				this.hasSearched = false
+			},
 			checkHandle(id){
+				// Find the patient in the data
+				const patient = this.patientData.find(p => p.id === id) || 
+							 this.searchResults.find(p => p.id === id);
+				if (patient) {
+					this.currentPatient = patient;
+					this.currentPatientName = patient.name;
+				}
+				
 				GetPatientRecord(id).then(res => {
 					console.log(res,"this is record data")
 					this.recordData = res.data
-					this.drawer = true 
+					this.drawer = true
+					// Expand the first row by default if there are records
+					if (this.recordData && this.recordData.length > 0) {
+						this.expandedRows = [this.recordData[0].recordId];
+					}
 				})
+			},
+			
+			// Table row class based on record type
+			tableRowClassName({row}) {
+				// You can add logic here to style rows differently based on record properties
+				return '';
+			},
+			
+			// Handle row expansion change
+			handleExpandChange(row, expandedRows) {
+				if (expandedRows.length > 0) {
+					this.expandedRows = [row.recordId];
+				} else {
+					this.expandedRows = [];
+				}
+			},
+			
+			// Get timeline item type based on record
+			getTimelineItemType(record) {
+				// You can add logic here to determine the timeline item type
+				// based on record properties (e.g., primary, success, warning, danger)
+				return 'primary';
 			},
 
             test(){
@@ -437,6 +810,9 @@
 				this.currentStage = 0
 				this.progressStatus = ''
 				this.currentStageDetails = ''
+				this.currentPatient = null
+				this.currentPatientName = ''
+				this.expandedRows = []
 			},
 			handleClose() {
 				this.resetForm('editForm')
@@ -612,6 +988,302 @@
 </script>
 
 <style scoped>
+/* Medical Record Drawer Styles */
+.medical-record-drawer .el-drawer__header {
+	margin-bottom: 0;
+	padding: 15px 20px;
+	background-color: #f5f7fa;
+	border-bottom: 1px solid #e6e6e6;
+}
+
+.patient-summary-card {
+	margin: 15px;
+	box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+.patient-summary-header {
+	display: flex;
+	align-items: center;
+}
+
+.patient-avatar {
+	width: 60px;
+	height: 60px;
+	border-radius: 50%;
+	background-color: #409EFF;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	margin-right: 15px;
+}
+
+.patient-avatar i {
+	font-size: 30px;
+	color: white;
+}
+
+.patient-basic-info {
+	flex: 1;
+}
+
+.patient-basic-info h2 {
+	margin: 0 0 5px 0;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.patient-meta {
+	display: flex;
+	gap: 15px;
+	color: #606266;
+}
+
+.patient-meta span {
+	display: flex;
+	align-items: center;
+}
+
+.patient-meta i {
+	margin-right: 5px;
+}
+
+.patient-actions {
+	display: flex;
+	gap: 10px;
+}
+
+.medical-record-tabs {
+	margin: 15px;
+}
+
+.record-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 15px;
+}
+
+.record-header h3 {
+	margin: 0;
+	display: flex;
+	align-items: center;
+}
+
+.record-header h3 i {
+	margin-right: 8px;
+}
+
+.expanded-record {
+	padding: 20px;
+	background-color: #f9fafc;
+	margin-bottom: 10px;
+}
+
+.detail-section {
+	margin-bottom: 15px;
+}
+
+.detail-section h4 {
+	margin: 0 0 8px 0;
+	color: #606266;
+	font-size: 14px;
+	display: flex;
+	align-items: center;
+}
+
+.detail-section h4 i {
+	margin-right: 5px;
+	color: #409EFF;
+}
+
+.detail-section p {
+	margin: 0;
+	line-height: 1.6;
+	word-break: break-word;
+	white-space: pre-wrap;
+}
+
+.date-cell {
+	display: flex;
+	align-items: center;
+}
+
+.date-cell i {
+	margin-right: 5px;
+	color: #909399;
+}
+
+.symptoms-cell, .diagnosis-cell, .treatment-cell {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.delete-btn {
+	color: #F56C6C;
+}
+
+.timeline-view {
+	padding: 0 20px;
+}
+
+.timeline-card {
+	margin-bottom: 10px;
+}
+
+.timeline-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 10px;
+}
+
+.timeline-header h4 {
+	margin: 0;
+}
+
+.diagnosis-tag {
+	color: #409EFF;
+	font-weight: 500;
+}
+
+.doctor-info {
+	color: #909399;
+	font-size: 13px;
+}
+
+.timeline-content {
+	margin-bottom: 15px;
+}
+
+.content-section {
+	margin-bottom: 10px;
+}
+
+.content-section h5 {
+	margin: 0 0 5px 0;
+	color: #606266;
+	font-size: 13px;
+}
+
+.content-section p {
+	margin: 0;
+	color: #303133;
+	line-height: 1.5;
+}
+
+.timeline-footer {
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+}
+
+.RecordBox {
+	padding: 15px;
+}
+.search-card {
+	margin-bottom: 20px;
+}
+
+.single-patient-info {
+	margin-bottom: 30px;
+}
+
+.single-patient-card {
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.single-patient-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.header-title {
+	display: flex;
+	align-items: center;
+	font-size: 16px;
+	font-weight: bold;
+}
+
+.header-title i {
+	margin-right: 8px;
+	color: #409EFF;
+	font-size: 20px;
+}
+
+.patient-detail-row {
+	margin-bottom: 20px;
+}
+
+.patient-name {
+	display: flex;
+	align-items: center;
+	margin-bottom: 15px;
+}
+
+.patient-name h2 {
+	margin: 0 10px 0 0;
+	color: #303133;
+}
+
+.detail-item {
+	margin-bottom: 15px;
+}
+
+.detail-label {
+	font-size: 13px;
+	color: #909399;
+	margin-bottom: 5px;
+}
+
+.detail-value {
+	font-size: 15px;
+	color: #303133;
+	font-weight: 500;
+}
+
+.patient-cards {
+	margin-top: 20px;
+}
+
+.patient-card {
+	margin-bottom: 20px;
+	transition: all 0.3s;
+}
+
+.patient-card:hover {
+	transform: translateY(-5px);
+	box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.patient-card-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.patient-card-header i {
+	margin-right: 8px;
+	color: #409EFF;
+}
+
+.patient-info p {
+	margin: 8px 0;
+	line-height: 1.5;
+}
+
+.info-label {
+	font-weight: bold;
+	color: #606266;
+	margin-right: 5px;
+}
+
+.patient-card-actions {
+	display: flex;
+	gap: 10px;
+}
 .ai-analysis {
 	margin-top: 20px;
 	padding: 15px;

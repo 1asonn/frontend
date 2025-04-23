@@ -4,9 +4,14 @@ import request from '../axios.js'
 // request.defaults.baseURL = 'http://localhost:4000'
 
 // 获取患者列表
-export const GetPatientList = async () => {
+export const GetPatientList = async (params = {}) => {
         try{
-            const response = await request.get('http://localhost:4000/patient/getPatients')
+            const response = await request.get('http://localhost:4000/patient/getPatients', {
+                params: {
+                    medicalId: params.medicalId,
+                    name: params.name
+                }
+            })
             return response
         }catch(error){
             console.error("error",error)
