@@ -24,65 +24,54 @@
       </template>
 
       <!-- 员工排班表格 -->
-      <el-table :data="scheduleData" border style="width: 100%">
-        <el-table-column prop="name" label="员工姓名" width="120" />
-        
-        <!-- 周一到周日的排班列 -->
-        <el-table-column v-for="(day, index) in weekDays" :key="day" :label="day">
-          <template #default="scope">
-            <div class="shift-cell">
-              <el-select 
-                v-model="scope.row.schedules[index]" 
-                placeholder="选择班次"
-                @change="(val) => handleShiftChange(scope.row, index, val)"
-              >
-                <el-option label="休息" value="rest">
-                  <span>休息</span>
-                </el-option>
-                <el-option
-                  v-for="shift in shifts"
-                  :key="shift.id"
-                  :label="shift.name"
-                  :value="shift.id"
+      <div v-loading="loading">
+        <el-table :data="scheduleData" border style="width: 100%">
+          <el-table-column label="员工姓名" width="120">
+            <template #default="scope">
+              {{ scope.row.employee ? scope.row.employee.username : '' }}
+            </template>
+          </el-table-column>
+          
+          <!-- 周一到周日的排班列 -->
+          <el-table-column v-for="(day, index) in weekDays" :key="day" :label="day" :prop="weekDayProps[index]">
+            <template #default="scope">
+              <div class="shift-cell">
+                <el-select 
+                  v-model="scope.row[weekDayProps[index]]" 
+                  placeholder="选择班次"
                 >
-                  <span>{{ shift.name }}</span>
-                  <span class="shift-time">{{ shift.startTime }}-{{ shift.endTime }}</span>
-                </el-option>
-                <el-option label="自定义" value="custom">
-                  <span>自定义</span>
-                </el-option>
-              </el-select>
-              
-              <!-- 显示已选班次的时间 -->
-              <div v-if="scope.row.schedules[index] && scope.row.schedules[index] !== 'rest'" class="selected-time">
-                {{ scope.row.customTimes[index].start || '--:--' }} - {{ scope.row.customTimes[index].end || '--:--' }}
+                  <el-option label="休息" value="null">
+                    <span>休息</span>
+                  </el-option>
+                  <el-option
+                    v-for="shift in shifts"
+                    :key="shift.id"
+                    :label="shift.name"
+                    :value="shift.id.toString()"
+                  >
+                    <span>{{ shift.name }}</span>
+                    <span class="shift-time">{{ formatTime(shift.startTime) }}-{{ formatTime(shift.endTime) }}</span>
+                  </el-option>
+                </el-select>
+                
+                <!-- 显示已选班次的名称 -->
+                <div v-if="scope.row[weekDayProps[index]] && scope.row[weekDayProps[index]] !== 'null'" class="selected-shift">
+                  {{ getShiftName(scope.row[weekDayProps[index]]) }}
+                </div>
               </div>
-              
-              <!-- 自定义时间选择器 -->
-              <div v-if="scope.row.schedules[index] === 'custom'" class="custom-time">
-                <el-time-picker
-                  v-model="scope.row.customTimes[index].start"
-                  format="HH:mm"
-                  value-format="HH:mm"
-                  placeholder="开始时间"
-                  @change="updateCustomTime(scope.row, index)"
-                />
-                <el-time-picker
-                  v-model="scope.row.customTimes[index].end"
-                  format="HH:mm"
-                  value-format="HH:mm"
-                  placeholder="结束时间"
-                  @change="updateCustomTime(scope.row, index)"
-                />
-              </div>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
-      <el-button @click="checkData">checkData</el-button>
-      <!-- 保存按钮 -->
-      <div class="actions">
-        <el-button type="primary" @click="saveSchedules">保存排班</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+        
+        <div v-if="scheduleData.length === 0 && selectedDepartment" class="empty-data">
+          没有找到排班数据
+        </div>
+        
+        <!-- 保存按钮 -->
+        <div class="actions">
+          <el-button @click="checkData">检查数据</el-button>
+          <el-button type="primary" @click="saveSchedules">保存排班</el-button>
+        </div>
       </div>
     </el-card>
   </div>
@@ -101,7 +90,9 @@ export default {
       selectedDepartment: null,
       scheduleData: [],
       weekDays: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
-      loading: false
+      weekDayProps: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
+      loading: false,
+      shiftMap: {} // 用于快速查找班次信息
     }
   },
   created() {
@@ -109,8 +100,8 @@ export default {
     this.fetchShifts()
   },
   methods: {
-    checkData(){
-      console.log("checkData",this.scheduleData)
+    checkData() {
+      console.log("排班数据", this.scheduleData)
     },
     async fetchDepartments() {
       try {
@@ -125,6 +116,12 @@ export default {
         const res = await GetShifts()
         if (res.code === 200) {
           this.shifts = res.data.rows.filter(shift => shift.isEnabled)
+          
+          // 创建班次ID到班次对象的映射，方便快速查找
+          this.shiftMap = {}
+          this.shifts.forEach(shift => {
+            this.shiftMap[shift.id] = shift
+          })
         }
       } catch (error) {
         this.$message.error('获取班次列表失败')
@@ -137,104 +134,67 @@ export default {
         this.loading = true
         const res = await GetDepartmentSchedule(this.selectedDepartment)
         if (res.code === 200) {
-          // 初始化每个员工的排班数据
-          this.scheduleData = res.data.map(emp => {
-            // 为每个员工初始化一周的排班数据
-            const schedules = Array(7).fill(null)
-            const customTimes = Array(7).fill().map(() => ({ start: null, end: null }))
-
-            // 如果员工已有排班数据，填充到对应的数组中
-            if (emp.schedules && Array.isArray(emp.schedules)) {
-              emp.schedules.forEach((schedule, index) => {
-                if (schedule) {
-                  if (schedule.shiftId) {
-                    // 如果是预设班次
-                    schedules[index] = schedule.shiftId
-                  } else if (schedule.startTime && schedule.endTime) {
-                    // 如果是自定义时间
-                    schedules[index] = 'custom'
-                  } else {
-                    // 休息
-                    schedules[index] = 'rest'
-                  }
-                  
-                  // 保存时间信息
-                  customTimes[index] = {
-                    start: schedule.startTime || null,
-                    end: schedule.endTime || null
-                  }
-                }
-              })
-            }
-
-            return {
-              ...emp,
-              schedules,
-              customTimes
-            }
+          // 直接使用后端返回的数据
+          this.scheduleData = res.data
+          
+          // 将数字转换为字符串，以便于在选择器中正确匹配
+          this.scheduleData.forEach(schedule => {
+            this.weekDayProps.forEach(day => {
+              if (schedule[day] && schedule[day] !== 'null') {
+                schedule[day] = schedule[day].toString()
+              }
+            })
           })
         }
       } catch (error) {
+        console.error('获取员工排班失败:', error)
         this.$message.error('获取员工排班失败')
       } finally {
         this.loading = false
       }
     },
-    handleShiftChange(employee, dayIndex, shiftId) {
-      if (shiftId === 'custom') {
-        // 如果选择自定义，确保customTimes已初始化
-        if (!employee.customTimes[dayIndex]) {
-          employee.customTimes[dayIndex] = { start: null, end: null }
-        }
-      } else if (shiftId !== 'rest' && shiftId) {
-        // 如果选择预设班次，自动填充时间
-        const shift = this.shifts.find(s => s.id === shiftId)
-        if (shift) {
-          employee.customTimes[dayIndex] = {
-            start: shift.startTime,
-            end: shift.endTime
-          }
-        }
-      }
+    formatTime(timeString) {
+      if (!timeString) return '--:--'
+      // 如果时间已经是HH:MM:SS格式，只需要取前5位
+      return timeString.substring(0, 5)
     },
-    updateCustomTime(employee, dayIndex) {
-      // 更新自定义时间
-      const customTime = employee.customTimes[dayIndex]
-      if (customTime.start && customTime.end) {
-        // 可以在这里添加时间验证逻辑
-      }
+    getShiftName(shiftId) {
+      if (!shiftId || shiftId === 'null') return '休息'
+      const shift = this.shiftMap[shiftId]
+      return shift ? shift.name : ''
     },
     async saveSchedules() {
       try {
         this.loading = true
-        const schedules = this.scheduleData.map(emp => {
-          return {
-            employeeId: emp.id,
-            departmentId: this.selectedDepartment,
-            schedules: emp.schedules.map((shiftId, index) => {
-              if (!shiftId) return null
-              if (shiftId === 'rest') return null
-              
-              const customTime = emp.customTimes[index]
-              return {
-                shiftId: shiftId === 'custom' ? null : shiftId,
-                startTime: customTime.start,
-                endTime: customTime.end
-              }
-            })
+        
+        // 根据新的数据结构准备保存数据
+        const scheduleData = this.scheduleData.map(emp => {
+          const scheduleObj = {
+            employee_id: emp.employee.id,
+            id: emp.id
           }
+          
+          // 添加各天的班次ID
+          this.weekDayProps.forEach(day => {
+            scheduleObj[day] = emp[day] === 'null' ? null : emp[day]
+          })
+          
+          return scheduleObj
         })
 
         const res = await SaveSchedule({
           departmentId: this.selectedDepartment,
-          schedules
+          schedules: scheduleData
         })
 
         if (res.code === 200) {
           this.$message.success('保存排班成功')
           this.getEmployeesByDepartment()
+        } else {
+          this.$message.error(res.message || '保存排班失败')
         }
       } catch (error) {
+        console.error('保存排班失败:', error)
         this.$message.error('保存排班失败')
       } finally {
         this.loading = false
@@ -262,22 +222,17 @@ export default {
   gap: 8px;
 }
 
-.custom-time {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-}
-
 .shift-time {
   margin-left: 8px;
   color: #909399;
   font-size: 12px;
 }
 
-.selected-time {
+.selected-shift {
   color: #409EFF;
   font-size: 12px;
   text-align: center;
+  margin-top: 5px;
 }
 
 .actions {
@@ -285,11 +240,13 @@ export default {
   text-align: right;
 }
 
-:deep(.el-select) {
-  width: 100%;
+.empty-data {
+  text-align: center;
+  padding: 20px;
+  color: #909399;
 }
 
-:deep(.el-time-picker) {
-  width: 120px;
+:deep(.el-select) {
+  width: 100%;
 }
 </style>

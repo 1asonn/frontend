@@ -9,19 +9,23 @@
                 @input="handleSearch"
             >
             </el-input>
-            <el-select v-model="filterType" placeholder="设备类型" @change="handleSearch" class="filter-select">
+            <el-select v-model="filterDepartment" placeholder="所属科室" @change="handleSearch" class="filter-select">
                 <el-option label="全部" value=""></el-option>
-                <el-option label="医疗器械" value="医疗器械"></el-option>
-                <el-option label="检验设备" value="检验设备"></el-option>
+                <el-option label="放射科" value="放射科"></el-option>
+                <el-option label="检验科" value="检验科"></el-option>
+                <el-option label="手术室" value="手术室"></el-option>
             </el-select>
             <el-select v-model="filterStatus" placeholder="设备状态" @change="handleSearch" class="filter-select">
                 <el-option label="全部" value=""></el-option>
-                <el-option label="正常" value="正常"></el-option>
-                <el-option label="维修中" value="维修中"></el-option>
-                <el-option label="报废" value="报废"></el-option>
+                <el-option label="正常" value="normal"></el-option>
+                <el-option label="维修中" value="maintenance"></el-option>
+                <el-option label="报废" value="scrapped"></el-option>
             </el-select>
         </div>
         <div v-loading="loading" class="equipment-container">
+            <div v-if="equipmentList.length === 0" class="empty-data">
+                暂无设备数据
+            </div>
             <div class="container" v-for="item in filteredEquipmentList" :key="item.id">
                 <el-card :body-style="{ position:'relative', padding: '0px' }">
                     <img src="@/assets/jinan.jpg" @click="checkDetail(item)"  class="image">
@@ -31,6 +35,10 @@
                     </div>
                     <div style="position:relative;padding: 14px;">
                         <span>{{ item.name }}</span>
+                        <div class="equipment-info">
+                            <span class="equipment-code">编号: {{ item.equipment_code }}</span>
+                            <span class="equipment-status" :class="getStatusClass(item.status)">{{ formatStatus(item.status) }}</span>
+                        </div>
                         <div class="bottom">
                             <el-button type="text" class="button" @click="editDetail(item)">编辑</el-button>
                             <el-button type="text" class="button">维护记录</el-button>
@@ -49,22 +57,22 @@
                                 <p>实拍图：<el-image 
                                     style="width: 100px; height: 100px ;vertical-align: top;"
                                     fit="contain"
-                                    src="http://localhost:4000/uploads/1741791098337.JPG" 
-                                    :preview-src-list=[selectedEquipment.image]>
+                                    src="@/assets/jinan.jpg" 
+                                    :preview-src-list="[require('@/assets/jinan.jpg')]">
                                 </el-image></p>
-                                <p>类型：{{ selectedEquipment.type }}</p>
-                                <p>科室：{{ selectedEquipment.partment }}</p>
-                                <p>位置：{{ selectedEquipment.position }}</p>
+                                <p>设备编号：{{ selectedEquipment.equipment_code }}</p>
+                                <p>科室：{{ selectedEquipment.department }}</p>
+                                <p>位置：{{ selectedEquipment.location }}</p>
+                                <p>型号：{{ selectedEquipment.model }}</p>
                             </div>
                             <div class="right-column">
-                                <p>状态：{{ selectedEquipment.status }}</p>
-                                <p>编号：{{ selectedEquipment.code }}</p>
-                                <p>型号：{{ selectedEquipment.model }}</p>
-                                <p>采购日期：{{ selectedEquipment.purchaseDate }}</p>
-                                <p>使用年限：{{ selectedEquipment.useYear }}</p>
+                                <p>状态：{{ formatStatus(selectedEquipment.status) }}</p>
+                                <p>采购日期：{{ formatDate(selectedEquipment.purchase_date) }}</p>
+                                <p>保修期至：{{ formatDate(selectedEquipment.warranty_period) }}</p>
+                                <p>使用年限：{{ selectedEquipment.service_life }} 年</p>
                                 <p>制造商：{{ selectedEquipment.manufacturer }}</p>
-                                
-                
+                                <p>负责人：{{ selectedEquipment.responsible_person }}</p>
+                                <p>联系电话：{{ selectedEquipment.contact_number }}</p>
                             </div>
                         </div>
                     </div>
@@ -82,40 +90,50 @@
                         <el-form-item label="设备名称" prop="name">
                             <el-input v-model="editForm.name"></el-input>
                         </el-form-item>
-                        <el-form-item label="设备类型" prop="type">
-                            <el-select v-model="editForm.type" placeholder="请选择设备类型">
-                                <el-option label="医疗器械" value="医疗器械"></el-option>
-                                <el-option label="检验设备" value="检验设备"></el-option>
-                            </el-select>
+                        <el-form-item label="设备编号" prop="equipment_code">
+                            <el-input v-model="editForm.equipment_code"></el-input>
                         </el-form-item>
-                        <el-form-item label="所属科室" prop="partment">
-                            <el-input v-model="editForm.partment"></el-input>
-                        </el-form-item>
-                        <el-form-item label="设备编号" prop="code">
-                            <el-input v-model="editForm.code"></el-input>
+                        <el-form-item label="所属科室" prop="department">
+                            <el-input v-model="editForm.department"></el-input>
                         </el-form-item>
                         <el-form-item label="设备状态" prop="status">
                             <el-select v-model="editForm.status" placeholder="请选择设备状态">
-                                <el-option label="正常" value="正常"></el-option>
-                                <el-option label="维修中" value="维修中"></el-option>
-                                <el-option label="报废" value="报废"></el-option>
+                                <el-option label="正常" value="normal"></el-option>
+                                <el-option label="维修中" value="maintenance"></el-option>
+                                <el-option label="报废" value="scrapped"></el-option>
                             </el-select>
                         </el-form-item>
                         <el-form-item label="设备型号" prop="model">
                             <el-input v-model="editForm.model"></el-input>
                         </el-form-item>
-                        <el-form-item label="位置" prop="position">
-                            <el-input v-model="editForm.position"></el-input>
+                        <el-form-item label="位置" prop="location">
+                            <el-input v-model="editForm.location"></el-input>
                         </el-form-item>
-                        <el-form-item label="采购日期" prop="purchaseDate">
+                        <el-form-item label="采购日期" prop="purchase_date">
                             <el-date-picker
-                                v-model="editForm.purchaseDate"
+                                v-model="editForm.purchase_date"
+                                type="date"
+                                placeholder="选择日期">
+                            </el-date-picker>
+                        </el-form-item>
+                        <el-form-item label="保修期至" prop="warranty_period">
+                            <el-date-picker
+                                v-model="editForm.warranty_period"
                                 type="date"
                                 placeholder="选择日期">
                             </el-date-picker>
                         </el-form-item>
                         <el-form-item label="制造商" prop="manufacturer">
                             <el-input v-model="editForm.manufacturer"></el-input>
+                        </el-form-item>
+                        <el-form-item label="负责人" prop="responsible_person">
+                            <el-input v-model="editForm.responsible_person"></el-input>
+                        </el-form-item>
+                        <el-form-item label="联系电话" prop="contact_number">
+                            <el-input v-model="editForm.contact_number"></el-input>
+                        </el-form-item>
+                        <el-form-item label="使用年限" prop="service_life">
+                            <el-input-number v-model="editForm.service_life" :min="1" :max="20"></el-input-number>
                         </el-form-item>
                         <el-form-item label="设备图片">
                             <el-upload
@@ -136,50 +154,45 @@
                 </el-dialog>
             </div>
         </div>
+        <div class="pagination-container" v-if="pagination.total > 0">
+            <el-pagination
+                @size-change="handleSizeChange"
+                @current-change="handleCurrentChange"
+                :current-page="pagination.page"
+                :page-sizes="[5, 10, 20, 50]"
+                :page-size="pagination.size"
+                layout="total, sizes, prev, pager, next, jumper"
+                :total="pagination.total">
+            </el-pagination>
+        </div>
     </div>
 </template>
 
 <script>
+import { GetEquipmentList } from '@/api'
+
 export default {
     data() {
         return {
             loading: false,
             searchQuery: '',
-            filterType: '',
+            filterDepartment: '',
             filterStatus: '',
-            equipmentList: [{
-                id: 1,
-                name: 'CT机',
-                type: '医疗器械',
-                partment: '放射科',
-                code: '123456',
-                status: '正常',
-                model: 'CT-1000',
-                position: '病房',
-                purchaseDate: '2021-01-01',
-                manufacturer: 'GE',
-                image: "https://i.ibb.co/PQDZ2s1/jnu.jpg"
-            }, {
-                id: 2,
-                name: 'MRI机',
-                type: '医疗器械',
-                partment: '内科',
-                code: '1234567',
-                status: '正常',
-                model: 'MRI-1000',
-                position: '病房',
-                purchaseDate: '2021-01-01',
-                manufacturer: 'GE',
-                image: "https://i.ibb.co/PQDZ2s1/jnu.jpg"
-            }],
+            equipmentList: [],
+            pagination: {
+                page: 1,
+                size: 10,
+                total: 0
+            },
             selectedEquipment: {},
             editForm: {},
             rules: {
                 name: [{ required: true, message: '请输入设备名称', trigger: 'blur' }],
-                type: [{ required: true, message: '请选择设备类型', trigger: 'change' }],
-                partment: [{ required: true, message: '请输入所属科室', trigger: 'blur' }],
-                code: [{ required: true, message: '请输入设备编号', trigger: 'blur' }],
-                status: [{ required: true, message: '请选择设备状态', trigger: 'change' }]
+                equipment_code: [{ required: true, message: '请输入设备编号', trigger: 'blur' }],
+                department: [{ required: true, message: '请输入所属科室', trigger: 'blur' }],
+                status: [{ required: true, message: '请选择设备状态', trigger: 'change' }],
+                model: [{ required: true, message: '请输入设备型号', trigger: 'blur' }],
+                manufacturer: [{ required: true, message: '请输入制造商', trigger: 'blur' }]
             },
             dialogVisible: false,
             EditdialogVisible: false
@@ -190,15 +203,73 @@ export default {
             return this.equipmentList.filter(item => {
                 const matchesSearch = !this.searchQuery || 
                     item.name.toLowerCase().includes(this.searchQuery.toLowerCase());
-                const matchesType = !this.filterType || item.type === this.filterType;
+                const matchesDepartment = !this.filterDepartment || item.department === this.filterDepartment;
                 const matchesStatus = !this.filterStatus || item.status === this.filterStatus;
-                return matchesSearch && matchesType && matchesStatus;
+                return matchesSearch && matchesDepartment && matchesStatus;
             });
         }
     },
+    created() {
+        this.fetchEquipmentList();
+    },
     methods: {
+        async fetchEquipmentList() {
+            this.loading = true;
+            try {
+                const params = {
+                    page: this.pagination.page,
+                    size: this.pagination.size,
+                    name: this.searchQuery || undefined,
+                    department: this.filterDepartment || undefined,
+                    status: this.filterStatus || undefined
+                };
+                
+                const response = await GetEquipmentList(params);
+                if (response.code === 200) {
+                    this.equipmentList = response.data.items || [];
+                    this.pagination.total = response.data.total || 0;
+                    this.pagination.page = response.data.page || 1;
+                    this.pagination.size = response.data.size || 10;
+                } else {
+                    this.$message.error(response.message || '获取设备列表失败');
+                }
+            } catch (error) {
+                console.error('获取设备列表失败:', error);
+                this.$message.error('获取设备列表失败: ' + error.message);
+            } finally {
+                this.loading = false;
+            }
+        },
+        formatDate(dateString) {
+            if (!dateString) return '无';
+            return new Date(dateString).toLocaleDateString('zh-CN');
+        },
+        formatStatus(status) {
+            const statusMap = {
+                'normal': '正常',
+                'maintenance': '维修中',
+                'scrapped': '报废'
+            };
+            return statusMap[status] || status;
+        },
+        getStatusClass(status) {
+            return {
+                'status-normal': status === 'normal',
+                'status-maintenance': status === 'maintenance',
+                'status-scrapped': status === 'scrapped'
+            };
+        },
         handleSearch() {
-            // 搜索逻辑已通过计算属性实现
+            this.pagination.page = 1; // 重置到第一页
+            this.fetchEquipmentList();
+        },
+        handleSizeChange(size) {
+            this.pagination.size = size;
+            this.fetchEquipmentList();
+        },
+        handleCurrentChange(page) {
+            this.pagination.page = page;
+            this.fetchEquipmentList();
         },
         handleClose() {
             this.dialogVisible = false;
@@ -218,12 +289,10 @@ export default {
                 if (valid) {
                     this.loading = true;
                     // 这里应该调用API保存数据
+                    // 注意：需要实现设备更新的API
                     setTimeout(() => {
-                        // 模拟API调用
-                        const index = this.equipmentList.findIndex(item => item.id === this.editForm.id);
-                        if (index !== -1) {
-                            this.equipmentList[index] = { ...this.editForm };
-                        }
+                        // 模拟API调用成功后重新获取列表
+                        this.fetchEquipmentList();
                         this.loading = false;
                         this.EditdialogVisible = false;
                         this.$message.success('保存成功');
@@ -368,5 +437,51 @@ p{
     text-decoration: underline;
     text-underline-offset: 3px; /* 下划线与文字的间距 */
     margin-bottom: 20px;
+}
+
+.equipment-info {
+    display: flex;
+    justify-content: space-between;
+    margin: 8px 0;
+    font-size: 12px;
+}
+
+.equipment-code {
+    color: #666;
+}
+
+.equipment-status {
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 12px;
+}
+
+.status-normal {
+    background-color: #67C23A;
+    color: white;
+}
+
+.status-maintenance {
+    background-color: #E6A23C;
+    color: white;
+}
+
+.status-scrapped {
+    background-color: #F56C6C;
+    color: white;
+}
+
+.empty-data {
+    width: 100%;
+    text-align: center;
+    padding: 30px;
+    color: #909399;
+    font-size: 14px;
+}
+
+.pagination-container {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
 }
 </style>

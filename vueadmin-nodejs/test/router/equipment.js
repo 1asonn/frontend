@@ -78,7 +78,10 @@ router.get('/:id', async (req, res) => {
 router.get('/list/page', async (req, res) => {
     try {
         const { page = 1, size = 10, ...query } = req.query
-        const result = await equipmentService.getEquipmentList(page, size, query)
+        // Convert page and size to integers
+        const pageInt = parseInt(page, 10)
+        const sizeInt = parseInt(size, 10)
+        const result = await equipmentService.getEquipmentList(pageInt, sizeInt, query)
         res.json({
             code: 200,
             data: result,
@@ -115,7 +118,10 @@ router.post('/:equipmentId/maintenance', async (req, res) => {
 router.get('/:equipmentId/maintenance/list', async (req, res) => {
     try {
         const { page = 1, size = 10, ...query } = req.query
-        const result = await equipmentService.getMaintenanceList(req.params.equipmentId, page, size, query)
+        // Convert page and size to integers
+        const pageInt = parseInt(page, 10)
+        const sizeInt = parseInt(size, 10)
+        const result = await equipmentService.getMaintenanceList(req.params.equipmentId, pageInt, sizeInt, query)
         res.json({
             code: 200,
             data: result,

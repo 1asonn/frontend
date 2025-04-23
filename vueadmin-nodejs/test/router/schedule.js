@@ -124,7 +124,7 @@ router.get('/getSchListBydepartment/:departmentId', async (req, res) => {
     
     // 先找到该部门的所有用户
     const users = await User.findAll({
-      where: { departmentId },
+      where: { department_id: departmentId },
       attributes: ['id', 'username']
     });
 
@@ -139,15 +139,16 @@ router.get('/getSchListBydepartment/:departmentId', async (req, res) => {
     const userIds = users.map(user => user.id);
     const schedules = await Schedule.findAll({
       where: { 
-        employeeId: userIds 
+        employee_id: userIds 
       },
       include: [{
         model: User,
+        as: 'employee',  // Add the alias as defined in the model
         attributes: ['id', 'username'],
         required: true
       }],
       attributes: [
-        'id', 'employeeId',
+        'id', 'employee_id',
         'monday', 'tuesday', 'wednesday', 'thursday',
         'friday', 'saturday', 'sunday',
         'createdAt', 'updatedAt'

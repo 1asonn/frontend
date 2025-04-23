@@ -269,4 +269,21 @@ export const UserRegiste = async (data) => {
     }
 }
 
+// 获取医疗设备列表（分页查询）
+export const GetEquipmentList = async (params = {}) => {
+    try {
+        const { page = 1, size = 10, ...query } = params
+        const response = await request.get('/equipment/list/page', {
+            params: {
+                page,
+                size,
+                ...query // 传递其他查询参数，如设备名称、类型等
+            }
+        })
+        return response.data
+    } catch (error) {
+        console.error('获取医疗设备列表失败:', error)
+        throw error
+    }
+}
 
