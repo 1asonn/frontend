@@ -20,17 +20,44 @@ router.post('/addPatients', async (req,res) => {
 
 //获取患者信息列表
 router.get('/getPatients', async (req,res) => {
-    const patients = await patient.findAll()
+    const { medicalId, name } = req.query;
+    
+    // 构建查询条件
+    const whereCondition = {};
+    if (medicalId) {
+        whereCondition.medicalId = medicalId;
+    }
+    if (name) {
+        whereCondition.name = name;
+    }
+    
+    const patients = await patient.findAll({
+        where: whereCondition
+    })
     res.send({code:200, msg: '获取患者信息列表成功', data:{records:patients}})
 })
 
 //获取患者信息分页列表
 router.get('/getPatientsPage', async (req,res) => {
-    const {page, size} = req.query
+    const {page, size, medicalId, name} = req.query
     const parsedPage = parseInt(page, 10);
     const parsedSize = parseInt(size, 10);
     const offset = (parsedPage - 1) * parsedSize
-    const patients = await patient.findAndCountAll({offset, limit: parsedSize})
+    
+    // 构建查询条件
+    const whereCondition = {};
+    if (medicalId) {
+        whereCondition.medicalId = medicalId;
+    }
+    if (name) {
+        whereCondition.name = name;
+    }
+    
+    const patients = await patient.findAndCountAll({
+        where: whereCondition,
+        offset, 
+        limit: parsedSize
+    })
     res.send({code:200, msg: '获取患者信息列表成功', data: patients})
 })
 
