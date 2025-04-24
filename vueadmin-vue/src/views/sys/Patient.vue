@@ -74,7 +74,7 @@
 					<el-col :span="8">
 						<div class="detail-item">
 							<div class="detail-label">年龄</div>
-							<div class="detail-value">{{searchResults[0].age}}岁</div>
+							<div class="detail-value">{{getAgeByBirthday(searchResults[0].birthday)}}岁</div>
 						</div>
 					</el-col>
 					<el-col :span="8">
@@ -287,7 +287,7 @@
 						</h2>
 						<div class="patient-meta">
 							<span><i class="el-icon-document"></i> 就诊卡号: {{currentPatient.medicalId}}</span>
-							<span><i class="el-icon-date"></i> 年龄: {{currentPatient.age}}岁</span>
+							<span><i class="el-icon-date"></i> 年龄: {{getAgeByBirthday(currentPatient.birthday)}}岁</span>
 							<span><i class="el-icon-phone"></i> 电话: {{currentPatient.phone}}</span>
 						</div>
 					</div>
@@ -580,13 +580,6 @@
 				</el-tab-pane>
 			</el-tabs>
 		</el-drawer>
-		<!-- <el-dialog title="详情" :visible.sync="dialogTableVisible">
-			<el-table :data="gridData">
-				<el-table-column property="date" label="日期" width="150"></el-table-column>
-				<el-table-column property="name" label="姓名" width="200"></el-table-column>
-				<el-table-column property="address" label="地址"></el-table-column>
-			</el-table>
-		</el-dialog> -->
 	</div>
 </template>
 
@@ -769,6 +762,61 @@
 
             test(){
                 console.log("permList",this.$store.state.menu.permList)
+            },
+            
+            // Calculate age from birth date
+            getAgeByBirthday(birthdate) {
+                if (!birthdate) return '';
+                
+                // Parse the birthdate string to a Date object
+                // The format may vary, so we handle different possibilities
+                let birthDate;
+                
+                // Try different date formats
+                if (birthdate.includes('-')) {
+                    // Format: YYYY-MM-DD
+                    const parts = birthdate.split('-');
+                    if (parts.length === 3) {
+                        birthDate = new Date(parts[0], parts[1] - 1, parts[2]);
+                    }
+                } else if (birthdate.includes('/')) {
+                    // Format: YYYY/MM/DD or DD/MM/YYYY
+                    const parts = birthdate.split('/');
+                    if (parts.length === 3) {
+                        // Check if the first part is a 4-digit year
+                        if (parts[0].length === 4) {
+                            birthDate = new Date(parts[0], parts[1] - 1, parts[2]);
+                        } else {
+                            birthDate = new Date(parts[2], parts[1] - 1, parts[0]);
+                        }
+                    }
+                } else {
+                    // Try direct parsing
+                    birthDate = new Date(birthdate);
+                }
+                
+                // Check if the date is valid
+                if (isNaN(birthDate.getTime())) {
+                    console.error('Invalid birth date format:', birthdate);
+                    return '';
+                }
+                
+                // Get current date
+                const currentDate = new Date();
+                
+                // Calculate age
+                let age = currentDate.getFullYear() - birthDate.getFullYear();
+                
+                // Adjust age if birthday hasn't occurred yet this year
+                const currentMonth = currentDate.getMonth();
+                const birthMonth = birthDate.getMonth();
+                
+                if (birthMonth > currentMonth || 
+                    (birthMonth === currentMonth && birthDate.getDate() > currentDate.getDate())) {
+                    age--;
+                }
+                
+                return age;
             },
             
 			toggleSelection(rows) {
