@@ -85,6 +85,11 @@ const MedicalEquipment = sequelize.define('medical_equipment', {
         type: Sequelize.TEXT,
         comment: '设备描述'
     },
+    image_url: {
+        type: Sequelize.STRING,
+        allowNull: true,
+        comment: '设备图片URL'
+    },
     created_at: {
         type: Sequelize.DATE,
         defaultValue: Sequelize.NOW,
@@ -102,9 +107,9 @@ const MedicalEquipment = sequelize.define('medical_equipment', {
     comment: '医疗设备表'
 });
 
-// 同步模型到数据库
-MedicalEquipment.sync().then(() => {
-    console.log("医疗设备表模型已同步!");
+// 同步模型到数据库，使用 alter: true 选项更新表结构
+MedicalEquipment.sync({ alter: true }).then(() => {
+    console.log("医疗设备表模型已同步并更新!");
 });
 
 module.exports = MedicalEquipment;

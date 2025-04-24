@@ -21,6 +21,7 @@ const downloadRouter = require('./router/download.js');
 const scheduleRouter = require('./router/schedule.js');
 const departmentRouter = require('./router/department.js');
 const shiftSettingRouter = require('./router/shiftSetting.js');
+const filesRouter = require('./router/files.js');
 
 // Initialize model associations
 require('./database/models');
@@ -71,6 +72,7 @@ app.use('/download', downloadRouter)
 app.use('/schedule', scheduleRouter);
 app.use('/department', departmentRouter);
 app.use('/shiftSetting', shiftSettingRouter);
+app.use('/files', filesRouter);
 
 // Start server
 app.listen(config.port, () => {
