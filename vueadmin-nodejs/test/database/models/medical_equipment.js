@@ -86,7 +86,7 @@ const MedicalEquipment = sequelize.define('medical_equipment', {
         comment: '设备描述'
     },
     image_url: {
-        type: Sequelize.STRING,
+        type: Sequelize.TEXT,
         allowNull: true,
         comment: '设备图片URL'
     },

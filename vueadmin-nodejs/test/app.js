@@ -29,9 +29,10 @@ require('./database/models');
 const app = express();
 
 // Middleware configuration
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use(cors(config.cors));
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
 // JWT configuration
 app.use(

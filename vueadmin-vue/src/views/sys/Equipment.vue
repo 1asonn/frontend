@@ -139,9 +139,9 @@
                         <el-form-item label="设备图片">
                             <el-upload
                                 class="equipment-uploader"
-                                action="/api/upload"
+                                action="#"
                                 :show-file-list="false"
-                                :on-success="handleUploadSuccess"
+                                :http-request="handleEditUploadRequest"
                                 :before-upload="beforeUpload">
                                 <img v-if="editForm.image" :src="editForm.image" class="equipment-image">
                                 <i v-else class="el-icon-plus equipment-uploader-icon"></i>
@@ -500,8 +500,55 @@ export default {
             }
             return true;
         },
+        // 已废弃，使用handleEditUploadRequest替代
         handleUploadSuccess(res, file) {
             this.editForm.image = URL.createObjectURL(file.raw);
+        },
+        
+        // 处理编辑表单中的图片上传
+        async handleEditUploadRequest(options) {
+            try {
+                const file = options.file;
+                let response;
+                
+                // 先保存本地预览
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = async () => {
+                    const imageUrl = reader.result;
+                    
+                    // 设置预览图片
+                    this.editForm.image = imageUrl;
+                    
+                    // 如果有设备ID，则直接上传图片到服务器
+                    if (this.editForm.id) {
+                        try {
+                            // 使用uploadEquipmentImage API上传图片
+                            response = await uploadEquipmentImage(this.editForm.id, file);
+                            
+                            if (response.code === 200) {
+                                // 更新图片URL为服务器返回的URL
+                                this.editForm.image = response.data.imageUrl;
+                                this.$message.success('图片上传成功');
+                            } else {
+                                this.$message.error(response.message || '图片上传失败');
+                            }
+                        } catch (error) {
+                            console.error('图片上传失败:', error);
+                            this.$message.error('图片上传失败: ' + error.message);
+                        }
+                    }
+                    
+                    if (options.onSuccess) {
+                        options.onSuccess(imageUrl);
+                    }
+                };
+            } catch (error) {
+                console.error('处理图片上传失败:', error);
+                if (options.onError) {
+                    options.onError(error);
+                }
+            }
         },
         
         // 新增设备相关方法
@@ -537,9 +584,48 @@ export default {
                 if (valid) {
                     this.loading = true;
                     try {
-                        // 调用API创建设备
-                        const response = await createEquipment(this.addForm);
+                        // 创建一个不包含图片URL的设备数据对象
+                        const equipmentData = { ...this.addForm };
+                        delete equipmentData.image_url; // 移除图片URL字段
+                        
+                        // 保存临时的图片数据
+                        const tempImageData = this.addForm.image_url;
+                        
+                        // 先创建设备记录
+                        const response = await createEquipment(equipmentData);
+                        
                         if (response.code === 200) {
+                            // 获取新创建的设备ID
+                            const newEquipmentId = response.data.id;
+                            
+                            // 如果有图片数据，则上传图片
+                            if (tempImageData && tempImageData.startsWith('data:image')) {
+                                try {
+                                    // 将Base64转换为Blob
+                                    const byteString = atob(tempImageData.split(',')[1]);
+                                    const mimeString = tempImageData.split(',')[0].split(':')[1].split(';')[0];
+                                    const ab = new ArrayBuffer(byteString.length);
+                                    const ia = new Uint8Array(ab);
+                                    for (let i = 0; i < byteString.length; i++) {
+                                        ia[i] = byteString.charCodeAt(i);
+                                    }
+                                    const blob = new Blob([ab], { type: mimeString });
+                                    const file = new File([blob], 'image.jpg', { type: mimeString });
+                                    
+                                    // 上传图片
+                                    const uploadResponse = await uploadEquipmentImage(newEquipmentId, file);
+                                    
+                                    if (uploadResponse.code === 200) {
+                                        this.$message.success('设备图片上传成功');
+                                    } else {
+                                        this.$message.warning('设备创建成功，但图片上传失败: ' + (uploadResponse.message || '未知错误'));
+                                    }
+                                } catch (uploadError) {
+                                    console.error('图片上传失败:', uploadError);
+                                    this.$message.warning('设备创建成功，但图片上传失败: ' + uploadError.message);
+                                }
+                            }
+                            
                             this.$message.success('新增设备成功');
                             this.addDialogVisible = false;
                             // 重新获取设备列表
@@ -560,7 +646,7 @@ export default {
         async handleUploadRequest(options) {
             try {
                 const file = options.file;
-                let id, response;
+                let response;
                 
                 // 先保存本地预览
                 const reader = new FileReader();
@@ -569,8 +655,9 @@ export default {
                     const imageUrl = reader.result;
                     
                     if (this.addDialogVisible) {
-                        // 新增设备时，需要先创建设备再上传图片
-                        this.addForm.image = imageUrl; // 仅作为预览
+                        // 新增设备时，只保存图片数据用于预览，不立即上传
+                        // 实际上传将在提交表单时进行
+                        this.addForm.image_url = imageUrl; // 保存Base64数据
                         if (options.onSuccess) {
                             options.onSuccess(imageUrl);
                         }
@@ -608,6 +695,7 @@ export default {
         },
         
         handleAddUploadSuccess(res) {
+            // 只保存预览用的图片数据，实际上传会在提交表单时处理
             this.addForm.image_url = res;
         }
     }

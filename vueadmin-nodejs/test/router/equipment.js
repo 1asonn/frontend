@@ -16,7 +16,12 @@ const dbx = new Dropbox({
 // 创建医疗设备
 router.post('/create', async (req, res) => {
     try {
-        const equipment = await equipmentService.createEquipment(req.body)
+        // 创建设备记录，不包含图片字段
+        const equipmentData = { ...req.body };
+        // 确保创建时不包含图片字段，防止URL过长错误
+        delete equipmentData.image_url;
+        
+        const equipment = await equipmentService.createEquipment(equipmentData);
         res.json({
             code: 200,
             data: equipment,
