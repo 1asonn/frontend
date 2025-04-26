@@ -58,8 +58,8 @@
                                 <p>实拍图：<el-image 
                                     style="width: 100px; height: 100px ;vertical-align: top;"
                                     fit="contain"
-                                    src="https://uc45516f3ce307ce90112d036c23.dl.dropboxusercontent.com/cd/0/get/CobokAU02L0FKUWPjbE-wKBDuLiQw1bu3cA7jQw5f7j5IZe0tIGVPiiyM0dAl8w_IL9srHYpdpKLN4hX1BTyvuvjzqxhCqX8USqixFAO6MAgLYgGM7gEaFg4zANpKcYf3poBJXy8kmh2PMyC51r8FgdF4Dngs4EzIZPM9v3JpEZvzw/file" 
-                                    :preview-src-list="[require('@/assets/jinan.jpg')]">
+                                    :src="selectedEquipment.image_url" 
+                                    :preview-src-list="[selectedEquipment.image_url]">
                                 </el-image></p>
                                 <p>设备编号：{{ selectedEquipment.equipment_code }}</p>
                                 <p>科室：{{ selectedEquipment.department }}</p>
@@ -143,7 +143,7 @@
                                 :show-file-list="false"
                                 :http-request="handleEditUploadRequest"
                                 :before-upload="beforeUpload">
-                                <img v-if="editForm.image" :src="editForm.image" class="equipment-image">
+                                <img v-if="editForm.image_url" :src="editForm.image_url" class="equipment-image">
                                 <i v-else class="el-icon-plus equipment-uploader-icon"></i>
                             </el-upload>
                         </el-form-item>
@@ -338,6 +338,7 @@ export default {
             },
             selectedEquipment: {},
             editForm: {},
+            _uploadFile: null, // 保存上传的原始文件对象
             rules: {
                 name: [{ required: true, message: '请输入设备名称', trigger: 'blur' }],
                 equipment_code: [{ required: true, message: '请输入设备编号', trigger: 'blur' }],
@@ -573,6 +574,8 @@ export default {
                 description: '',
                 image_url: ''
             };
+            // 重置上传文件对象
+            this._uploadFile = null;
             // 如果表单引用存在，则重置验证
             if (this.$refs.addForm) {
                 this.$refs.addForm.resetFields();
@@ -588,9 +591,6 @@ export default {
                         const equipmentData = { ...this.addForm };
                         delete equipmentData.image_url; // 移除图片URL字段
                         
-                        // 保存临时的图片数据
-                        const tempImageData = this.addForm.image_url;
-                        
                         // 先创建设备记录
                         const response = await createEquipment(equipmentData);
                         
@@ -598,24 +598,14 @@ export default {
                             // 获取新创建的设备ID
                             const newEquipmentId = response.data.id;
                             
-                            // 如果有图片数据，则上传图片
-                            if (tempImageData && tempImageData.startsWith('data:image')) {
+                            // 如果有上传的文件，则上传图片
+                            if (this._uploadFile) {
                                 try {
-                                    // 将Base64转换为Blob
-                                    const byteString = atob(tempImageData.split(',')[1]);
-                                    const mimeString = tempImageData.split(',')[0].split(':')[1].split(';')[0];
-                                    const ab = new ArrayBuffer(byteString.length);
-                                    const ia = new Uint8Array(ab);
-                                    for (let i = 0; i < byteString.length; i++) {
-                                        ia[i] = byteString.charCodeAt(i);
-                                    }
-                                    const blob = new Blob([ab], { type: mimeString });
-                                    const file = new File([blob], 'image.jpg', { type: mimeString });
-                                    
-                                    // 上传图片
-                                    const uploadResponse = await uploadEquipmentImage(newEquipmentId, file);
+                                    // 直接使用保存的文件对象上传
+                                    const uploadResponse = await uploadEquipmentImage(newEquipmentId, this._uploadFile);
                                     
                                     if (uploadResponse.code === 200) {
+                                        // 更新图片URL为服务器返回的URL
                                         this.$message.success('设备图片上传成功');
                                     } else {
                                         this.$message.warning('设备创建成功，但图片上传失败: ' + (uploadResponse.message || '未知错误'));
@@ -628,6 +618,8 @@ export default {
                             
                             this.$message.success('新增设备成功');
                             this.addDialogVisible = false;
+                            // 重置上传文件对象
+                            this._uploadFile = null;
                             // 重新获取设备列表
                             this.fetchEquipmentList();
                         } else {
@@ -646,7 +638,6 @@ export default {
         async handleUploadRequest(options) {
             try {
                 const file = options.file;
-                let response;
                 
                 // 先保存本地预览
                 const reader = new FileReader();
@@ -655,9 +646,11 @@ export default {
                     const imageUrl = reader.result;
                     
                     if (this.addDialogVisible) {
-                        // 新增设备时，只保存图片数据用于预览，不立即上传
+                        // 新增设备时，只保存图片数据用于预览和文件对象，不立即上传
                         // 实际上传将在提交表单时进行
-                        this.addForm.image_url = imageUrl; // 保存Base64数据
+                        this.addForm.image_url = imageUrl; // 保存Base64数据用于预览
+                        this._uploadFile = file; // 保存原始文件对象，以便后续上传
+                        
                         if (options.onSuccess) {
                             options.onSuccess(imageUrl);
                         }
@@ -667,7 +660,7 @@ export default {
                         
                         try {
                             // 上传图片到服务器
-                            response = await uploadEquipmentImage(this.editForm.id, file);
+                            const response = await uploadEquipmentImage(this.editForm.id, file);
                             
                             if (response.code === 200) {
                                 // 更新图片URL为服务器返回的URL

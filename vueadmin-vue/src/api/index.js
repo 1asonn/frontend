@@ -95,12 +95,28 @@ export const GetUserList = async ({ current = 1, size = 10, username = '' }) => 
 
 
 //获取角色列表
-export const GetRoleList = async () => {
+export const GetRoleList = async (page = 1, pageSize = 10, searchParams = {}) => {
     try {
-        const response = await request.get('http://localhost:4000/role/getRoleList')
-        return response.data.data
+        // 构建查询参数
+        const params = {
+            page,
+            pageSize,
+            ...searchParams
+        }
+        
+        // 将参数转换为 URL 查询字符串
+        const queryString = Object.keys(params)
+            .filter(key => params[key] !== '' && params[key] !== undefined && params[key] !== null)
+            .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+            .join('&')
+            
+        const url = `http://localhost:4000/role/getRoleList${queryString ? `?${queryString}` : ''}`
+        
+        const response = await request.get(url)
+        return response.data
     } catch (error) {
-        console.log(error)
+        console.error('获取角色列表失败:', error)
+        throw error
     }
 }
 
@@ -115,15 +131,17 @@ export const GetUserInfo = async (userId) => {
 }
 
 //设置某个角色下的权限
-export const SetRoleAuthority = async (Id,authoritys) => {
+export const SetRoleAuthority = async (Id, authoritys) => {
     try{
         const res = await request.post('http://localhost:4000/role/updateRoleAuthority',
         {
-            id:Id,
-            authoritys:authoritys
+            id: Id,
+            authoritys: authoritys
         })
-    }catch(error){
-        console.log(error)
+        return res.data
+    } catch(error) {
+        console.error('更新角色权限失败:', error)
+        throw error
     }
 }
 
@@ -134,7 +152,8 @@ export const GetRoleInfo = async (roleId) => {
         const response = await request.get(`http://localhost:4000/role/getRoleInfo/${roleId}`)
         return response.data.data    
     } catch (error) {
-        console.log(error)
+        console.error('获取角色信息失败:', error)
+        throw error
     }
 }
 
@@ -265,6 +284,21 @@ export const UserRegiste = async (data) => {
         return response.data
     } catch (error) {
         console.error('注册用户失败:', error)
+        throw error
+    }
+}
+
+// 添加新角色
+export const AddRole = async (roleData) => {
+    try {
+        const response = await request.post('http://localhost:4000/role/addRole', {
+            role_name: roleData.name,
+            authoritys: roleData.authoritys,
+            description: roleData.remark || ''
+        })
+        return response.data
+    } catch (error) {
+        console.error('添加角色失败:', error)
         throw error
     }
 }

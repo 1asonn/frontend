@@ -9,6 +9,7 @@ const nav = require('../assets/nav')
 const { encryptData } = require('../utils/crypto');
 const rateLimit = require('express-rate-limit');
 const { signData, getPublicKey } = require('../utils/crypto');
+const { Op } = require('sequelize');
 
 // // 创建请求限制器
 // const menuLimiter = rateLimit({
@@ -134,14 +135,34 @@ router.get('/getRoleAuthorities', async (req, res) => {
 // 新增角色
 router.post('/addRole', async (req, res) => {
     try {
-        const { role_name, authoritys } = req.body;
-        const role = await Role.create({role_name,authoritys})
-        res.send({
+        const { role_name, authoritys, description } = req.body;
+        
+        // 验证必填字段
+        if (!role_name || !authoritys) {
+            return res.json({
+                code: 400,
+                message: '角色名称和权限列表为必填项'
+            });
+        }
+        
+        // 创建角色
+        const role = await Role.create({
+            role_name,
+            authoritys,
+            description: description || ''
+        });
+        
+        res.json({
             code: 200,
-            msg: '角色添加成功'
-        })
-    }catch(error){
-        console.log(error)
+            data: role,
+            message: '角色添加成功'
+        });
+    } catch (error) {
+        console.error('添加角色错误:', error);
+        res.json({
+            code: 500,
+            message: '添加角色失败: ' + error.message
+        });
     }
 })
 
@@ -185,33 +206,91 @@ router.get('/getAuthorityTree', async (req, res) => {
 })
 
 
-//获取角色列表
+//获取角色列表（支持分页和角色名称查询）
 router.get('/getRoleList', async (req, res) => {
     try {
-        const data = await Role.findAll()
-        res.send({
+        // 获取查询参数，设置默认值
+        const { page = 1, size = 10, role_name } = req.query;
+        
+        // 转换为整数
+        const pageInt = parseInt(page, 10);
+        const sizeInt = parseInt(size, 10);
+        
+        // 构建查询条件
+        const where = {};
+        if (role_name) {
+            where.role_name = {
+                [Op.like]: `%${role_name}%`
+            };
+        }
+        
+        // 执行分页查询
+        const { count, rows } = await Role.findAndCountAll({
+            where,
+            offset: (pageInt - 1) * sizeInt,
+            limit: sizeInt,
+            order: [['id', 'ASC']]
+        });
+        
+        // 返回结果
+        res.json({
             code: 200,
-            data: data
-        })
+            data: {
+                total: count,
+                items: rows,
+                page: pageInt,
+                size: sizeInt
+            },
+            message: '获取角色列表成功'
+        });
     } catch (error) {
-        console.log(error)
+        console.error('获取角色列表错误:', error);
+        res.json({
+            code: 500,
+            message: '获取角色列表失败: ' + error.message
+        });
     }
 })
 
 //更新某个角色下的权限
-router.post('/updateRoleAuthority',async (req,res) => {
+router.post('/updateRoleAuthority', async (req, res) => {
     try {
+        const { id, authoritys } = req.body;
         
-        const {id,authoritys} = req.body
-        console.log("this is Newauthoritys",authoritys)
-        const data = await Role.update({authoritys},{where:{id}})
-        console.log(data)
-        res.send({
-            code:200,
-            msg:'角色权限更新成功'
-        })
+        // 验证必填字段
+        if (!id || !authoritys) {
+            return res.json({
+                code: 400,
+                message: '角色ID和权限列表为必填项'
+            });
+        }
+        
+        // 检查角色是否存在
+        const roleExists = await Role.findByPk(id);
+        if (!roleExists) {
+            return res.json({
+                code: 404,
+                message: '角色不存在'
+            });
+        }
+        
+        // 更新角色权限
+        await Role.update({ authoritys }, { where: { id } });
+        
+        // 获取更新后的角色信息
+        const updatedRole = await Role.findByPk(id);
+        
+        res.json({
+            code: 200,
+            data: updatedRole,
+            message: '角色权限更新成功'
+        });
     } catch (error) {
-        console.log(error)
+        console.error('更新角色权限错误:', error);
+        res.json({
+            code: 500,
+            message: '更新角色权限失败: ' + error.message
+        });
     }
 })
 
