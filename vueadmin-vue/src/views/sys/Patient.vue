@@ -50,6 +50,7 @@
 					<div class="patient-card-actions">
 						<el-button size="small" type="primary" @click="checkHandle(searchResults[0].id)">查看病历</el-button>
 						<el-button size="small" type="success" @click="editHandle(searchResults[0].id)">编辑信息</el-button>
+						<el-button size="small" type="warning" @click="openPrescriptionDialog(searchResults[0])">开具处方</el-button>
 					</div>
 				</div>
 				
@@ -121,6 +122,7 @@
 							<div class="patient-card-actions">
 								<el-button type="text" @click="checkHandle(patient.id)">查看</el-button>
 								<el-button type="text" @click="editHandle(patient.id)">编辑</el-button>
+								<el-button type="text" @click="openPrescriptionDialog(patient)">处方</el-button>
 							</div>
 						</div>
 						<div class="patient-info">
@@ -201,6 +203,8 @@
 					<el-divider direction="vertical"></el-divider>
 					<el-button type="text" @click="editHandle(scope.row.id)">编辑</el-button>
 					<el-divider direction="vertical"></el-divider>
+					<el-button type="text" @click="openPrescriptionDialog(scope.row)">处方</el-button>
+					<el-divider direction="vertical"></el-divider>
 
 					<template>
 						<el-popconfirm title="这是一段内容确定删除吗？" @confirm="delHandle(scope.row.id)">
@@ -232,8 +236,8 @@
 				:before-close="handleClose">
 
 			<el-form :model="editForm" :rules="editFormRules" ref="editForm">
-				<el-form-item label="用户名" prop="username" label-width="100px">
-					<el-input v-model="editForm.username" autocomplete="off"></el-input>
+				<el-form-item label="用户名" prop="name" label-width="100px">
+					<el-input v-model="editForm.name" autocomplete="off"></el-input>
 					<el-alert
 							title="初始密码为888888"
 							:closable="false"
@@ -580,7 +584,158 @@
 				</el-tab-pane>
 			</el-tabs>
 		</el-drawer>
+			<!-- 处方对话框 -->
+	<el-dialog
+		title="开具处方"
+		:visible.sync="prescriptionDialogVisible"
+		width="800px"
+		:before-close="handlePrescriptionClose">
+		<el-form :model="prescriptionForm" :rules="prescriptionRules" ref="prescriptionForm" label-width="100px">
+			<!-- 患者信息摘要 -->
+			<div class="patient-summary" v-if="currentPatient">
+				<el-card class="mb-20">
+					<div class="patient-info-summary">
+						<div class="summary-item">
+							<span class="label">患者姓名:</span>
+							<span class="value">{{ currentPatient.name }}</span>
+						</div>
+						<div class="summary-item">
+							<span class="label">性别:</span>
+							<span class="value">{{ currentPatient.gender }}</span>
+						</div>
+						<div class="summary-item">
+							<span class="label">年龄:</span>
+							<span class="value">{{ getAgeByBirthday(currentPatient.birthday) }}岁</span>
+						</div>
+						<div class="summary-item">
+							<span class="label">就诊卡号:</span>
+							<span class="value">{{ currentPatient.medicalId }}</span>
+						</div>
+					</div>
+				</el-card>
+			</div>
+
+			<!-- 诊断结果 -->
+			<el-form-item label="诊断结果" prop="diagnosis">
+				<el-input type="textarea" v-model="prescriptionForm.diagnosis" :rows="2" placeholder="请输入诊断结果"></el-input>
+			</el-form-item>
+
+			<!-- 药品列表 -->
+			<div class="medicine-list-section">
+				<div class="section-header">
+					<h3>药品列表</h3>
+					<el-button type="primary" size="small" icon="el-icon-plus" @click="addMedicine">添加药品</el-button>
+				</div>
+
+				<div v-for="(medicine, index) in prescriptionForm.medicines" :key="index" class="medicine-item">
+					<el-card class="mb-10">
+						<div class="medicine-header">
+							<span class="medicine-index">药品 #{{ index + 1 }}</span>
+							<el-button 
+								type="danger" 
+								size="mini" 
+								icon="el-icon-delete" 
+								@click="removeMedicine(index)" 
+								:disabled="prescriptionForm.medicines.length <= 1"
+							>删除</el-button>
+						</div>
+
+						<el-row :gutter="20">
+							<el-col :span="12">
+								<el-form-item 
+									:label="'药品名称'"
+									:prop="`medicines.${index}.name`"
+									:rules="[{ required: true, message: '请选择药品', trigger: 'change' }]"
+									label-width="80px"
+								>
+									<el-select v-model="medicine.name" placeholder="请选择药品" style="width: 100%">
+										<el-option label="阿莫西林胶囊" value="阿莫西林胶囊"></el-option>
+										<el-option label="布洛芬片" value="布洛芬片"></el-option>
+										<el-option label="头孢克洛胶囊" value="头孢克洛胶囊"></el-option>
+										<el-option label="感冒灵颗粒" value="感冒灵颗粒"></el-option>
+										<el-option label="维生素C片" value="维生素C片"></el-option>
+										<el-option label="盐酸氨溴索口服溶液" value="盐酸氨溴索口服溶液"></el-option>
+										<el-option label="复方甘草片" value="复方甘草片"></el-option>
+										<el-option label="银黄颗粒" value="银黄颗粒"></el-option>
+									</el-select>
+								</el-form-item>
+							</el-col>
+							<el-col :span="12">
+								<el-form-item 
+									:label="'规格'"
+									:prop="`medicines.${index}.spec`"
+									:rules="[{ required: true, message: '请输入规格', trigger: 'blur' }]"
+									label-width="80px"
+								>
+									<el-input v-model="medicine.spec" placeholder="如: 0.5g*24粒/盒"></el-input>
+								</el-form-item>
+							</el-col>
+						</el-row>
+
+						<el-row :gutter="20">
+							<el-col :span="12">
+								<el-form-item 
+									:label="'数量'"
+									label-width="80px"
+								>
+									<el-input-number 
+										v-model="medicine.quantity" 
+										:min="1" 
+										:max="100"
+										style="width: 120px"
+									></el-input-number>
+									<el-select v-model="medicine.unit" style="width: 80px; margin-left: 10px">
+										<el-option label="盒" value="盒"></el-option>
+										<el-option label="瓶" value="瓶"></el-option>
+										<el-option label="袋" value="袋"></el-option>
+										<el-option label="支" value="支"></el-option>
+									</el-select>
+								</el-form-item>
+							</el-col>
+						</el-row>
+
+						<el-form-item 
+							:label="'用法用量'"
+							:prop="`medicines.${index}.usage`"
+							:rules="[{ required: true, message: '请输入用法用量', trigger: 'blur' }]"
+							label-width="80px"
+						>
+							<el-input 
+								type="textarea" 
+								v-model="medicine.usage" 
+								:rows="2" 
+								placeholder="如: 口服，一次1片，一日3次"
+							></el-input>
+						</el-form-item>
+					</el-card>
+				</div>
+			</div>
+
+			<!-- 医嘱 -->
+			<el-form-item label="医嘱" prop="instructions">
+				<el-input 
+					type="textarea" 
+					v-model="prescriptionForm.instructions" 
+					:rows="3" 
+					placeholder="请输入医嘱内容"
+				></el-input>
+			</el-form-item>
+
+			<!-- 处方医生 -->
+			<el-form-item label="处方医生" prop="doctor">
+				<el-input v-model="prescriptionForm.doctor"></el-input>
+			</el-form-item>
+		</el-form>
+
+		<div slot="footer" class="dialog-footer">
+			<el-button @click="handlePrescriptionClose">取 消</el-button>
+			<el-button type="success" @click="submitPrescription('prescriptionForm')">保存处方</el-button>
+			<el-button type="primary" @click="submitAndPrintPrescription('prescriptionForm')">保存并打印</el-button>
+		</div>
+	</el-dialog>
 	</div>
+
+
 </template>
 
 <script>
@@ -661,6 +816,43 @@
 					{ title: '匹配数据', status: '匹配疾病数据库' },
 					{ title: '生成建议', status: '生成诊断建议' },
 					{ title: '风险评估', status: '评估潜在风险' }
+				],
+
+				prescriptionDialogVisible: false,
+				prescriptionForm: {
+					diagnosis: '',
+					medicines: [{
+						name: '',
+						spec: '',
+						quantity: 1,
+						unit: '盒',
+						usage: ''
+					}],
+					instructions: '',
+					doctor: ''
+				},
+				prescriptionRules: {
+					diagnosis: [
+						{ required: true, message: '请输入诊断结果', trigger: 'blur' }
+					],
+					instructions: [
+						{ required: true, message: '请输入医嘱内容', trigger: 'blur' }
+					],
+					doctor: [
+						{ required: true, message: '请输入处方医生姓名', trigger: 'blur' }
+					]
+				},
+				medicineOptions: [
+					{ value: '阿莫西林胶囊', label: '阿莫西林胶囊' },
+					{ value: '布洛芬片', label: '布洛芬片' },
+					{ value: '感冒灵颗粒', label: '感冒灵颗粒' },
+					{ value: '头孢克洛胶囊', label: '头孢克洛胶囊' },
+					{ value: '盐酸左氧氟沙星片', label: '盐酸左氧氟沙星片' },
+					{ value: '复方甘草片', label: '复方甘草片' },
+					{ value: '阿司匹林肠溶片', label: '阿司匹林肠溶片' },
+					{ value: '氯雷他定片', label: '氯雷他定片' },
+					{ value: '维生素C片', label: '维生素C片' },
+					{ value: '奥美拉唑肠溶胶囊', label: '奥美拉唑肠溶胶囊' }
 				],
 			}
 		},
@@ -1030,6 +1222,108 @@
 
 			progressFormat(percentage) {
 				return percentage === 100 ? '完成' : `${percentage}%`
+			},
+
+			// 处方相关方法
+			openPrescriptionDialog(patient) {
+				console.log("this is patient",patient)
+				this.currentPatient = JSON.parse(JSON.stringify(patient));
+				this.prescriptionForm = {
+					diagnosis: '',
+					medicines: [{
+						name: '',
+						spec: '',
+						quantity: 1,
+						unit: '盒',
+						usage: ''
+					}],
+					instructions: '',
+					doctor: 'czl'
+				};
+				this.prescriptionDialogVisible = true;
+			},
+
+			handlePrescriptionClose() {
+				this.$confirm('关闭将丢失已填写的处方内容，是否确认关闭?', '提示', {
+					confirmButtonText: '确定',
+					cancelButtonText: '取消',
+					type: 'warning'
+				}).then(() => {
+					this.prescriptionDialogVisible = false;
+					if (this.$refs.prescriptionForm) {
+						this.$refs.prescriptionForm.resetFields();
+					}
+				}).catch(() => {});
+			},
+
+			addMedicine() {
+				this.prescriptionForm.medicines.push({
+					name: '',
+					spec: '',
+					quantity: 1,
+					unit: '盒',
+					usage: ''
+				});
+			},
+
+			removeMedicine(index) {
+				this.prescriptionForm.medicines.splice(index, 1);
+			},
+
+			submitPrescription(formName) {
+				this.$refs[formName].validate((valid) => {
+					if (valid) {
+						// 这里应该调用API保存处方
+						const prescriptionData = {
+							patientId: this.currentPatient.id,
+							patientName: this.currentPatient.name,
+							medicalId: this.currentPatient.medicalId,
+							diagnosis: this.prescriptionForm.diagnosis,
+							medicines: this.prescriptionForm.medicines,
+							instructions: this.prescriptionForm.instructions,
+							doctor: this.prescriptionForm.doctor,
+							createTime: new Date().toISOString().replace('T', ' ').substring(0, 19)
+						};
+
+						console.log('保存处方数据:', prescriptionData);
+						
+						// 模拟API调用
+						setTimeout(() => {
+							this.$message.success('处方保存成功');
+							this.prescriptionDialogVisible = false;
+						}, 500);
+					} else {
+						return false;
+					}
+				});
+			},
+
+			submitAndPrintPrescription(formName) {
+				this.$refs[formName].validate((valid) => {
+					if (valid) {
+						// 这里应该调用API保存处方并打印
+						const prescriptionData = {
+							patientId: this.currentPatient.id,
+							patientName: this.currentPatient.name,
+							medicalId: this.currentPatient.medicalId,
+							diagnosis: this.prescriptionForm.diagnosis,
+							medicines: this.prescriptionForm.medicines,
+							instructions: this.prescriptionForm.instructions,
+							doctor: this.prescriptionForm.doctor,
+							createTime: new Date().toISOString().replace('T', ' ').substring(0, 19)
+						};
+
+						console.log('保存并打印处方数据:', prescriptionData);
+						
+						// 模拟API调用
+						setTimeout(() => {
+							this.$message.success('处方保存成功，正在打印...');
+							this.prescriptionDialogVisible = false;
+						}, 500);
+					} else {
+						return false;
+					}
+				});
 			},
 		}
 	}
@@ -1432,5 +1726,75 @@
 	.el-step__title.is-process {
 		color: #409EFF;
 		font-weight: 500;
+	}
+
+	/* 处方对话框样式 */
+	.patient-summary {
+		margin-bottom: 20px;
+	}
+
+	.mb-20 {
+		margin-bottom: 20px;
+	}
+
+	.mb-10 {
+		margin-bottom: 10px;
+	}
+
+	.patient-info-summary {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 15px 30px;
+	}
+
+	.summary-item {
+		display: flex;
+		align-items: center;
+	}
+
+	.summary-item .label {
+		color: #909399;
+		margin-right: 8px;
+		font-size: 14px;
+	}
+
+	.summary-item .value {
+		color: #303133;
+		font-weight: 500;
+		font-size: 14px;
+	}
+
+	.section-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 15px;
+	}
+
+	.section-header h3 {
+		margin: 0;
+		color: #303133;
+		font-size: 16px;
+		font-weight: 500;
+	}
+
+	.medicine-list-section {
+		margin-bottom: 20px;
+	}
+
+	.medicine-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 15px;
+	}
+
+	.medicine-index {
+		font-weight: 500;
+		color: #409EFF;
+	}
+
+	.medicine-item .el-card__body {
+		padding: 15px;
 	}
 </style>

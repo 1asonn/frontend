@@ -55,6 +55,14 @@ let nav = [
                 path: '/sys/equipments',
                 component: 'sys/Equipment',
                 children: []
+            },
+            {
+                name:'SysEquipmentMaintenance',
+                title:'设备维修',
+                icon:'el-icon-s-order',
+                path:'/sys/equipment-maintenance',
+                component:'sys/MaintenanceOrder',
+                children:[]
             }
         ]
     },
