@@ -38,6 +38,8 @@
     "@vue/cli-plugin-vuex": "~5.0.0",
     "@vue/cli-service": "~5.0.0",
     "mockjs": "^1.1.0",
+    "node-sass": "^9.0.0",
+    "sass-loader": "^16.0.5",
     "vue-template-compiler": "^2.6.14"
   },
   "browserslist": [

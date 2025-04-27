@@ -8,7 +8,7 @@ let nav = [
         children: [
             {
                 name: 'SysPatient',
-                title: '用户管理',
+                title: '病患管理',
                 icon: 'el-icon-s-custom',
                 path: '/sys/patient',
                 component: 'sys/Patient',

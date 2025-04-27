@@ -3,15 +3,10 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 require('isomorphic-fetch'); // 引入 fetch 实现
-const { Dropbox } = require('dropbox');
+const { getDropboxClient } = require('../utils/dropboxAuth');
 
 // 配置 multer 的临时存储
 const upload = multer({ storage: multer.memoryStorage() });
-
-// 创建 Dropbox 客户端实例
-const dbx = new Dropbox({ 
-    accessToken: 'sl.u.AFvpzy6bFbsb1vshlCglqUOgILWbA2wvzUF6qwVY2DGkiYxY_qghvZZV6GiJKU3-HuxUlry3HtSzCZHRuVQBi9hWLVBY-wmaoAiA9_Iny0M2gw8gqrbOTfm8GfrlbievwA9ybOSQVi8CX2T0uonA6sz4P4ulmcZ3noHMwVjhuI4J7uXIy9KDb2bFShaATL25zw4zaThzERT9pPQWuoxY8tK7evJUHzqYDcBiQZh24N7ZxzwueMrIyevcNpa7qggPqb-O-gdw7lnYGH36Y8bGE6k2tj-8x51ZXsGNLoO5OAGXyN6Bh0iNXsV7mp5zlmdKRx8UGX2H0RbNxjnTDtbSbDcj4_2YnSgJb2vMRSeSDvVyRaFdFUEplRK6VmY6YCykwJpJPiYps5mhQRIJwkSk8I0lGx6mpT-r_nEU3LLkUNpxNOOTPbydNbjACsKHSOHiAxi5opnNwh_Frr3gweRforLzj2wQbrsd3mkukBQ0V17sl0FkmQOZIdwJ9h_IbaHI8z7ZqPbTYwTJu39xQxA6gdD0-0Ak-qG0mc9YaC9BszgeQmibJugWfMARk2YzSkNbQ0PMjPruEDOrJyk4n-IZj6V39twyvrqFJsAPHP7LbVvcJa2bJPk5lv3m8hcGDZ4ccyGu8BMt2N9N1TF7pkPRkKraoToZb0epcBqkL9rR9AQ708jtZUZyR7AGuVhD7f6aZkHYxP6gh95nDyfQswiF5yHthE9U33FUflParHJVuD5TeeSF4FqcDD4fDWPkDKnhbEnYXfUebkYbyG-3x7_q-Y5N9DASlmfOl9hP4WyHxVqghmxSWy8OxsVYaRVFAd0blyFA_caCE5GOQqyC2YFRZxXLJGvWYrbClxPeccHOc8AbIYkHm1zuPeybmrLhyUG1IvbtLqIiau7R7UV92ub5dRUZsS5vVfJT1N-Lh0atRgDpSb1QJNjDPj74qP7R0XAifVAjJC3iGn0NYVeL73nq3akmR-JMgAFZbhB-2XiYmvE9GibXCbdmYCAu057yAh33kylN3ezZ32rEZBdvKLO1OBIlwcndpiYLokGBIHBpDKK4wYtg0BZjHTD49UEyNqOwaD3AaXJCxp4zwU0mPEuCfc3nBTZ9qsIMHro7iqHR60rgGwrxjBZmyUskuLx2IMlYXdnNyzyUWa5BEv7rM8IIcEcZrWsecKWmnshMvp7_U98Pulqu69pFR049MYfB0SB_qtgE7k3mVJo5Cx3DHiWaIpCBCTHAOepznWd3AMZv3vRhP_k6wYptHD4oq7EDWYFbgCxaBb9KMpUE35KOVFxuZqaBHaqrWQ1tCF3spQTR5J79VfNiM1RmXzYELiazIsCHYZkwIHq93VioHLeuccqOXCF08FWHUgDsHK5P_VwE0oX-i4YnB7Ce1A_v7n9ilzXPCxcr0sfjI8NCg2Hu5MuAZqsVJsIyGmPTGwsxWrxi1Fo5kT8_bgxA5xEpcrd61sokFiY' 
-});
 
 /**
  * @api {get} /files/list 获取Dropbox文件列表
@@ -24,6 +19,8 @@ const dbx = new Dropbox({
  */
 router.get('/list', async (req, res) => {
     try {
+        // 获取带有有效 token 的 Dropbox 客户端
+        const dbx = await getDropboxClient();
         const response = await dbx.filesListFolder({ path: '' });
         
         res.status(200).json({
@@ -53,6 +50,8 @@ router.get('/list', async (req, res) => {
  */
 router.get('/list/:path', async (req, res) => {
     try {
+        // 获取带有有效 token 的 Dropbox 客户端
+        const dbx = await getDropboxClient();
         const path = req.params.path;
         const response = await dbx.filesListFolder({ path: `/${path}` });
         
@@ -82,14 +81,16 @@ router.get('/list/:path', async (req, res) => {
  */
 router.get('/download/:path', async (req, res) => {
     try {
+        // 获取带有有效 token 的 Dropbox 客户端
+        const dbx = await getDropboxClient();
         const path = req.params.path;
         const response = await dbx.filesDownload({ path: `/${path}` });
         
         // 设置响应头
-        res.setHeader('Content-Disposition', `attachment; filename=${response.result.name}`);
+        res.setHeader('Content-Disposition', `attachment; filename="${response.result.name}"`);
         res.setHeader('Content-Type', 'application/octet-stream');
         
-        // 发送文件内容
+        // 发送文件数据
         res.send(response.result.fileBinary);
     } catch (error) {
         console.error('Dropbox API error:', error);
@@ -115,6 +116,8 @@ router.get('/download/:path', async (req, res) => {
  */
 router.post('/upload', upload.single('file'), async (req, res) => {
     try {
+        // 获取带有有效 token 的 Dropbox 客户端
+        const dbx = await getDropboxClient();
         console.log("req.file:", req.file);
         console.log("req.body:", req.body);
         
@@ -164,6 +167,8 @@ router.post('/upload', upload.single('file'), async (req, res) => {
  */
 router.delete('/delete/:path', async (req, res) => {
     try {
+        // 获取带有有效 token 的 Dropbox 客户端
+        const dbx = await getDropboxClient();
         const path = req.params.path;
         const response = await dbx.filesDelete({ path: `/${path}` });
         
@@ -196,6 +201,8 @@ router.delete('/delete/:path', async (req, res) => {
  */
 router.get('/templink/:path', async (req, res) => {
     try {
+        // 获取带有有效 token 的 Dropbox 客户端
+        const dbx = await getDropboxClient();
         const path = req.params.path;
         const response = await dbx.filesGetTemporaryLink({ path: `/${path}` });
         
@@ -228,6 +235,8 @@ router.get('/templink/:path', async (req, res) => {
  */
 router.get('/sharelink/:path', async (req, res) => {
     try {
+        // 获取带有有效 token 的 Dropbox 客户端
+        const dbx = await getDropboxClient();
         const path = req.params.path;
         const response = await dbx.sharingCreateSharedLinkWithSettings({
             path: `/${path}`,
