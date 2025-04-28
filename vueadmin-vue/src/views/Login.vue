@@ -16,7 +16,7 @@
                     <input type="checkbox">
                     Remember me
                 </p>
-                <a>Forgot password?</a>
+                <a @click="showForgotPassword">Forgot password?</a>
             </div>
 
             <button type="submit">Login</button>
@@ -24,12 +24,18 @@
             <p class="reg">Dont't have an account? <a>Register</a></p>
             </form>
         </div>
+        <forgot-password ref="forgotPassword"></forgot-password>
     </section>
+    
 </template>
 
 <script>
     import {md5} from 'js-md5'
+    import ForgotPassword from './ForgotPassword.vue'
     export default{
+        components: {
+            ForgotPassword
+        },
         data(){
             return{
                 verifyCode:'0277',
@@ -46,6 +52,9 @@
         mounted(){
         },
         methods:{
+            showForgotPassword() {
+                this.$refs.forgotPassword.show()
+            },
             Login(event){
             event.preventDefault()
 

@@ -4,6 +4,8 @@ const bcrypt = require('bcryptjs');
 const md5 = require('js-md5');
 const { User, Role, Department } = require('../database/models');
 const { Op } = require('sequelize');
+const smsCodeStore = require('../utils/smsCodeStore');
+const smsService = require('../utils/smsService');
 
 // JWT配置
 const JWT_SECRET = process.env.JWT_SECRET || 'yyjkn';
@@ -81,7 +83,7 @@ router.post('/register', validateLoginInput, async (req, res) => {
         }
 
         // 密码加密
-        const hashedPassword = await bcrypt.hash(md5(password,'0277'), BCRYPT_ROUNDS);
+        const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
         
         // 创建用户
         const user = await User.create({
@@ -219,6 +221,7 @@ router.get('/getUserList', async (req, res) => {
             order: [['id', 'ASC']]
         });
 
+        // 直接使用原始数据，不进行脱敏处理
         res.json(createResponse(true, '获取用户列表成功', {
             records: result.rows,
             size,
@@ -267,7 +270,11 @@ router.get('/getUserInfo/:id', async (req, res) => {
             return res.status(404).json(createResponse(false, '用户不存在'));
         }
 
-        res.json(createResponse(true, '获取用户信息成功', user));
+        // 创建用户对象的副本，添加脱敏的手机号码
+        const userData = user.toJSON();
+        userData.maskedPhone = user.getMaskedPhone();
+
+        res.json(createResponse(true, '获取用户信息成功', userData));
     } catch (error) {
         console.error('获取用户信息错误:', error);
         if (error.name === 'JsonWebTokenError') {
@@ -316,7 +323,7 @@ router.put('/updateUser/:id', async (req, res) => {
                 return res.status(400).json(createResponse(false, '指定的角色不存在'));
             }
         }
-
+        
         // 如果要更新部门，检查部门是否存在
         if (departmentId) {
             const department = await Department.findByPk(departmentId);
@@ -341,6 +348,98 @@ router.put('/updateUser/:id', async (req, res) => {
         if (error.name === 'JsonWebTokenError') {
             return res.status(401).json(createResponse(false, '无效的token'));
         }
+        res.status(500).json(createResponse(false, '服务器内部错误'));
+    }
+});
+
+// 根据账户名获取绑定的手机号码
+router.get('/getPhoneByUsername/:username', async (req, res) => {
+    try {
+        const { username } = req.params;
+        const user = await User.findOne({ where: { username } });
+        if (!user) {
+            return res.status(404).json(createResponse(false, '用户不存在'));
+        }
+        // 返回脱敏的手机号码
+        res.json(createResponse(true, '获取手机号码成功', user.getMaskedPhone()));
+    } catch (error) {
+        console.error('获取手机号码错误:', error);
+        res.status(500).json(createResponse(false, '服务器内部错误'));
+    }
+});
+
+// 发送重置密码的短信验证码
+router.post('/sendResetPasswordCode', async (req, res) => {
+    try {
+        const { phone } = req.body;
+        
+        if (!phone) {
+            return res.status(400).json(createResponse(false, '手机号码不能为空'));
+        }
+        
+        // 查找该手机号码对应的用户
+        const user = await User.findOne({ where: { phone } });
+        if (!user) {
+            return res.status(404).json(createResponse(false, '该手机号码未绑定任何用户'));
+        }
+        
+        // 生成4位验证码
+        const code = smsCodeStore.generateCode(4);
+        
+        // 保存验证码
+        smsCodeStore.saveCode(phone, code);
+        
+        // 发送短信
+        const result = await smsService.sendSms(phone, code);
+        
+        if (result.success) {
+            res.json(createResponse(true, '验证码发送成功'));
+        } else {
+            res.status(500).json(createResponse(false, '验证码发送失败: ' + result.message));
+        }
+    } catch (error) {
+        console.error('发送验证码错误:', error);
+        res.status(500).json(createResponse(false, '服务器内部错误'));
+    }
+});
+
+// 通过短信验证码重置密码
+router.post('/resetPasswordBySms', async (req, res) => {
+    try {
+        const { phone, code, newPassword } = req.body;
+        
+        // 验证参数
+        if (!phone || !code || !newPassword) {
+            return res.status(400).json(createResponse(false, '手机号码、验证码和新密码不能为空'));
+        }
+        
+        // 验证密码长度
+        if (newPassword.length < 6) {
+            return res.status(400).json(createResponse(false, '密码长度不能小于6个字符'));
+        }
+        
+        // 验证验证码
+        const verifyResult = smsCodeStore.verifyCode(phone, code);
+        if (!verifyResult.valid) {
+            return res.status(400).json(createResponse(false, verifyResult.message));
+        }
+        
+        // 查找用户
+        const user = await User.findOne({ where: { phone } });
+        if (!user) {
+            return res.status(404).json(createResponse(false, '用户不存在'));
+        }
+        
+        // 加密新密码
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+        
+        // 更新密码
+        await user.update({ password: hashedPassword });
+        
+        res.json(createResponse(true, '密码重置成功'));
+    } catch (error) {
+        console.error('重置密码错误:', error);
         res.status(500).json(createResponse(false, '服务器内部错误'));
     }
 });

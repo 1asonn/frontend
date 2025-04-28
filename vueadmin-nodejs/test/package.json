@@ -12,6 +12,7 @@
   "dependencies": {
     "@coze/api": "^1.1.0",
     "@octokit/rest": "^21.1.1",
+    "aliyun-api-gateway": "^1.1.6",
     "bcryptjs": "^3.0.2",
     "dotenv": "^16.4.7",
     "dropbox": "^10.34.0",

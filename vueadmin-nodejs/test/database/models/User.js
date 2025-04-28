@@ -13,6 +13,17 @@ const User = sequelize.define('user',{
         unique:true,
         comment:'用户名'
     },
+    phone:{
+        type:Sequelize.STRING,
+        allowNull:true,
+        unique:true,
+        comment:'手机号码'
+    },
+    identity:{
+        type:Sequelize.STRING,
+        allowNull:true,
+        comment:'身份证号码'
+    },
     password:{
         type:Sequelize.STRING,
         allowNull:false,
@@ -83,8 +94,37 @@ User.associate = (models) => {
     })
 }
 
-User.sync().then(() => {
-    console.log("用户表模型已同步!")
-})
+// 添加获取脱敏手机号码的方法
+User.prototype.getMaskedPhone = function() {
+    if (!this.phone) return null;
+    return this.phone.replace(/(\d{3})\d{4}(\d{4})/, '$1xxxx$2');
+};
+
+// 添加重试机制的函数
+const syncWithRetry = async (model, options, maxRetries = 3) => {
+  let retries = 0;
+  while (retries < maxRetries) {
+    try {
+      await model.sync(options);
+      console.log("用户表模型已同步!");
+      return;
+    } catch (error) {
+      retries++;
+      if (error.code === 'ER_LOCK_DEADLOCK' && retries < maxRetries) {
+        console.log(`同步遇到死锁，正在进行第 ${retries} 次重试...`);
+        // 等待一段时间后重试
+        await new Promise(resolve => setTimeout(resolve, 1000 * retries));
+      } else {
+        console.error("同步失败:", error);
+        throw error;
+      }
+    }
+  }
+};
+
+// 使用重试机制进行同步
+syncWithRetry(User, { alter: true }).catch(err => {
+  console.error("无法同步用户表:", err);
+});
 
 module.exports = User
