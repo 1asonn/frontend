@@ -43,7 +43,12 @@ app.use(
         path: [
             /^\/user\/login/,
             /^\/user\/register/,
-            /^\/user\/test/
+            /^\/user\/test/,
+            /^\/user\/getPhoneByUsername/,
+            /^\/user\/sendSmsCode/,
+            /^\/user\/sendResetPasswordCode/,
+            /^\/user\/verifyResetPasswordCode/,
+            /^\/user\/resetPasswordBySms/,
         ] 
     })
 );

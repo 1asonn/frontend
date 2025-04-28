@@ -55,14 +55,10 @@
             })
         },
         logout(){
-            this.$axios.post("/logout").then(res => {
                 localStorage.clear()
                 sessionStorage.clear()
-
                 this.$store.commit("resetState")
                 this.$router.push("/login")
-                
-            })
         },
       },
       created(){

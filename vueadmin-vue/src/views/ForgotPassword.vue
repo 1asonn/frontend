@@ -58,7 +58,7 @@
             </el-form>
             <div class="dialog-footer">
                 <el-button @click="activeStep--">上一步</el-button>
-                <el-button type="primary" @click="verifyCode">下一步</el-button>
+                <el-button type="primary" @click="handleVerifyCode">下一步</el-button>
             </div>
         </div>
 
@@ -94,6 +94,7 @@
 
 <script>
 import { md5 } from 'js-md5'
+import { sendVerifyCode, GetPhoneNumber, VerifyCode, ResetPasswordBySms } from '@/api/index.js'
 
 export default {
     data() {
@@ -107,6 +108,7 @@ export default {
         }
         
         return {
+            resetToken:'',
             dialogVisible: false,
             activeStep: 0,
             form: {
@@ -119,10 +121,6 @@ export default {
             rules: {
                 username: [
                     { required: true, message: '请输入用户名', trigger: 'blur' }
-                ],
-                verifyCode: [
-                    { required: true, message: '请输入验证码', trigger: 'blur' },
-                    { len: 6, message: '验证码长度应为6位', trigger: 'blur' }
                 ],
                 newPassword: [
                     { required: true, message: '请输入新密码', trigger: 'blur' },
@@ -150,6 +148,7 @@ export default {
         },
         handleClose() {
             this.dialogVisible = false
+            this.resetToken = ''
             this.resetForm()
         },
         resetForm() {
@@ -169,10 +168,8 @@ export default {
         async verifyUsername() {
             try {
                 await this.$refs.usernameForm.validate()
-                const response = await this.$axios.post('http://localhost:4000/user/verify-username', {
-                    username: this.form.username
-                })
-                this.form.phone = response.data.data.phone
+                const response = await GetPhoneNumber(this.form.username)
+                this.form.phone = response.data
                 this.activeStep++
             } catch (error) {
                 if (error.response) {
@@ -184,12 +181,11 @@ export default {
                 }
             }
         },
+
+        // 发送验证码
         async sendVerifyCode() {
             try {
-                const response = await this.$axios.post('http://localhost:4000/user/send-code', {
-                    phone: this.form.phone
-                })
-                
+                const response = await sendVerifyCode({username:this.form.username})
                 this.$notify({
                     title: '成功',
                     message: '验证码已发送',
@@ -211,14 +207,22 @@ export default {
                 })
             }
         },
-        async verifyCode() {
+
+        // 验证码校验
+        async handleVerifyCode() {
+            await this.$refs.verifyForm.validate()
             try {
-                await this.$refs.verifyForm.validate()
-                const response = await this.$axios.post('http://localhost:4000/user/verify-code', {
-                    phone: this.form.phone,
+                const response = await VerifyCode({
+                    username: this.form.username,
                     code: this.form.verifyCode
                 })
-                this.activeStep++
+                console.log("response",response)
+                if(response.success){
+                    // 密码重置令牌
+                    this.resetToken = response.data.resetToken 
+                    this.activeStep++
+                }
+                
             } catch (error) {
                 if (error.response) {
                     this.$notify({
@@ -229,16 +233,18 @@ export default {
                 }
             }
         },
+
+        // 重置密码
         async resetPassword() {
             try {
                 await this.$refs.passwordForm.validate()
-                const response = await this.$axios.post('http://localhost:4000/user/reset-password', {
+                // 添加MD5密码加密
+                const encryptedPassword = md5(this.form.newPassword, '0277')
+                const response = await ResetPasswordBySms({
                     username: this.form.username,
-                    phone: this.form.phone,
-                    verifyCode: this.form.verifyCode,
-                    newPassword: md5(this.form.newPassword, this.verifyCode)
+                    resetToken: this.resetToken,
+                    newPassword: encryptedPassword
                 })
-
                 this.$notify({
                     title: '成功',
                     message: '密码重置成功',

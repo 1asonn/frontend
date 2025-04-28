@@ -303,6 +303,35 @@ export const AddRole = async (roleData) => {
     }
 }
 
+
+
 // 导出设备相关API
 export * from './equipment.js'
+
+
+//获取某一账户关联的手机号码
+export const GetPhoneNumber = async (username) => {
+    const response = await request.get(`http://localhost:4000/user/getPhoneByUsername/${username}`)
+    return response.data
+}
+
+
+
+// 发送重置密码的短信验证码
+export const sendVerifyCode = async (data) => {
+    const response = await request.post('http://localhost:4000/user/sendResetPasswordCode', data)
+}
+
+
+// 验证码校验
+export const VerifyCode = async (data) => {
+    const response = await request.post('http://localhost:4000/user/verifyResetPasswordCode', data)
+    return response.data
+}
+
+// 重置密码
+export const ResetPasswordBySms = async (data) => {
+    const response = await request.post('http://localhost:4000/user/resetPasswordBySms', data)
+    return response.data
+}
 

@@ -122,9 +122,18 @@ const syncWithRetry = async (model, options, maxRetries = 3) => {
   }
 };
 
-// 使用重试机制进行同步
-syncWithRetry(User, { alter: true }).catch(err => {
-  console.error("无法同步用户表:", err);
-});
+// 使用重试机制进行同步，但不修改表结构
+try {
+  // 使用force: false只创建不存在的表，不修改现有表结构
+  User.sync({ force: false }).then(() => {
+    console.log("用户表检查完成");
+  }).catch(err => {
+    console.error("用户表同步错误，但不影响应用启动:", err.message);
+  });
+} catch (error) {
+  console.error("用户表同步异常:", error.message);
+  // 即使同步失败，也不影响应用启动
+  console.log("应用将继续启动，但用户表可能需要手动更新");
+}
 
 module.exports = User

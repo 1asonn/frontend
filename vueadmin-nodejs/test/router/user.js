@@ -371,26 +371,31 @@ router.get('/getPhoneByUsername/:username', async (req, res) => {
 // 发送重置密码的短信验证码
 router.post('/sendResetPasswordCode', async (req, res) => {
     try {
-        const { phone } = req.body;
+        const { username } = req.body;
         
-        if (!phone) {
-            return res.status(400).json(createResponse(false, '手机号码不能为空'));
+        if (!username) {
+            return res.status(400).json(createResponse(false, '用户名不能为空'));
         }
         
-        // 查找该手机号码对应的用户
-        const user = await User.findOne({ where: { phone } });
+        // 查找该用户名对应的用户
+        const user = await User.findOne({ where: { username } });
         if (!user) {
-            return res.status(404).json(createResponse(false, '该手机号码未绑定任何用户'));
+            return res.status(404).json(createResponse(false, '用户不存在'));
+        }
+        
+        // 检查用户是否有关联的手机号码
+        if (!user.phone) {
+            return res.status(400).json(createResponse(false, '该用户未绑定手机号码，无法发送验证码'));
         }
         
         // 生成4位验证码
         const code = smsCodeStore.generateCode(4);
         
-        // 保存验证码
-        smsCodeStore.saveCode(phone, code);
+        // 保存验证码（使用手机号码作为键）
+        smsCodeStore.saveCode(user.phone, code);
         
         // 发送短信
-        const result = await smsService.sendSms(phone, code);
+        const result = await smsService.sendSms(user.phone, code);
         
         if (result.success) {
             res.json(createResponse(true, '验证码发送成功'));
@@ -403,14 +408,96 @@ router.post('/sendResetPasswordCode', async (req, res) => {
     }
 });
 
+// 存储验证通过的令牌，用于防止重放攻击
+const resetTokenStore = {
+    // 存储格式: { userId: { token: 'xxx', expireTime: Date.now() + 10 * 60 * 1000 } }
+    tokens: {},
+    
+    // 生成并存储令牌
+    generateToken(userId) {
+        // 生成一个随机令牌
+        const token = md5(userId + Date.now() + Math.random().toString());
+        this.tokens[userId] = {
+            token,
+            expireTime: Date.now() + 10 * 60 * 1000 // 10分钟有效期
+        };
+        return token;
+    },
+    
+    // 验证令牌
+    verifyToken(userId, token) {
+        const storedData = this.tokens[userId];
+        if (!storedData) return false;
+        
+        if (Date.now() > storedData.expireTime) {
+            delete this.tokens[userId];
+            return false;
+        }
+        
+        return storedData.token === token;
+    },
+    
+    // 使用后删除令牌（一次性使用）
+    removeToken(userId) {
+        delete this.tokens[userId];
+    }
+};
+
+// 验证重置密码的短信验证码
+router.post('/verifyResetPasswordCode', async (req, res) => {
+    try {
+        const { username, code } = req.body;
+        
+        // 验证参数
+        if (!username || !code) {
+            return res.status(400).json(createResponse(false, '用户名和验证码不能为空'));
+        }
+        
+        // 查找用户
+        const user = await User.findOne({ where: { username } });
+        if (!user) {
+            return res.status(404).json(createResponse(false, '用户不存在'));
+        }
+        
+        // 检查用户是否有关联的手机号码
+        if (!user.phone) {
+            return res.status(400).json(createResponse(false, '该用户未绑定手机号码，无法验证'));
+        }
+        
+        // 验证验证码，但不删除验证码，以便后续重置密码使用
+        const storedData = smsCodeStore.codes[user.phone];
+        if (!storedData) {
+            return res.status(400).json(createResponse(false, '验证码不存在或已过期'));
+        }
+        
+        if (Date.now() > storedData.expireTime) {
+            delete smsCodeStore.codes[user.phone];
+            return res.status(400).json(createResponse(false, '验证码已过期'));
+        }
+        
+        if (storedData.code !== code) {
+            return res.status(400).json(createResponse(false, '验证码不正确'));
+        }
+        
+        // 验证成功，生成一个一次性令牌，用于后续的密码重置
+        const resetToken = resetTokenStore.generateToken(user.id);
+        
+        // 返回成功消息和令牌
+        res.json(createResponse(true, '验证码验证成功', { resetToken }));
+    } catch (error) {
+        console.error('验证验证码错误:', error);
+        res.status(500).json(createResponse(false, '服务器内部错误'));
+    }
+});
+
 // 通过短信验证码重置密码
 router.post('/resetPasswordBySms', async (req, res) => {
     try {
-        const { phone, code, newPassword } = req.body;
+        const { username, resetToken, newPassword } = req.body;
         
         // 验证参数
-        if (!phone || !code || !newPassword) {
-            return res.status(400).json(createResponse(false, '手机号码、验证码和新密码不能为空'));
+        if (!username || !resetToken || !newPassword) {
+            return res.status(400).json(createResponse(false, '用户名、重置令牌和新密码不能为空'));
         }
         
         // 验证密码长度
@@ -418,16 +505,15 @@ router.post('/resetPasswordBySms', async (req, res) => {
             return res.status(400).json(createResponse(false, '密码长度不能小于6个字符'));
         }
         
-        // 验证验证码
-        const verifyResult = smsCodeStore.verifyCode(phone, code);
-        if (!verifyResult.valid) {
-            return res.status(400).json(createResponse(false, verifyResult.message));
-        }
-        
         // 查找用户
-        const user = await User.findOne({ where: { phone } });
+        const user = await User.findOne({ where: { username } });
         if (!user) {
             return res.status(404).json(createResponse(false, '用户不存在'));
+        }
+        
+        // 验证重置令牌
+        if (!resetTokenStore.verifyToken(user.id, resetToken)) {
+            return res.status(400).json(createResponse(false, '重置令牌无效或已过期，请重新验证'));
         }
         
         // 加密新密码
@@ -436,6 +522,14 @@ router.post('/resetPasswordBySms', async (req, res) => {
         
         // 更新密码
         await user.update({ password: hashedPassword });
+        
+        // 密码重置成功后删除令牌（一次性使用）
+        resetTokenStore.removeToken(user.id);
+        
+        // 如果还有验证码存在，也删除它
+        if (user.phone && smsCodeStore.codes[user.phone]) {
+            delete smsCodeStore.codes[user.phone];
+        }
         
         res.json(createResponse(true, '密码重置成功'));
     } catch (error) {
