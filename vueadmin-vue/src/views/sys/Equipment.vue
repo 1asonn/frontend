@@ -673,7 +673,7 @@
 
 <script>
 import { getEquipmentList, createEquipment, updateEquipment, deleteEquipment, uploadEquipmentImage } from '@/api'
-import { getdepartmentList } from '@/api/index'
+import { GetDepartmentList } from '@/api/index'
 
 export default {
     data() {
@@ -801,7 +801,7 @@ export default {
         // 获取科室列表
         async fetchDepartments() {
             try {
-                const response = await getdepartmentList();
+                const response = await GetDepartmentList();
                 if (response && response.data) {
                     this.departmentOptions = response.data;
                 }

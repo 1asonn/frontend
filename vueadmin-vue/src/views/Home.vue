@@ -4,8 +4,8 @@
     <!-- 侧边栏 -->
     <el-aside :width="isCollapse ? '64px' : '220px'" class="sidebar-container">
       <div class="logo-container">
-        <!-- <img src="@/assets/logo.png" alt="Logo" class="logo-image" v-if="!isCollapse">
-        <img src="@/assets/logo-small.png" alt="Logo" class="logo-small" v-else> -->
+        <img src="@/assets/医院.png" alt="Logo" class="logo-image" v-if="!isCollapse">
+        <img src="@/assets/医院.png" alt="Logo" class="logo-small" v-else>
       </div>
       <el-button 
         type="text" 
@@ -474,11 +474,12 @@ body.compact-mode .el-card {
 }
 
 /* 响应式布局 */
-@media screen and (max-width: 768px) {
+/* @media screen and (max-width: 768px) {
   .sidebar-container {
     position: fixed;
     z-index: 1000;
     transform: translateX(-100%);
+    
   }
   
   .sidebar-container.show {
@@ -496,7 +497,7 @@ body.compact-mode .el-card {
   .header-right {
     gap: 10px;
   }
-}
+} */
 </style>
 
 <style scoped>
@@ -512,7 +513,6 @@ body.compact-mode .el-card {
 .sidebar-container {
   height: 100%;
   background: linear-gradient(180deg, #304156 0%, #1f2d3d 100%);
-  transition: all var(--transition-duration);
   box-shadow: var(--box-shadow);
   position: relative;
   z-index: 10;

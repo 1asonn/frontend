@@ -2,6 +2,7 @@
   <div>
     <!-- 菜单导航 -->
     <el-menu
+      :collapse-transition="false"
       :default-active="this.$store.state.menu.editableTabsValue"
       :collapse="isCollapse"
       class="tech-menu"
