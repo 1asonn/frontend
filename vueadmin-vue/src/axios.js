@@ -26,7 +26,7 @@ request.interceptors.response.use(
     response =>{
     const res = response.data
 
-    if(response.status === 200 || res.code === 200){                 
+    if(response.status === 200 || res.code === 200 || res.success === true){                 
         return response }
 
     else{

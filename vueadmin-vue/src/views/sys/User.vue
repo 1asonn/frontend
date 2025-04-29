@@ -133,7 +133,7 @@
 					<template slot-scope="scope">
 						<el-button type="text" @click="checkHandle(scope.row.id)">查看</el-button>
 						<el-divider direction="vertical"></el-divider>
-						<el-button type="text" @click="editHandle(scope.row.id)">编辑</el-button>
+						<el-button type="text" @click="editHandle(scope.row)">编辑</el-button>
 						<el-divider direction="vertical"></el-divider>       
 						<el-popconfirm title="确定要注销该用户吗？" @confirm="delHandle(scope.row.id)">
 							<el-button type="text" slot="reference">注销</el-button>
@@ -194,10 +194,11 @@
 						<el-input v-model="editForm.username" autocomplete="off" placeholder="请输入用户名"></el-input>
 					</el-form-item>
 
-					<el-form-item label="密码" prop="password">
-						<el-input v-model="editForm.password" :disabled="!!editForm.id" autocomplete="off" placeholder="初始密码"></el-input>
+					<!-- 只在新增用户时显示密码字段 -->
+					<el-form-item v-if="!editForm.id" label="密码" prop="password">
+						<el-input v-model="editForm.password" autocomplete="off" placeholder="初始密码"></el-input>
 						<div class="el-form-item__info" style="font-size: 12px; color: #909399; line-height: 1; padding-top: 4px;">
-							{{editForm.id ? '编辑时不可修改密码，请使用重置密码功能' : '初始密码默认为123456'}}
+							初始密码默认为123456
 						</div>
 					</el-form-item>
 
@@ -207,8 +208,8 @@
 
 					<el-form-item label="性别" prop="gender">
 						<el-radio-group v-model="editForm.gender">
-							<el-radio label="male">男</el-radio>
-							<el-radio label="female">女</el-radio>
+							<el-radio :label="'male'" :checked="editForm.gender === 'male'">男</el-radio>
+							<el-radio :label="'female'" :checked="editForm.gender === 'female'">女</el-radio>
 						</el-radio-group>
 					</el-form-item>
 
@@ -231,12 +232,11 @@
 
 					<el-form-item label="手机号码" prop="phone">
 						<el-input v-model="editForm.phone" placeholder="请输入手机号码">
-							<template slot="prepend">+86</template>
 						</el-input>
 					</el-form-item>
 
-					<el-form-item label="身份证号" prop="idCard">
-						<el-input v-model="editForm.idCard" placeholder="请输入身份证号码"></el-input>
+					<el-form-item label="身份证号" prop="identity">
+						<el-input v-model="editForm.identity" placeholder="请输入身份证号码"></el-input>
 					</el-form-item>
 
 					<el-form-item label="地址" prop="address">
@@ -602,24 +602,76 @@
 
 			// 下一步
 			nextStep() {
+				// 定义每个步骤需要验证的字段
 				const stepFields = [
-					['username', 'password', 'realname', 'gender', 'birthDate'], // 第一步字段
-					['phone', 'idCard', 'address'], // 第二步字段
+					// 如果是编辑用户（有ID），则不验证密码字段
+					this.editForm.id ? 
+						['username', 'realname', 'gender', 'birthDate'] : // 编辑用户时的第一步字段
+						['username', 'password', 'realname', 'gender', 'birthDate'], // 新增用户时的第一步字段
+					['phone', 'identity', 'address'], // 第二步字段（注意这里使用identity而不是idCard）
 					['departmentId', 'roleId'] // 第三步字段
 				]
-
-				// 验证当前步骤的字段
-				this.$refs.editForm.validateField(stepFields[this.activeStep], valid => {
-					if (valid) {
-						// 如果有错误，不进行下一步
-						return false
-					} else {
-						// 如果验证通过，进入下一步
+				
+				// 使用Promise来处理表单验证
+				const validateCurrentStep = () => {
+					return new Promise((resolve, reject) => {
+						// 获取当前步骤的字段
+						const currentFields = stepFields[this.activeStep];
+						
+						// 创建一个包含当前步骤字段的规则对象
+						const stepRules = {};
+						currentFields.forEach(field => {
+							if (this.editFormRules[field]) {
+								stepRules[field] = this.editFormRules[field];
+							}
+						});
+						
+						// 验证当前步骤的字段
+						let isValid = true;
+						let errorCount = 0;
+						
+						// 逐个验证字段
+						const validatePromises = currentFields.map(field => {
+							return new Promise(fieldResolve => {
+								// 只验证有规则的字段
+								if (!this.editFormRules[field]) {
+									fieldResolve(true);
+									return;
+								}
+								
+								this.$refs.editForm.validateField(field, errorMsg => {
+									if (errorMsg) {
+										isValid = false;
+										errorCount++;
+									}
+									fieldResolve(true);
+								});
+							});
+						});
+						
+						// 等待所有字段验证完成
+						Promise.all(validatePromises).then(() => {
+							if (isValid) {
+								resolve();
+							} else {
+								reject(`请先完成当前步骤的必填项，还有 ${errorCount} 个字段未通过验证`);
+							}
+						});
+					});
+				};
+				
+				// 执行验证并处理结果
+				validateCurrentStep()
+					.then(() => {
+						// 验证通过，进入下一步
 						if (this.activeStep < 2) {
-							this.activeStep++
+							this.activeStep++;
 						}
-					}
-				})
+					})
+					.catch(errorMsg => {
+						// 验证失败，显示错误提示
+						this.$message.warning(errorMsg);
+					});
 			},
 
 			// 上一步
@@ -950,7 +1002,8 @@
 
 			resetForm(formName) {
 				this.$refs[formName].resetFields();
-				this.dialogVisible = false
+				this.dialogVisible = false;
+				this.activeStep = 0; // 重置步骤到第一步
 				this.editForm = {
 					id: '',
 					username: '',
@@ -960,8 +1013,13 @@
 					birthDate: '',
 					address: '',
 					roleId: '',
-					departmentId: ''
-				}
+					departmentId: '',
+					phone: '',
+					identity: '', // 使用identity字段名，与表单一致
+					remark: ''
+				};
+				// 重置原始数据
+				this.originalFormData = JSON.parse(JSON.stringify(this.editForm));
 			},
 			handleDrawerClose(){
 				this.drawer = false
@@ -977,18 +1035,35 @@
 				this.$refs[formName].validate(async (valid) => {
 					if (valid) {
 						try {
+							// 转换字段名称，确保与后端API一致
+							// 创建基本数据对象
 							const formData = {
-								...this.editForm,
-								birth_date: this.editForm.birthDate
+								id: this.editForm.id,
+								username: this.editForm.username,
+								realname: this.editForm.realname,
+								gender: this.editForm.gender,
+								birth_date: this.editForm.birthDate, // 转换字段名
+								address: this.editForm.address,
+								role_id: this.editForm.roleId, // 转换字段名
+								department_id: this.editForm.departmentId, // 转换字段名
+								phone: this.editForm.phone,
+								idCard: this.editForm.identity, // 转换字段名
+								remark: this.editForm.remark
+							};
+							
+							// 只在新增用户时添加密码字段
+							if (!this.editForm.id && this.editForm.password) {
+								formData.password = this.editForm.password;
 							}
 
-							let response
+							console.log('提交的表单数据:', formData);
+							let response;
 							if (this.editForm.id) {
 								// 更新用户
-								response = await this.$axios.post('/sys/user/update', formData)
+								response = await this.$axios.post('/sys/user/update', formData);
 							} else {
 								// 新增用户
-								response = await this.UserRegiste(formData)
+								response = await this.UserRegiste(formData);
 							}
 
 							this.$message({
@@ -1022,14 +1097,35 @@
 				})
 			},
 
-			editHandle(id) {
-				this.$axios.get('/sys/user/info/' + id).then(res => {
-					this.editForm = res.data.data
-
-					this.dialogVisible = true
-				})
+			editHandle(userData) {
+				console.log("当前行用户数据:", userData);
+				// 重置步骤到第一步
+				this.activeStep = 0;
+				
+				// 直接使用当前行的用户数据
+				// 处理字段名称差异
+				this.editForm = {
+					id: userData.id,
+					username: userData.username,
+					password: '', // 不回显密码
+					realname: userData.realname,
+					gender: userData.gender,
+					birthDate: userData.birth_date || userData.birthDate, // 兼容不同的字段名
+					address: userData.address,
+					roleId: userData.role_id || userData.roleId, // 兼容不同的字段名
+					departmentId: userData.department_id || userData.departmentId, // 兼容不同的字段名
+					phone: userData.phone,
+					identity: userData.identity || userData.idCard, // 兼容不同的字段名
+					remark: userData.remark
+				};
+				
+				// 保存原始数据用于变更检测
+				this.originalFormData = JSON.parse(JSON.stringify(this.editForm));
+				
+				// 打开对话框
+				this.dialogVisible = true;
+				console.log('编辑用户数据:', this.editForm);
 			},
-
 			delHandle(id) {
 
 				var ids = []
@@ -1109,8 +1205,7 @@
 			async getRoles() {
 				try {
 					const res = await GetRoleList()
-					console.log("11111",res)
-					this.roles = res
+					this.roles = res.data.items
 				} catch (error) {
 					console.error('获取角色列表失败:', error)
 					this.$message.error('获取角色列表失败')
@@ -1119,7 +1214,6 @@
 			async getDepartments() {
 				try {
 					const res = await GetDepartmentList()
-					console.log("111111111",res)
 					this.departments = res.data
 				} catch (error) {
 					console.error('获取部门列表失败:', error)

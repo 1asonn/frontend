@@ -13,8 +13,8 @@
             </div>
             <div class="rem">
                 <p>
-                    <input type="checkbox">
-                    Remember me
+                    <input type="checkbox" v-model="rememberMe" id="rememberMe">
+                    <label for="rememberMe">Remember me</label>
                 </p>
                 <a @click="showForgotPassword">Forgot password?</a>
             </div>
@@ -42,16 +42,63 @@
                 loginForm:{
                     username: '',
                     password: ''
-                }
+                },
+                rememberMe: false
             };
         },
         created(){
             this.$i18n.locale = 'zh-TW';
+            // 检查是否有保存的登录信息
+            this.checkSavedCredentials();
             console.log("i18n",this.$i18n)}
             ,
         mounted(){
+            // 添加自动填充支持
+            const usernameInput = document.getElementById('usernameInput');
+            if (usernameInput) {
+                usernameInput.setAttribute('autocomplete', 'username');
+            }
+            const passwordInput = document.getElementById('passwordInput');
+            if (passwordInput) {
+                passwordInput.setAttribute('autocomplete', 'current-password');
+            }
         },
         methods:{
+            // 检查是否有保存的登录信息
+            checkSavedCredentials() {
+                const savedCredentials = localStorage.getItem('userCredentials');
+                if (savedCredentials) {
+                    try {
+                        const credentials = JSON.parse(savedCredentials);
+                        this.loginForm.username = credentials.username || '';
+                        // 密码已加密存储，登录时会自动处理
+                        if (credentials.encryptedPassword) {
+                            this.loginForm.password = credentials.encryptedPassword;
+                            this.rememberMe = true;
+                        }
+                    } catch (error) {
+                        console.error('解析保存的凭据失败', error);
+                        // 清除可能损坏的数据
+                        localStorage.removeItem('userCredentials');
+                    }
+                }
+            },
+
+            // 保存登录凭据
+            saveCredentials(username, encryptedPassword) {
+                if (this.rememberMe) {
+                    const credentials = {
+                        username: username,
+                        encryptedPassword: encryptedPassword,
+                        timestamp: new Date().getTime()
+                    };
+                    localStorage.setItem('userCredentials', JSON.stringify(credentials));
+                } else {
+                    // 如果取消了"记住我"，则删除之前保存的凭据
+                    localStorage.removeItem('userCredentials');
+                }
+            },
+            
             showForgotPassword() {
                 this.$refs.forgotPassword.show()
             },
@@ -62,9 +109,19 @@
                 return 
             }
 
-            // 前端密码加密
-            this.loginForm.password = md5(this.loginForm.password,this.verifyCode)
-            this.$axios.post('http://localhost:4000/user/login',this.loginForm,{
+            // 检查密码是否已经加密（从记住的凭据中加载的情况）
+            let encryptedPassword = this.loginForm.password;
+            if (this.loginForm.password.length < 32) { // 简单判断是否为MD5加密后的密码
+                // 前端密码加密
+                encryptedPassword = md5(this.loginForm.password, this.verifyCode);
+            }
+            
+            const loginData = {
+                username: this.loginForm.username,
+                password: encryptedPassword
+            };
+            
+            this.$axios.post('http://localhost:4000/user/login', loginData, {
               headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
               },
@@ -72,19 +129,37 @@
                 return new URLSearchParams(data).toString();
               }
             }).then((response) => {
-            this.$notify({
-                title: '登录成功',
-                message: '欢迎回来',
-                type: 'success'
-            });
-            console.log("what is response?",response)
-            const jwt = response.data.data['token']
-            this.$store.commit('SET_TOKEN',jwt)
-            this.$router.push('/index')
-            }).catch(
-            (error) => {
-                // Element.Message.error(error)
-                console.log("error",error)
+                this.$notify({
+                    title: '登录成功',
+                    message: '欢迎回来',
+                    type: 'success'
+                });
+                
+                // 保存登录凭据（如果选择了"记住我"）
+                this.saveCredentials(this.loginForm.username, encryptedPassword);
+                
+                const jwt = response.data.data['token']
+                this.$store.commit('SET_TOKEN', jwt)
+                this.$router.push('/index')
+            }).catch((error) => {
+                // 登录失败，清除可能存在的已保存凭据
+                if (this.rememberMe) {
+                    localStorage.removeItem('userCredentials');
+                }
+                
+                // 显示错误消息
+                this.$notify({
+                    title: '登录失败',
+                    message: error.response?.data?.message || '用户名或密码错误',
+                    type: 'error'
+                });
+                
+                console.log("error", error);
+                
+                // 如果是从记住的凭据登录失败，清空密码字段让用户重新输入
+                if (this.loginForm.password.length >= 32) {
+                    this.loginForm.password = '';
+                }
             })
             },
             changeLang(){

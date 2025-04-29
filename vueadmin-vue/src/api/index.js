@@ -157,6 +157,17 @@ export const GetRoleInfo = async (roleId) => {
     }
 }
 
+// 更新用户信息
+export const UpdateUserInfo = async (userId, data) => {
+    try {
+        const response = await request.put(`http://localhost:4000/user/updateUserInfo/${userId}`, data)
+        return response.data
+    } catch (error) {
+        console.error('更新用户信息失败:', error)
+        throw error
+    }
+}
+
 //获取菜单加密公钥
 export const GetMenuPublicKey = async () => {
     try {
@@ -191,13 +202,14 @@ export const GetMedicineStockAlerts = async () => {
 // 获取科室列表
 export const GetDepartments = async () => {
     try {
-        const response = await request.get('/departments')
+        const response = await request.get('http://localhost:4000/department/list')
         return response.data
     } catch (error) {
         console.error('获取科室列表失败:', error)
         throw error
     }
 }
+
 
 // 获取科室医生列表
 export const GetDepartmentDoctors = async (departmentId) => {

@@ -146,6 +146,7 @@ router.post('/login', validateLoginInput, async (req, res) => {
             {
                 userId: user.id,
                 username: user.username,
+                realname:user.realname,
                 roleId: user.role_id,
                 departmentId: user.department_id,
                 authorities: user.role.authoritys
@@ -294,41 +295,70 @@ router.put('/updateUser/:id', async (req, res) => {
             return res.status(401).json(createResponse(false, 'token为空!'));
         }
 
-        const decoded = jwt.verify(token, JWT_SECRET);
-        const authorities = decoded.authorities.split(',');
-        
-        if (!authorities.includes("SysUser")) {
-            return res.status(403).json(createResponse(false, '用户无权限'));
+        try {
+            jwt.verify(token, JWT_SECRET);
+        } catch (error) {
+            return res.status(401).json(createResponse(false, '无效的token'));
         }
 
-        const {
-            realname,
-            gender,
-            birthDate,
-            address,
-            roleId,
-            departmentId
-        } = req.body;
-
-        // 检查用户是否存在
-        const user = await User.findByPk(id);
+        // 查找用户
+        const user = await User.findByPk(id, {
+            include: [
+                {
+                    model: Role,
+                    as: 'role',
+                    attributes: ['id', 'role_name', 'authoritys']
+                },
+                {
+                    model: Department,
+                    as: 'department',
+                    attributes: ['id', 'name', 'description']
+                }
+            ]
+        });
+        
         if (!user) {
             return res.status(404).json(createResponse(false, '用户不存在'));
         }
 
-        // 如果要更新角色，检查角色是否存在
+        const { 
+            realname, 
+            gender, 
+            birthDate, 
+            address, 
+            roleId, 
+            departmentId,
+            phone,
+            identity
+        } = req.body;
+
+        // 检查角色是否存在
         if (roleId) {
             const role = await Role.findByPk(roleId);
             if (!role) {
                 return res.status(400).json(createResponse(false, '指定的角色不存在'));
             }
         }
-        
-        // 如果要更新部门，检查部门是否存在
+
+        // 检查部门是否存在
         if (departmentId) {
             const department = await Department.findByPk(departmentId);
             if (!department) {
                 return res.status(400).json(createResponse(false, '指定的部门不存在'));
+            }
+        }
+
+        // 如果更新手机号，检查是否已被其他用户使用
+        if (phone && phone !== user.phone) {
+            const existingUserWithPhone = await User.findOne({
+                where: {
+                    phone,
+                    id: { [Op.ne]: id } // 排除当前用户
+                }
+            });
+            
+            if (existingUserWithPhone) {
+                return res.status(409).json(createResponse(false, '该手机号已被其他用户使用'));
             }
         }
 
@@ -339,10 +369,31 @@ router.put('/updateUser/:id', async (req, res) => {
             birth_date: birthDate,
             address,
             role_id: roleId,
-            department_id: departmentId
+            department_id: departmentId,
+            phone,
+            identity
         });
 
-        res.json(createResponse(true, '更新用户信息成功'));
+        // 获取更新后的用户信息，包括关联数据
+        const updatedUser = await User.findByPk(id, {
+            include: [
+                {
+                    model: Role,
+                    as: 'role',
+                    attributes: ['id', 'role_name', 'authoritys']
+                },
+                {
+                    model: Department,
+                    as: 'department',
+                    attributes: ['id', 'name', 'description']
+                }
+            ],
+            attributes: {
+                exclude: ['password'] // 排除密码字段
+            }
+        });
+
+        res.json(createResponse(true, '更新用户信息成功', updatedUser));
     } catch (error) {
         console.error('更新用户信息错误:', error);
         if (error.name === 'JsonWebTokenError') {

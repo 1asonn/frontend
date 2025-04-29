@@ -32,6 +32,20 @@ Department.associate = (models) => {
         foreignKey: 'department_id',
         as: 'schedules'
     });
+    // 关联到MedicalEquipment模型
+    if (models.MedicalEquipment) {
+        Department.hasMany(models.MedicalEquipment, {
+            foreignKey: 'department_id',
+            as: 'equipments'
+        });
+    }
+    // 关联到medical_equipment模型
+    if (models.medical_equipment) {
+        Department.hasMany(models.medical_equipment, {
+            foreignKey: 'department_id',
+            as: 'medical_equipments'
+        });
+    }
 };
 
 Department.sync().then(() => {

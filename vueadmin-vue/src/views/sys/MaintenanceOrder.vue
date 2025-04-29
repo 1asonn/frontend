@@ -49,9 +49,12 @@
             </el-input>
             <el-select v-model="filterDepartment" placeholder="所属科室" @change="handleSearch" class="filter-select" clearable>
                 <el-option label="全部" value=""></el-option>
-                <el-option label="放射科" value="放射科"></el-option>
-                <el-option label="检验科" value="检验科"></el-option>
-                <el-option label="手术室" value="手术室"></el-option>
+                <el-option 
+                    v-for="dept in departmentOptions" 
+                    :key="dept.id" 
+                    :label="dept.name" 
+                    :value="dept.name">
+                </el-option>
             </el-select>
             <el-select v-model="filterStatus" placeholder="工单状态" @change="handleSearch" class="filter-select" clearable>
                 <el-option label="全部" value=""></el-option>
@@ -72,7 +75,7 @@
                 class="date-range-picker"
             >
             </el-date-picker>
-            <el-button type="primary" icon="el-icon-plus" @click="showCreateOrderDialog">新建工单</el-button>
+            <el-button type="primary" icon="el-icon-plus" @click="openCreateDialog">新建工单</el-button>
             <el-button type="success" icon="el-icon-download" @click="exportMaintenanceData" class="export-button">导出维修数据</el-button>
         </div>
 
@@ -353,6 +356,7 @@
                 <i class="el-icon-time"></i> 维修历史记录
             </el-divider>
             
+            
             <div class="history-timeline" v-if="maintenanceHistory.length > 0">
                 <el-timeline>
                     <el-timeline-item
@@ -426,83 +430,47 @@
 
                 <!-- 第一步：设备信息 -->
                 <div v-show="createActiveStep === 0" class="step-content">
-                    <el-form-item label="设备选择方式">
-                        <el-radio-group v-model="equipmentSelectMethod" @change="handleEquipmentSelectChange">
-                            <el-radio :label="'search'">搜索设备</el-radio>
-                            <el-radio :label="'manual'">手动输入</el-radio>
-                        </el-radio-group>
-                    </el-form-item>
-
-                    <template v-if="equipmentSelectMethod === 'search'">
-                        <el-form-item label="设备搜索" prop="equipment_id">
-                            <el-select 
-                                v-model="createForm.equipment_id" 
-                                filterable 
-                                remote 
-                                reserve-keyword
-                                placeholder="请输入设备名称或编号搜索" 
-                                :remote-method="searchEquipment"
-                                :loading="equipmentLoading"
-                                @change="handleEquipmentSelect"
-                                style="width: 100%"
+                    <el-form-item label="设备搜索" prop="equipment_id" required>
+                        <el-select 
+                            v-model="createForm.equipment_id" 
+                            filterable 
+                            remote 
+                            reserve-keyword
+                            placeholder="请输入设备名称或编号搜索" 
+                            :remote-method="searchEquipment"
+                            :loading="equipmentLoading"
+                            @change="handleEquipmentSelect"
+                            style="width: 100%"
+                        >
+                            <el-option
+                                v-for="item in equipmentOptions"
+                                :key="item.id"
+                                :label="`${item.name} (${item.equipment_code})`"
+                                :value="item.id"
                             >
-                                <el-option
-                                    v-for="item in equipmentOptions"
-                                    :key="item.id"
-                                    :label="`${item.name} (${item.equipment_code})`"
-                                    :value="item.id"
-                                >
-                                    <span style="float: left">{{ item.name }}</span>
-                                    <span style="float: right; color: #8492a6; font-size: 13px">{{ item.equipment_code }}</span>
-                                </el-option>
-                            </el-select>
-                        </el-form-item>
-                    </template>
-
-                    <template v-else>
-                        <el-row :gutter="20">
-                            <el-col :span="12">
-                                <el-form-item label="设备名称" prop="equipment_name">
-                                    <el-input v-model="createForm.equipment_name" placeholder="请输入设备名称"></el-input>
-                                </el-form-item>
-                            </el-col>
-                            <el-col :span="12">
-                                <el-form-item label="设备编号" prop="equipment_code">
-                                    <el-input v-model="createForm.equipment_code" placeholder="请输入设备编号"></el-input>
-                                </el-form-item>
-                            </el-col>
-                        </el-row>
-                        <el-row :gutter="20">
-                            <el-col :span="12">
-                                <el-form-item label="设备型号" prop="equipment_model">
-                                    <el-input v-model="createForm.equipment_model" placeholder="请输入设备型号"></el-input>
-                                </el-form-item>
-                            </el-col>
-                            <el-col :span="12">
-                                <el-form-item label="所属科室" prop="department">
-                                    <el-select v-model="createForm.department" placeholder="请选择所属科室" style="width: 100%">
-                                        <el-option label="放射科" value="放射科"></el-option>
-                                        <el-option label="检验科" value="检验科"></el-option>
-                                        <el-option label="手术室" value="手术室"></el-option>
-                                    </el-select>
-                                </el-form-item>
-                            </el-col>
-                        </el-row>
-                        <el-row :gutter="20">
-                            <el-col :span="12">
-                                <el-form-item label="存放位置" prop="location">
-                                    <el-input v-model="createForm.location" placeholder="请输入存放位置"></el-input>
-                                </el-form-item>
-                            </el-col>
-                            <el-col :span="12">
-                                <el-form-item label="制造商" prop="manufacturer">
-                                    <el-input v-model="createForm.manufacturer" placeholder="请输入制造商"></el-input>
-                                </el-form-item>
-                            </el-col>
-                        </el-row>
-                    </template>
+                                <span style="float: left">{{ item.name }}</span>
+                                <span style="float: right; color: #8492a6; font-size: 13px">{{ item.equipment_code }}</span>
+                            </el-option>
+                        </el-select>
+                        <div class="form-tip">
+                            <i class="el-icon-info"></i> 请从设备列表中选择需要维修的设备
+                        </div>
+                    </el-form-item>
+                    
+                    <!-- 显示选中设备的详细信息 -->
+                    <div v-if="selectedEquipment" class="selected-equipment-info">
+                        <el-divider content-position="left">设备详细信息</el-divider>
+                        <el-descriptions :column="2" border>
+                            <el-descriptions-item label="设备名称">{{ selectedEquipment.name }}</el-descriptions-item>
+                            <el-descriptions-item label="设备编号">{{ selectedEquipment.equipment_code }}</el-descriptions-item>
+                            <el-descriptions-item label="设备型号">{{ selectedEquipment.model }}</el-descriptions-item>
+                            <el-descriptions-item label="所属科室">{{ selectedEquipment.department }}</el-descriptions-item>
+                            <el-descriptions-item label="存放位置">{{ selectedEquipment.location }}</el-descriptions-item>
+                            <el-descriptions-item label="制造商">{{ selectedEquipment.manufacturer }}</el-descriptions-item>
+                        </el-descriptions>
+                    </div>
                 </div>
-
+                
                 <!-- 第二步：故障信息 -->
                 <div v-show="createActiveStep === 1" class="step-content">
                     <el-form-item label="故障类型" prop="fault_type">
@@ -549,7 +517,7 @@
                     <el-row :gutter="20">
                         <el-col :span="12">
                             <el-form-item label="报修人" prop="reporter">
-                                <el-input v-model="createForm.reporter" placeholder="请输入报修人姓名"></el-input>
+                                <el-input v-model="createForm.reporter" placeholder="自动获取当前用户" disabled></el-input>
                             </el-form-item>
                         </el-col>
                         <el-col :span="12">
@@ -699,7 +667,10 @@
 </template>
 
 <script>
-import { getEquipmentList, getEquipmentById } from '@/api/equipment'
+import { getEquipmentList, getEquipmentById} from '@/api/equipment'
+import { GetMaintenanceOrders, CreateMaintenanceOrder, UpdateMaintenanceOrder, GetMaintenanceOrderById, CancelMaintenanceOrder, CompleteMaintenanceOrder } from '@/api/equipmentMaintenance'
+import { getCurrentUser, getCurrentUserId } from '@/utils/auth'
+import { GetDepartments } from '@/api/index'
 
 export default {
     name: 'MaintenanceOrder',
@@ -726,7 +697,7 @@ export default {
             
             // 设备选择
             equipmentOptions: [],
-            equipmentSelectMethod: 'search',
+            departmentOptions: [], // 科室选项列表
             
             // 对话框显示状态
             detailDialogVisible: false,
@@ -778,19 +749,13 @@ export default {
             // 维修历史记录
             maintenanceHistory: [],
             
+            // 选中的设备信息
+            selectedEquipment: null,
+            
             // 表单验证规则
             createRules: {
                 equipment_id: [
-                    { required: true, message: '请选择设备', trigger: 'change' }
-                ],
-                equipment_name: [
-                    { required: true, message: '请输入设备名称', trigger: 'blur' }
-                ],
-                equipment_code: [
-                    { required: true, message: '请输入设备编号', trigger: 'blur' }
-                ],
-                department: [
-                    { required: true, message: '请选择所属科室', trigger: 'change' }
+                    { required: true, message: '请从设备列表中选择设备', trigger: 'change' }
                 ],
                 fault_type: [
                     { required: true, message: '请选择故障类型', trigger: 'change' }
@@ -831,91 +796,25 @@ export default {
     },
     created() {
         this.fetchOrderList();
+        this.fetchDepartments();
+        console.log('getCurrentUser',getCurrentUser())
     },
     methods: {
         // 获取工单列表
         async fetchOrderList() {
             this.loading = true;
             try {
-                // 这里应该调用后端API获取工单列表
-                // 由于目前没有实际的API，我们使用模拟数据
-                setTimeout(() => {
-                    this.orderList = this.getMockOrders();
-                    this.filteredOrderList = [...this.orderList];
-                    this.totalOrders = this.orderList.length;
-                    this.loading = false;
-                }, 800);
+                const response = await GetMaintenanceOrders()
+                this.orderList = response.data.records;
+                this.filteredOrderList = [...this.orderList];
+                this.totalOrders = response.data.total;
+                this.loading = false;
             } catch (error) {
-                console.error('获取工单列表失败:', error);
                 this.$message.error('获取工单列表失败');
                 this.loading = false;
             }
         },
-        
-        // 模拟数据
-        getMockOrders() {
-            return [
-                {
-                    id: '1',
-                    order_number: 'MO202504270001',
-                    equipment_name: 'X光机',
-                    equipment_code: 'XG-2023-001',
-                    equipment_model: 'XR-5000',
-                    department: '放射科',
-                    location: '放射科检查室1',
-                    manufacturer: '飞利浦医疗',
-                    status: 'pending',
-                    create_time: '2025-04-26 14:30:00',
-                    fault_type: '硬件故障',
-                    fault_description: 'X光机启动后显示器无法正常显示图像，设备发出异常声音。',
-                    reporter: '张医生',
-                    contact_phone: '13800138000',
-                    priority: 'high'
-                },
-                {
-                    id: '2',
-                    order_number: 'MO202504270002',
-                    equipment_name: '血液分析仪',
-                    equipment_code: 'XF-2023-005',
-                    equipment_model: 'BA-3000',
-                    department: '检验科',
-                    location: '检验科实验室2',
-                    manufacturer: '迈瑞医疗',
-                    status: 'processing',
-                    create_time: '2025-04-25 09:15:00',
-                    process_time: '2025-04-25 13:20:00',
-                    fault_type: '软件故障',
-                    fault_description: '血液分析仪在分析过程中经常出现软件崩溃，需要重启才能继续使用。',
-                    reporter: '李技师',
-                    contact_phone: '13900139000',
-                    assignee: '王工程师',
-                    estimated_time: '2025-04-28 18:00:00',
-                    priority: 'medium'
-                },
-                {
-                    id: '3',
-                    order_number: 'MO202504270003',
-                    equipment_name: '手术无影灯',
-                    equipment_code: 'SS-2023-010',
-                    equipment_model: 'SL-8000',
-                    department: '手术室',
-                    location: '手术室3',
-                    manufacturer: '通用电气',
-                    status: 'completed',
-                    create_time: '2025-04-20 16:45:00',
-                    process_time: '2025-04-21 08:30:00',
-                    complete_time: '2025-04-22 14:20:00',
-                    fault_type: '电气故障',
-                    fault_description: '手术无影灯亮度不足，且调节按钮失灵。',
-                    reporter: '刘主任',
-                    contact_phone: '13700137000',
-                    assignee: '赵技术员',
-                    process_result: '更换了灯泡和控制面板，设备已恢复正常使用。',
-                    priority: 'high',
-                    cost: 2500
-                }
-            ];
-        },
+
         
         // 搜索和筛选
         handleSearch() {
@@ -1005,6 +904,7 @@ export default {
         
         // 查看工单详情
         viewOrderDetail(order) {
+            console.log("this is orderDetail",order)
             this.selectedOrder = JSON.parse(JSON.stringify(order));
             this.detailDialogVisible = true;
             this.fetchMaintenanceHistory(order.id);
@@ -1015,9 +915,9 @@ export default {
             // 这里应该调用API获取维修历史记录
             // 由于目前没有实际的API，我们使用模拟数据
             setTimeout(() => {
-                if (orderId === '1') {
+                if (orderId === '0') {
                     this.maintenanceHistory = [];
-                } else if (orderId === '2') {
+                } else if (orderId === '1') {
                     this.maintenanceHistory = [
                         {
                             time: '2025-04-25 09:15:00',
@@ -1110,31 +1010,33 @@ export default {
                 confirmButtonText: '确定',
                 cancelButtonText: '取消',
                 type: 'warning'
-            }).then(() => {
-                // 这里应该调用API取消工单
+            }).then(async () => {
+                const response = await CancelMaintenanceOrder(order.id)
                 this.$message({
                     type: 'success',
                     message: '工单已取消'
                 });
-                // 模拟API调用成功后更新本地数据
-                const index = this.orderList.findIndex(item => item.id === order.id);
-                if (index !== -1) {
-                    this.orderList[index].status = 'cancelled';
-                    this.orderList[index].cancel_time = new Date().toISOString().replace('T', ' ').substring(0, 19);
+                // // 模拟API调用成功后更新本地数据
+                // const index = this.orderList.findIndex(item => item.id === order.id);
+                // if (index !== -1) {
+                //     this.orderList[index].status = 'cancelled';
+                //     this.orderList[index].cancel_time = new Date().toISOString().replace('T', ' ').substring(0, 19);
                     
-                    // 添加历史记录
-                    if (this.detailDialogVisible && this.selectedOrder.id === order.id) {
-                        this.maintenanceHistory.push({
-                            time: this.orderList[index].cancel_time,
-                            type: 'cancel',
-                            title: '取消工单',
-                            content: '工单已取消',
-                            operator: this.$store.state.user.username || '系统管理员'
-                        });
-                    }
+                //     // 添加历史记录
+                //     if (this.detailDialogVisible && this.selectedOrder.id === order.id) {
+                //         this.maintenanceHistory.push({
+                //             time: this.orderList[index].cancel_time,
+                //             type: 'cancel',
+                //             title: '取消工单',
+                //             content: '工单已取消',
+                //             operator: this.$store.state.user.username || '系统管理员'
+                //         });
+                //     }
                     
-                    this.handleSearch(); // 重新筛选
-                }
+                //     this.handleSearch(); // 重新筛选
+                // }
+                 // 重新获取工单列表
+                 this.fetchOrderList();
             }).catch(() => {
                 // 取消操作
             });
@@ -1215,10 +1117,21 @@ export default {
         },
         
         // 创建工单相关方法
-        showCreateOrderDialog() {
+        openCreateDialog() {
+            // 重置表单
+            this.resetCreateForm();
+            
+            // 从 token 中获取当前用户信息
+            const userInfo = getCurrentUser();
+            if (userInfo && userInfo.realname) {
+                // 自动填充用户真实姓名作为报修人
+                this.createForm.reporter = userInfo.realname;
+                this.createForm.user_id = userInfo.userId;
+            }
+            
+            // 显示对话框
             this.createDialogVisible = true;
             this.createActiveStep = 0;
-            this.resetCreateForm();
         },
         
         resetCreateForm() {
@@ -1241,22 +1154,16 @@ export default {
                 remarks: '',
                 images: []
             };
-            this.equipmentSelectMethod = 'search';
+            this.selectedEquipment = null;
         },
         
         nextStep() {
             // 表单验证
             if (this.createActiveStep === 0) {
-                // 第一步验证
-                if (this.equipmentSelectMethod === 'search') {
-                    this.$refs.createForm.validateField('equipment_id', (err) => {
-                        if (!err) this.createActiveStep++;
-                    });
-                } else {
-                    this.$refs.createForm.validateField(['equipment_name', 'equipment_code', 'department'], (err) => {
-                        if (!err) this.createActiveStep++;
-                    });
-                }
+                // 第一步验证 - 只验证设备ID
+                this.$refs.createForm.validateField('equipment_id', (err) => {
+                    if (!err) this.createActiveStep++;
+                });
             } else if (this.createActiveStep === 1) {
                 // 第二步验证
                 this.$refs.createForm.validateField(['fault_type', 'fault_description', 'priority'], (err) => {
@@ -1271,17 +1178,15 @@ export default {
             }
         },
         
-        // 设备选择方式变更
-        handleEquipmentSelectChange(value) {
-            if (value === 'search') {
-                this.createForm.equipment_name = '';
-                this.createForm.equipment_code = '';
-                this.createForm.equipment_model = '';
-                this.createForm.department = '';
-                this.createForm.location = '';
-                this.createForm.manufacturer = '';
-            } else {
-                this.createForm.equipment_id = '';
+        // 获取部门科室列表
+        async fetchDepartments() {
+            try {
+                const response = await GetDepartments();
+                if (response && response.data) {
+                    this.departmentOptions = response.data;
+                }
+            } catch (error) {
+                this.$message.error('获取科室列表失败');
             }
         },
         
@@ -1298,17 +1203,11 @@ export default {
                     size: 10
                 });
                 
-                if (response && response.data && response.data.records) {
-                    this.equipmentOptions = response.data.records;
+                if (response && response.data && response.data.items) {
+                    this.equipmentOptions = response.data.items;
                 }
             } catch (error) {
                 console.error('搜索设备失败:', error);
-                // 使用模拟数据
-                this.equipmentOptions = [
-                    { id: '1', name: 'X光机', equipment_code: 'XG-2023-001', model: 'XR-5000', department: '放射科' },
-                    { id: '2', name: '血液分析仪', equipment_code: 'XF-2023-005', model: 'BA-3000', department: '检验科' },
-                    { id: '3', name: '手术无影灯', equipment_code: 'SS-2023-010', model: 'SL-8000', department: '手术室' }
-                ];
             } finally {
                 this.equipmentLoading = false;
             }
@@ -1316,7 +1215,10 @@ export default {
         
         // 选择设备后获取详情
         async handleEquipmentSelect(id) {
-            if (!id) return;
+            if (!id) {
+                this.selectedEquipment = null;
+                return;
+            }
             
             try {
                 // 调用设备详情API
@@ -1324,6 +1226,9 @@ export default {
                 
                 if (response && response.data) {
                     const equipment = response.data;
+                    this.selectedEquipment = equipment;
+                    
+                    // 填充表单数据
                     this.createForm.equipment_name = equipment.name;
                     this.createForm.equipment_code = equipment.equipment_code;
                     this.createForm.equipment_model = equipment.model;
@@ -1332,17 +1237,8 @@ export default {
                     this.createForm.manufacturer = equipment.manufacturer;
                 }
             } catch (error) {
-                console.error('获取设备详情失败:', error);
-                // 使用模拟数据
-                const mockEquipment = this.equipmentOptions.find(item => item.id === id);
-                if (mockEquipment) {
-                    this.createForm.equipment_name = mockEquipment.name;
-                    this.createForm.equipment_code = mockEquipment.equipment_code;
-                    this.createForm.equipment_model = mockEquipment.model;
-                    this.createForm.department = mockEquipment.department;
-                    this.createForm.location = '未知';
-                    this.createForm.manufacturer = '未知';
-                }
+                this.$message.error('获取设备详情失败');
+                this.selectedEquipment = null;
             }
         },
         
@@ -1360,40 +1256,34 @@ export default {
             this.$refs.createForm.validate(async (valid) => {
                 if (valid) {
                     try {
-                        // 这里应该调用API创建工单
+                        // 从 token 中获取当前用户信息
+                        const userInfo = getCurrentUser();
+                        if (userInfo) {
+                            // 设置用户ID
+                            this.createForm.user_id = userInfo.userId;
+                            
+                            // 使用用户真实姓名作为报修人
+                            if (userInfo.realname) {
+                                this.createForm.reporter = userInfo.realname;
+                            }
+                        }
+                        console.log("check!!!!!!!!")
+                        const response = await CreateMaintenanceOrder(this.createForm);
+                        
+                        // 创建成功
                         this.$message({
                             type: 'success',
                             message: '工单创建成功'
                         });
                         
-                        // 模拟API调用成功后更新本地数据
-                        const createTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
-                        const newOrder = {
-                            id: Date.now().toString(),
-                            order_number: `MO${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(new Date().getDate()).padStart(2, '0')}${String(Math.floor(Math.random() * 1000)).padStart(4, '0')}`,
-                            equipment_name: this.createForm.equipment_name,
-                            equipment_code: this.createForm.equipment_code,
-                            equipment_model: this.createForm.equipment_model,
-                            department: this.createForm.department,
-                            location: this.createForm.location,
-                            manufacturer: this.createForm.manufacturer,
-                            status: 'pending',
-                            create_time: createTime,
-                            fault_type: this.createForm.fault_type,
-                            fault_description: this.createForm.fault_description,
-                            reporter: this.createForm.reporter,
-                            contact_phone: this.createForm.contact_phone,
-                            priority: this.createForm.priority,
-                            remarks: this.createForm.remarks
-                        };
+                        // 重新获取工单列表
+                        this.fetchOrderList();
                         
-                        this.orderList.unshift(newOrder);
-                        this.handleSearch(); // 重新筛选
+                        // 关闭对话框并重置表单
                         this.createDialogVisible = false;
                         this.resetCreateForm();
                     } catch (error) {
-                        console.error('创建工单失败:', error);
-                        this.$message.error('创建工单失败');
+                        this.$message.error(error);
                     }
                 }
             });
@@ -1405,6 +1295,7 @@ export default {
                 if (valid) {
                     try {
                         // 这里应该调用API处理工单
+
                         this.$message({
                             type: 'success',
                             message: '工单已开始处理'

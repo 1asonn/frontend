@@ -92,6 +92,20 @@ User.associate = (models) => {
         foreignKey:'created_by',
         as:'created_shifts'
     })
+    
+    // 关联到MaintenanceOrder表，作为处理人
+    if (models.MaintenanceOrder) {
+        User.hasMany(models.MaintenanceOrder, {
+            foreignKey: 'assignee_id',
+            as: 'assigned_orders'
+        })
+        
+        // 关联到MaintenanceOrder表，作为创建人
+        User.hasMany(models.MaintenanceOrder, {
+            foreignKey: 'created_by',
+            as: 'created_orders'
+        })
+    }
 }
 
 // 添加获取脱敏手机号码的方法

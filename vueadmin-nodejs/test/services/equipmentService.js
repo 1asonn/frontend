@@ -80,6 +80,9 @@ class EquipmentService {
             if (query.department) {
                 where.department = query.department
             }
+            if (query.department_id) {
+                where.department_id = query.department_id
+            }
             if (query.status) {
                 where.status = query.status
             }

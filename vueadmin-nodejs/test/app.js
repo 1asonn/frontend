@@ -22,6 +22,7 @@ const scheduleRouter = require('./router/schedule.js');
 const departmentRouter = require('./router/department.js');
 const shiftSettingRouter = require('./router/shiftSetting.js');
 const filesRouter = require('./router/files.js');
+const maintenanceRouter = require('./router/maintenance.js');
 
 // Initialize model associations
 require('./database/models');
@@ -44,11 +45,11 @@ app.use(
             /^\/user\/login/,
             /^\/user\/register/,
             /^\/user\/test/,
-            /^\/user\/getPhoneByUsername/,
+            /^\/user\/getPhoneByUsername\/.*/,
             /^\/user\/sendSmsCode/,
             /^\/user\/sendResetPasswordCode/,
             /^\/user\/verifyResetPasswordCode/,
-            /^\/user\/resetPasswordBySms/,
+            /^\/user\/resetPasswordBySms/
         ] 
     })
 );
@@ -79,6 +80,7 @@ app.use('/schedule', scheduleRouter);
 app.use('/department', departmentRouter);
 app.use('/shiftSetting', shiftSettingRouter);
 app.use('/files', filesRouter);
+app.use('/maintenance', maintenanceRouter);
 
 // Start server
 app.listen(config.port, () => {

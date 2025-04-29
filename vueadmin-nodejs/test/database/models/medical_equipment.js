@@ -40,8 +40,17 @@ const MedicalEquipment = sequelize.define('medical_equipment', {
     },
     department: {
         type: Sequelize.STRING(50),
-        allowNull: false,
-        comment: '使用科室'
+        allowNull: true,
+        comment: '使用科室名称（冗余字段）'
+    },
+    department_id: {
+        type: Sequelize.INTEGER,
+        allowNull: true, // 设置为可为null，以便迁移时不会出现外键约束错误
+        references: {
+            model: 'departments',
+            key: 'id'
+        },
+        comment: '科室ID，关联departments表'
     },
     location: {
         type: Sequelize.STRING(100),
@@ -106,6 +115,16 @@ const MedicalEquipment = sequelize.define('medical_equipment', {
     tableName: 'medical_equipment',
     comment: '医疗设备表'
 });
+
+// 定义关联关系
+MedicalEquipment.associate = (models) => {
+    if (models.Department) {
+        MedicalEquipment.belongsTo(models.Department, {
+            foreignKey: 'department_id',
+            as: 'department_info'
+        });
+    }
+};
 
 // 同步模型到数据库，使用 alter: true 选项更新表结构
 MedicalEquipment.sync({ alter: true }).then(() => {

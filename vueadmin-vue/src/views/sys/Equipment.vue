@@ -11,9 +11,12 @@
             </el-input>
             <el-select v-model="filterDepartment" placeholder="所属科室" @change="handleSearch" class="filter-select">
                 <el-option label="全部" value=""></el-option>
-                <el-option label="放射科" value="放射科"></el-option>
-                <el-option label="检验科" value="检验科"></el-option>
-                <el-option label="手术室" value="手术室"></el-option>
+                <el-option 
+                    v-for="dept in departmentOptions" 
+                    :key="dept.id" 
+                    :label="dept.name" 
+                    :value="dept.id">
+                </el-option>
             </el-select>
             <el-select v-model="filterStatus" placeholder="设备状态" @change="handleSearch" class="filter-select">
                 <el-option label="全部" value=""></el-option>
@@ -39,7 +42,7 @@
             </template>
             <div class="empty-data" v-else-if="filteredEquipmentList.length === 0">
                 <el-empty description="暂无设备数据" :image-size="200">
-                    <el-button type="primary" @click="openAddDialog">添加设备</el-button>
+                    <!-- <el-button type="primary" @click="openAddDialog">添加设备</el-button> -->
                 </el-empty>
             </div>
             <div class="container" v-for="item in filteredEquipmentList" :key="item.id">
@@ -261,11 +264,12 @@
                                     <el-col :span="12">
                                         <el-form-item label="所属科室" prop="department">
                                             <el-select v-model="editForm.department" placeholder="请选择所属科室" style="width: 100%">
-                                                <el-option label="放射科" value="放射科"></el-option>
-                                                <el-option label="检验科" value="检验科"></el-option>
-                                                <el-option label="手术室" value="手术室"></el-option>
-                                                <el-option label="内科" value="内科"></el-option>
-                                                <el-option label="外科" value="外科"></el-option>
+                                                <el-option 
+                                                    v-for="dept in departmentOptions" 
+                                                    :key="dept.id" 
+                                                    :label="dept.name" 
+                                                    :value="dept.name">
+                                                </el-option>
                                             </el-select>
                                         </el-form-item>
                                     </el-col>
@@ -493,11 +497,12 @@
                             <el-col :span="12">
                                 <el-form-item label="所属科室" prop="department">
                                     <el-select v-model="addForm.department" placeholder="请选择科室" style="width: 100%">
-                                        <el-option label="放射科" value="放射科"></el-option>
-                                        <el-option label="检验科" value="检验科"></el-option>
-                                        <el-option label="手术室" value="手术室"></el-option>
-                                        <el-option label="内科" value="内科"></el-option>
-                                        <el-option label="外科" value="外科"></el-option>
+                                        <el-option 
+                                            v-for="dept in departmentOptions" 
+                                            :key="dept.id" 
+                                            :label="dept.name" 
+                                            :value="dept.id">
+                                        </el-option>
                                     </el-select>
                                 </el-form-item>
                             </el-col>
@@ -668,6 +673,7 @@
 
 <script>
 import { getEquipmentList, createEquipment, updateEquipment, deleteEquipment, uploadEquipmentImage } from '@/api'
+import { getdepartmentList } from '@/api/index'
 
 export default {
     data() {
@@ -678,6 +684,7 @@ export default {
             filterDepartment: '',
             filterStatus: '',
             equipmentList: [],
+            departmentOptions: [], // 科室列表选项
             pagination: {
                 page: 1,
                 size: 10,
@@ -739,17 +746,13 @@ export default {
     },
     computed: {
         filteredEquipmentList() {
-            return this.equipmentList.filter(item => {
-                const matchesSearch = !this.searchQuery || 
-                    item.name.toLowerCase().includes(this.searchQuery.toLowerCase());
-                const matchesDepartment = !this.filterDepartment || item.department === this.filterDepartment;
-                const matchesStatus = !this.filterStatus || item.status === this.filterStatus;
-                return matchesSearch && matchesDepartment && matchesStatus;
-            });
+            // 直接返回设备列表，筛选已由后端实现
+            return this.equipmentList;
         }
     },
     created() {
         this.getEquipmentList();
+        this.fetchDepartments(); // 获取科室列表
     },
     methods: {
         // 编辑弹窗相关方法
@@ -795,6 +798,19 @@ export default {
             }).catch(() => {});
         },
         
+        // 获取科室列表
+        async fetchDepartments() {
+            try {
+                const response = await getdepartmentList();
+                if (response && response.data) {
+                    this.departmentOptions = response.data;
+                }
+            } catch (error) {
+                this.$message.error('获取科室列表失败');
+                console.error('获取科室列表失败:', error);
+            }
+        },
+        
         mapTabToStep() {
             const tabToStepMap = {
                 'basic': 0,
@@ -831,10 +847,28 @@ export default {
         async getEquipmentList() {
             try {
                 this.loading = true;
-                const response = await getEquipmentList({
+                
+                // 构建查询参数
+                const queryParams = {
                     page: this.pagination.page,
                     size: this.pagination.size
-                });
+                };
+                
+                // 添加筛选条件
+                if (this.searchQuery) {
+                    queryParams.name = this.searchQuery;
+                }
+                
+                if (this.filterDepartment) {
+                    queryParams.department_id = this.filterDepartment;
+                }
+                
+                if (this.filterStatus) {
+                    queryParams.status = this.filterStatus;
+                }
+                
+                const response = await getEquipmentList(queryParams);
+                
                 if (response.code === 200) {
                     // 添加过渡动画效果
                     setTimeout(() => {
