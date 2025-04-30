@@ -1063,6 +1063,7 @@
 								response = await this.$axios.post('/sys/user/update', formData);
 							} else {
 								// 新增用户
+								console.log('新增用户数据:', formData);
 								response = await this.UserRegiste(formData);
 							}
 

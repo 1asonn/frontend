@@ -99,7 +99,7 @@
             <!-- 空数据提示 -->
             <div class="empty-data" v-else-if="filteredOrderList.length === 0">
                 <el-empty description="暂无工单数据" :image-size="200">
-                    <el-button type="primary" @click="showCreateOrderDialog">创建工单</el-button>
+                    <!-- <el-button type="primary" @click="showCreateOrderDialog">创建工单</el-button> -->
                 </el-empty>
             </div>
 
@@ -719,7 +719,7 @@ export default {
                 manufacturer: '',
                 fault_type: '',
                 fault_description: '',
-                priority: 'medium',
+                priority: '',
                 reporter: '',
                 contact_phone: '',
                 remarks: '',
@@ -1148,7 +1148,7 @@ export default {
                 manufacturer: '',
                 fault_type: '',
                 fault_description: '',
-                priority: 'medium',
+                priority: '',
                 reporter: '',
                 contact_phone: '',
                 remarks: '',
@@ -1159,16 +1159,41 @@ export default {
         
         nextStep() {
             // 表单验证
+            console.log("Current step:", this.createActiveStep);
+            
+            // 防止重复执行的标记
+            let validationInProgress = false;
+            
             if (this.createActiveStep === 0) {
+                // 防止重复执行
+                if (validationInProgress) return;
+                validationInProgress = true;
+                
                 // 第一步验证 - 只验证设备ID
-                this.$refs.createForm.validateField('equipment_id', (err) => {
-                    if (!err) this.createActiveStep++;
-                });
+                this.$refs.createForm.validate((valid, fields) => {
+                    if (valid || (!fields || !fields.equipment_id)) {
+                        // 只有当验证通过或者没有equipment_id错误时才前进
+                        this.createActiveStep++;
+                    }
+                    validationInProgress = false;
+                }, 'equipment_id');
             } else if (this.createActiveStep === 1) {
+                // 防止重复执行
+                if (validationInProgress) return;
+                validationInProgress = true;
+                
                 // 第二步验证
-                this.$refs.createForm.validateField(['fault_type', 'fault_description', 'priority'], (err) => {
-                    if (!err) this.createActiveStep++;
-                });
+                const fieldsToValidate = ['fault_type', 'fault_description', 'priority'];
+                
+                this.$refs.createForm.validate((valid, fields) => {
+                    // 检查是否有需要验证的字段的错误
+                    const hasErrors = fieldsToValidate.some(field => fields && fields[field]);
+                    
+                    if (valid || !hasErrors) {
+                        this.createActiveStep++;
+                    }
+                    validationInProgress = false;
+                }, fieldsToValidate.join(','));
             }
         },
         

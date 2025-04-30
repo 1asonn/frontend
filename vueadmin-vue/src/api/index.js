@@ -283,16 +283,7 @@ export const UpdateSchedule = async (data) => {
 // 注册新用户
 export const UserRegiste = async (data) => {
     try {
-        const response = await request.post('/user/register', {
-            username: data.username,
-            password: data.password,
-            realname: data.realname,
-            gender: data.gender,
-            birthDate: data.birth_date,
-            address: data.address,
-            roleId: parseInt(data.roleId, 10),
-            departmentId: parseInt(data.departmentId, 10)
-        })
+        const response = await request.post('/user/register',data)
         return response.data
     } catch (error) {
         console.error('注册用户失败:', error)
@@ -319,6 +310,41 @@ export const AddRole = async (roleData) => {
 
 // 导出设备相关API
 export * from './equipment.js'
+
+// 保存处方信息
+export const SavePrescription = async (prescriptionData) => {
+    try {
+        const response = await request.post('http://localhost:4000/prescription/save', prescriptionData)
+        return response.data
+    } catch (error) {
+        console.error('保存处方失败:', error)
+        throw error
+    }
+}
+
+// 保存并打印处方信息
+export const SaveAndPrintPrescription = async (prescriptionData) => {
+    try {
+        const response = await request.post('http://localhost:4000/prescription/saveAndPrint', prescriptionData)
+        return response.data
+    } catch (error) {
+        console.error('保存并打印处方失败:', error)
+        throw error
+    }
+}
+
+// 获取药品选项列表
+export const GetMedicineOptions = async (query = '') => {
+    try {
+        const response = await request.get('http://localhost:4000/medicine/options', {
+            params: { query }
+        })
+        return response.data
+    } catch (error) {
+        console.error('获取药品选项失败:', error)
+        throw error
+    }
+}
 
 
 //获取某一账户关联的手机号码

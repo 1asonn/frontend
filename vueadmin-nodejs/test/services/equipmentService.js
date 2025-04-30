@@ -1,11 +1,24 @@
 const MedicalEquipment = require('../database/models/medical_equipment')
 const EquipmentMaintenance = require('../database/models/equipment_maintenance')
 const { Op } = require('sequelize')
+const Department = require('../database/models/Department')
 
 class EquipmentService {
     // 创建医疗设备
     async createEquipment(data) {
         try {
+            // 如果提供了department_id，则查询对应的部门名称
+            if (data.department_id) {
+                const department = await Department.findByPk(data.department_id)
+                
+                if (department) {
+                    // 将部门名称填充到department字段
+                    data.department = department.name
+                } else {
+                    throw new Error('指定的部门ID不存在')
+                }
+            }
+            
             return await MedicalEquipment.create(data)
         } catch (error) {
             throw new Error('创建医疗设备失败: ' + error.message)

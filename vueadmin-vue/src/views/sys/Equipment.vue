@@ -40,12 +40,12 @@
                     </el-card>
                 </div>
             </template>
-            <div class="empty-data" v-else-if="filteredEquipmentList.length === 0">
+            <div class="empty-data" v-else-if="equipmentList.length === 0">
                 <el-empty description="暂无设备数据" :image-size="200">
                     <!-- <el-button type="primary" @click="openAddDialog">添加设备</el-button> -->
                 </el-empty>
             </div>
-            <div class="container" v-for="item in filteredEquipmentList" :key="item.id">
+            <div class="container" v-for="item in equipmentList" :key="item.id">
                 <el-card :body-style="{ position:'relative', padding: '0px' }" class="equipment-card" shadow="hover">
                     <div class="image-container">
                         <img :src="item.image_url" @click="checkDetail(item)" class="image">
@@ -262,13 +262,13 @@
                                 
                                 <el-row :gutter="20">
                                     <el-col :span="12">
-                                        <el-form-item label="所属科室" prop="department">
-                                            <el-select v-model="editForm.department" placeholder="请选择所属科室" style="width: 100%">
+                                        <el-form-item label="所属科室" prop="department_id">
+                                            <el-select v-model="editForm.department_id" placeholder="请选择所属科室" style="width: 100%">
                                                 <el-option 
                                                     v-for="dept in departmentOptions" 
                                                     :key="dept.id" 
                                                     :label="dept.name" 
-                                                    :value="dept.name">
+                                                    :value="dept.id">
                                                 </el-option>
                                             </el-select>
                                         </el-form-item>
@@ -495,8 +495,8 @@
                         
                         <el-row :gutter="20">
                             <el-col :span="12">
-                                <el-form-item label="所属科室" prop="department">
-                                    <el-select v-model="addForm.department" placeholder="请选择科室" style="width: 100%">
+                                <el-form-item label="所属科室" prop="department_id">
+                                    <el-select v-model="addForm.department_id" placeholder="请选择科室" style="width: 100%">
                                         <el-option 
                                             v-for="dept in departmentOptions" 
                                             :key="dept.id" 
@@ -709,7 +709,7 @@ export default {
             rules: {
                 name: [{ required: true, message: '请输入设备名称', trigger: 'blur' }],
                 equipment_code: [{ required: true, message: '请输入设备编号', trigger: 'blur' }],
-                department: [{ required: true, message: '请选择所属科室', trigger: 'change' }],
+                department_id: [{ required: true, message: '请选择所属科室', trigger: 'change' }],
                 status: [{ required: true, message: '请选择设备状态', trigger: 'change' }],
                 model: [{ required: true, message: '请输入设备型号', trigger: 'blur' }],
                 manufacturer: [{ required: true, message: '请输入生产厂商', trigger: 'blur' }],
@@ -1021,7 +1021,7 @@ export default {
             if (!this.editForm.equipment_code) {
                 validationErrors.push('设备编号');
             }
-            if (!this.editForm.department) {
+            if (!this.editForm.department_id) {
                 validationErrors.push('所属科室');
             }
             
