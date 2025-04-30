@@ -167,35 +167,35 @@ export default {
       try {
         this.loading = true
         
-        // 根据新的数据结构准备保存数据
-        const scheduleData = this.scheduleData.map(emp => {
-          const scheduleObj = {
-            employee_id: emp.employee.id,
-            id: emp.id
+        // 遍历每个员工的排班数据，为每个员工单独保存排班
+        for (const emp of this.scheduleData) {
+          // 准备符合后端API的数据结构
+          const scheduleData = {
+            employeeId: emp.employee.id,
+            monday: emp.monday === 'null' ? null : emp.monday,
+            tuesday: emp.tuesday === 'null' ? null : emp.tuesday,
+            wednesday: emp.wednesday === 'null' ? null : emp.wednesday,
+            thursday: emp.thursday === 'null' ? null : emp.thursday,
+            friday: emp.friday === 'null' ? null : emp.friday,
+            saturday: emp.saturday === 'null' ? null : emp.saturday,
+            sunday: emp.sunday === 'null' ? null : emp.sunday,
+            departmentId: this.selectedDepartment
           }
           
-          // 添加各天的班次ID
-          this.weekDayProps.forEach(day => {
-            scheduleObj[day] = emp[day] === 'null' ? null : emp[day]
-          })
+          // 调用API保存单个员工的排班
+          const res = await SaveSchedule(scheduleData)
           
-          return scheduleObj
-        })
-
-        const res = await SaveSchedule({
-          departmentId: this.selectedDepartment,
-          schedules: scheduleData
-        })
-
-        if (res.code === 200) {
-          this.$message.success('保存排班成功')
-          this.getEmployeesByDepartment()
-        } else {
-          this.$message.error(res.message || '保存排班失败')
+          if (res.code !== 200) {
+            this.$message.error(`保存${emp.employee.username}的排班失败: ${res.message || '未知错误'}`)
+            return
+          }
         }
+        
+        this.$message.success('所有排班保存成功')
+        this.getEmployeesByDepartment()
       } catch (error) {
         console.error('保存排班失败:', error)
-        this.$message.error('保存排班失败')
+        this.$message.error('保存排班失败: ' + (error.message || '未知错误'))
       } finally {
         this.loading = false
       }

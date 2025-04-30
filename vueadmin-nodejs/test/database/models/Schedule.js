@@ -27,11 +27,6 @@ const Schedule = sequelize.define('schedule', {
     },
     comment: '部门ID'
   },
-  employee_name: {
-    type: Sequelize.STRING,
-    allowNull: false,
-    comment: '职工姓名'
-  },
   monday: {
     type: Sequelize.STRING,
     comment: '周一'
@@ -77,7 +72,7 @@ Schedule.belongsTo(Department, {
   as: 'department'
 });
 
-Schedule.sync().then(() => {
+Schedule.sync({ alter: true }).then(() => {
   console.log("排班表模型已同步!")
 });
 

@@ -97,12 +97,10 @@ export const GetDepartmentSchedule = async (departmentId) => {
 // 保存排班
 export const SaveSchedule = async (data) => {
     try {
-        const response = await request.post('/shiftSetting/schedule', data)
+        const response = await request.post('/schedule/schedule', data)
         return response.data
     } catch (error) {
         console.error('保存排班失败:', error)
         throw error
     }
 }
-
-//

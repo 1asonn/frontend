@@ -6,10 +6,10 @@ const jwt = require('jsonwebtoken')
 // 创建或更新排班
 router.post('/schedule', async (req, res) => {
   try {
-    const { employeeId, monday, tuesday, wednesday, thursday, friday, saturday, sunday } = req.body;
+    const { employeeId, monday, tuesday, wednesday, thursday, friday, saturday, sunday, departmentId } = req.body;
     
     // 查找是否已存在该职工的排班
-    let schedule = await Schedule.findOne({ where: { employeeId } });
+    let schedule = await Schedule.findOne({ where: { employee_id: employeeId } });
     
     if (schedule) {
       // 更新现有排班
@@ -19,7 +19,7 @@ router.post('/schedule', async (req, res) => {
     } else {
       // 创建新排班
       schedule = await Schedule.create({
-        employeeId, monday, tuesday, wednesday, thursday, friday, saturday, sunday
+        employee_id: employeeId, monday, tuesday, wednesday, thursday, friday, saturday, sunday, department_id: departmentId
       });
     }
     
@@ -94,28 +94,6 @@ router.get('/schedule ', async (req, res) => {
   }
 });
 
-// 获取对应部门下的职工排班信息
-router.get('/scheduleByDepartment', async (req, res) => {
-  try {
-    const { departmentId } = req.query;
-    const userId = await User.findOne({
-      where: { departmentId },
-      attributes: ['id']
-    });
-    const schedules = await Schedule.findAll({ where: { employeeId: userId.id } });
-    res.json({
-      code: 200,
-      data: schedules,
-      message: '获取排班信息成功'
-    });
-  } catch (error) {
-    res.status(500).json({
-      code: 500,
-      message: '获取排班信息失败',
-      error: error.message
-    });
-  }
-});
 
 // 获取对应部门下的职工排班信息
 router.get('/getSchListBydepartment/:departmentId', async (req, res) => {
@@ -156,10 +134,31 @@ router.get('/getSchListBydepartment/:departmentId', async (req, res) => {
       order: [['createdAt', 'DESC']]
     });
 
+    // 如果没有找到排班信息，为每个用户创建空的排班数据行
     if (!schedules || schedules.length === 0) {
-      return res.status(404).json({
-        code: 404,
-        message: '该部门下未找到任何排班信息'
+      // 创建空的排班数据行
+      const emptySchedules = users.map(user => ({
+        id: null,
+        employee_id: user.id,
+        employee: {
+          id: user.id,
+          username: user.username
+        },
+        monday: null,
+        tuesday: null,
+        wednesday: null,
+        thursday: null,
+        friday: null,
+        saturday: null,
+        sunday: null,
+        createdAt: null,
+        updatedAt: null
+      }));
+      
+      return res.json({
+        code: 200,
+        data: emptySchedules,
+        message: '获取部门排班信息成功'
       });
     }
 
@@ -176,5 +175,6 @@ router.get('/getSchListBydepartment/:departmentId', async (req, res) => {
     });
   }
 });
+
 
 module.exports = router;
