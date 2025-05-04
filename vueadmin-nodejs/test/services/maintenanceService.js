@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
 const { MaintenanceOrder, MaintenanceHistory, MedicalEquipment, User } = require('../database/models');
+const equipmentService = require('./equipmentService');
 
 class MaintenanceService {
     // 创建维修工单
@@ -265,45 +266,161 @@ class MaintenanceService {
     }
     
     // 完成工单
-    async completeMaintenanceOrder(id, completeData) {
+    async completeMaintenanceOrder(id, data) {
         try {
-            const order = await MaintenanceOrder.findByPk(id);
+            console.log('开始完成工单，ID:', id, '数据:', JSON.stringify(data));
+
+            // 查找工单及关联设备
+            const order = await MaintenanceOrder.findByPk(id, {
+                include: [{
+                    model: MedicalEquipment,
+                    as: 'equipment',
+                    attributes: ['id', 'name', 'equipment_code', 'model', 'manufacturer', 'department_id', 'department', 
+                                'location', 'status', 'purchase_date', 'warranty_period', 'service_life', 
+                                'last_maintenance_date', 'next_maintenance_date', 'responsible_person', 'contact_number', 
+                                'description', 'image_url', 'created_at', 'updated_at']
+                }]
+            });
+
             if (!order) {
                 throw new Error('工单不存在');
             }
-            
-            if (order.status !== 'processing') {
-                throw new Error('只有处理中的工单才能完成');
-            }
-            
-            // 处理零件数据，如果是数组则转为JSON字符串
-            if (completeData.parts && Array.isArray(completeData.parts)) {
-                completeData.parts = JSON.stringify(completeData.parts);
-            }
+
+            console.log('找到工单:', order.id, '设备ID:', order.equipment ? order.equipment.id : 'null');
+
+            // 获取当前时间作为完成时间
+            const completeTime = new Date();
             
             // 更新工单状态
             await order.update({
                 status: 'completed',
-                result_type: completeData.result_type,
-                process_result: completeData.process_result,
-                cost: completeData.cost,
-                parts: completeData.parts,
-                complete_time: new Date()
+                complete_time: completeTime,
+                process_result: data.process_result || null,
+                result_type: data.result_type || null,
+                cost: data.cost || 0,
+                process_remark: data.process_remark || null
             });
+
+            console.log('工单状态已更新为已完成');
             
-            // 创建历史记录
+            // 创建工单历史记录
             await MaintenanceHistory.create({
-                order_id: id,
+                order_id: order.id,
                 type: 'complete',
-                title: '完成维修',
-                content: completeData.process_result,
-                operator: order.assignee,
-                time: new Date()
+                title: '完成工单',
+                content: `工单已完成，处理备注: ${data.process_remark || '无'}`,
+                operator: order.assignee || '系统管理员',
+                time: completeTime
             });
             
+            console.log('工单历史记录已创建');
+
+            // 如果有关联设备，创建设备维修记录并更新设备状态
+            if (order.equipment && order.equipment_id) {
+                console.log('准备创建设备维修记录');
+
+                // 映射维修类型 - 根据故障类型确定
+                let maintenance_type = 'repair'; // 默认为故障维修
+                if (order.fault_type === '软件故障') {
+                    maintenance_type = 'software';
+                } else if (order.fault_type === '电气故障') {
+                    maintenance_type = 'electrical';
+                } else if (order.fault_type === '机械故障') {
+                    maintenance_type = 'mechanical';
+                } else if (order.fault_type === '校准') {
+                    maintenance_type = 'calibration';
+                } else if (order.fault_type === '例行保养') {
+                    maintenance_type = 'preventive';
+                }
+
+                // 映射维修结果
+                let result = 'fixed';
+                if (order.result_type === 'partially_fixed') {
+                    result = 'partially_fixed';
+                } else if (order.result_type === 'cannot_fix') {
+                    result = 'cannot_fix';
+                } else if (order.result_type === 'need_parts') {
+                    result = 'need_parts';
+                }
+
+                // 计算下次维护日期（默认3个月后）
+                const today = new Date();
+                const next_maintenance_date = new Date(today.setMonth(today.getMonth() + 3));
+                
+                // 解析图片URLs
+                let imageUrls = [];
+                if (order.images) {
+                    try {
+                        imageUrls = JSON.parse(order.images);
+                    } catch (e) {
+                        console.error('解析图片URLs失败:', e);
+                    }
+                }
+
+                // 创建设备维修记录
+                const maintenanceData = {
+                    // 基本关联信息
+                    equipment_id: order.equipment_id,
+                    maintenance_order_id: order.id,
+                    order_number: order.order_number,
+                    
+                    // 维修类型
+                    maintenance_type: maintenance_type,
+                    
+                    // 时间跟踪
+                    start_date: order.create_time,
+                    end_date: completeTime,
+                    next_maintenance_date: next_maintenance_date,
+                    
+                    // 人员信息
+                    operator: order.assignee || order.reporter,
+                    operator_id: order.assignee_id || null,
+                    
+                    // 故障和维修详情
+                    fault_type: order.fault_type,
+                    fault_description: order.fault_description,
+                    maintenance_details: order.process_remark || '',
+                    
+                    // 零件和成本
+                    parts_replaced: order.parts || null,
+                    total_cost: order.cost || 0,
+                    
+                    // 状态和结果
+                    status: 'completed',
+                    result: result,
+                    
+                    // 其他信息
+                    remarks: order.remarks || '',
+                    images: imageUrls.length > 0 ? JSON.stringify(imageUrls) : null
+                };
+
+                console.log('创建设备维修记录数据:', JSON.stringify(maintenanceData));
+
+                try {
+                    await equipmentService.createMaintenance(order.equipment_id, maintenanceData);
+                    console.log('设备维修记录创建成功');
+                    
+                    // 更新设备状态为正常
+                    await order.equipment.update({
+                        status: 'normal',
+                        last_maintenance_date: completeTime,
+                        next_maintenance_date: next_maintenance_date
+                    });
+                    console.log('设备状态已更新为正常');
+                } catch (error) {
+                    console.error('创建设备维修记录或更新设备状态失败:', error.message);
+                    console.error('错误详情:', error.stack);
+                    // 不抛出异常，继续执行
+                }
+            } else {
+                console.log('工单没有关联设备，跳过创建维修记录');
+            }
+            
+            console.log('工单完成处理结束');
             return await this.getMaintenanceOrderById(id);
         } catch (error) {
-            throw new Error('完成维修工单失败: ' + error.message);
+            console.error('完成工单失败:', error);
+            throw new Error('完成工单失败: ' + error.message);
         }
     }
     

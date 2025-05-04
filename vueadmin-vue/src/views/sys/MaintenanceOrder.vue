@@ -322,6 +322,26 @@
                         {{ selectedOrder.fault_description || '暂无故障描述' }}
                     </div>
                 </div>
+                
+                <!-- 故障图片展示 -->
+                <div class="detail-item full-width" v-if="parsedImages && parsedImages.length > 0">
+                    <span class="detail-label">故障图片</span>
+                    <div class="fault-images">
+                        <el-image 
+                            v-for="(url, index) in parsedImages" 
+                            :key="index"
+                            :src="url"
+                            :preview-src-list="parsedImages"
+                            fit="cover"
+                            class="fault-image"
+                        >
+                            <div slot="error" class="image-error">
+                                <i class="el-icon-picture-outline"></i>
+                                <span>图片加载失败</span>
+                            </div>
+                        </el-image>
+                    </div>
+                </div>
             </div>
 
             <el-divider content-position="left" v-if="selectedOrder.assignee">
@@ -497,11 +517,23 @@
                             :auto-upload="false"
                             :on-change="handleImageChange"
                             :on-remove="handleImageRemove"
+                            :before-upload="beforeImageUpload"
                             :limit="3"
+                            accept="image/jpeg,image/png,image/gif,image/jpg"
+                            ref="imageUpload"
                         >
                             <i class="el-icon-plus"></i>
+                            <div slot="tip" class="el-upload__tip">
+                                <i class="el-icon-info"></i> 最多上传3张图片，每张不超过5MB
+                            </div>
                         </el-upload>
-                        <div class="el-upload__tip">最多上传3张图片，每张不超过5MB</div>
+                        <div class="upload-preview" v-if="createForm.images && createForm.images.length > 0">
+                            <div class="preview-count">
+                                <el-tag type="info" size="small">
+                                    <i class="el-icon-picture"></i> 已选择 {{ createForm.images.length }} 张图片
+                                </el-tag>
+                            </div>
+                        </div>
                     </el-form-item>
                     <el-form-item label="紧急程度" prop="priority">
                         <el-radio-group v-model="createForm.priority">
@@ -550,19 +582,92 @@
             :visible.sync="processDialogVisible"
             width="60%"
             :before-close="handleProcessClose"
+            custom-class="process-order-dialog"
+            top="5vh"
         >
-            <el-form ref="processForm" :model="processForm" :rules="processRules" label-width="100px">
-                <el-form-item label="工单号">
-                    <span>{{ selectedOrder.order_number }}</span>
-                </el-form-item>
-                <el-form-item label="设备名称">
-                    <span>{{ selectedOrder.equipment_name }}</span>
-                </el-form-item>
-                <el-form-item label="故障类型">
-                    <span>{{ selectedOrder.fault_type }}</span>
-                </el-form-item>
+            <div class="dialog-header-info">
+                <el-tag type="primary" effect="dark" size="medium">
+                    <i class="el-icon-s-operation"></i> 处理工单
+                </el-tag>
+                <span class="dialog-time">当前时间: {{ formatDate(new Date()) }}</span>
+            </div>
+            
+            <el-divider content-position="left">
+                <i class="el-icon-document"></i> 工单信息
+            </el-divider>
+            
+            <div class="info-section">
+                <div class="info-row">
+                    <div class="info-item">
+                        <span class="info-label">工单号:</span>
+                        <span class="info-value">{{ selectedOrder.order_number }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">设备名称:</span>
+                        <span class="info-value">{{ selectedOrder.equipment_name }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">设备编号:</span>
+                        <span class="info-value">{{ selectedOrder.equipment_code }}</span>
+                    </div>
+                </div>
+                <div class="info-row">
+                    <div class="info-item">
+                        <span class="info-label">故障类型:</span>
+                        <span class="info-value">{{ selectedOrder.fault_type }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">报修人:</span>
+                        <span class="info-value">{{ selectedOrder.reporter }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">联系电话:</span>
+                        <span class="info-value">{{ selectedOrder.contact_phone }}</span>
+                    </div>
+                </div>
+                <div class="info-item full-width">
+                    <span class="info-label">故障描述:</span>
+                    <div class="description-content">
+                        {{ selectedOrder.fault_description || '暂无故障描述' }}
+                    </div>
+                </div>
+                
+                <!-- 故障图片展示 -->
+                <div class="info-item full-width" v-if="parsedImages && parsedImages.length > 0">
+                    <span class="info-label">故障图片:</span>
+                    <div class="fault-images">
+                        <el-image 
+                            v-for="(url, index) in parsedImages" 
+                            :key="index"
+                            :src="url"
+                            :preview-src-list="parsedImages"
+                            fit="cover"
+                            class="fault-image"
+                        >
+                            <div slot="error" class="image-error">
+                                <i class="el-icon-picture-outline"></i>
+                                <span>图片加载失败</span>
+                            </div>
+                        </el-image>
+                    </div>
+                </div>
+            </div>
+            
+            <el-divider content-position="left">
+                <i class="el-icon-s-operation"></i> 处理信息
+            </el-divider>
+            
+            <el-form ref="processForm" :model="processForm" :rules="processRules" label-width="100px" class="process-form">
                 <el-form-item label="处理人" prop="assignee">
-                    <el-input v-model="processForm.assignee" placeholder="请输入处理人姓名"></el-input>
+                    <el-input 
+                        v-model="processForm.assignee" 
+                        placeholder="自动使用当前登录用户"
+                        prefix-icon="el-icon-user"
+                        disabled
+                    ></el-input>
+                    <div class="form-tip">
+                        <i class="el-icon-info"></i> 处理人自动使用当前登录用户，不可修改
+                    </div>
                 </el-form-item>
                 <el-form-item label="预计完成时间" prop="estimated_time">
                     <el-date-picker
@@ -573,21 +678,30 @@
                         value-format="yyyy-MM-dd HH:mm:ss"
                         :picker-options="{ disabledDate: disabledDate }"
                         style="width: 100%"
+                        prefix-icon="el-icon-date"
                     >
                     </el-date-picker>
                 </el-form-item>
-                <el-form-item label="处理备注" prop="process_remark">
+                
+                <el-divider content-position="left">
+                    <i class="el-icon-edit"></i> 处理备注
+                </el-divider>
+                
+                <el-form-item prop="process_remark">
                     <el-input 
                         type="textarea" 
                         v-model="processForm.process_remark" 
-                        placeholder="请输入处理备注"
+                        placeholder="请输入处理备注，包括初步诊断、处理方案等信息"
                         :rows="4"
                     ></el-input>
                 </el-form-item>
             </el-form>
+            
             <div slot="footer" class="dialog-footer">
                 <el-button @click="processDialogVisible = false">取消</el-button>
-                <el-button type="primary" @click="submitProcessForm">确认处理</el-button>
+                <el-button type="primary" @click="submitProcessForm" :loading="processing">
+                    <i class="el-icon-check"></i> 确认处理
+                </el-button>
             </div>
         </el-dialog>
 
@@ -597,70 +711,85 @@
             :visible.sync="completeDialogVisible"
             width="60%"
             :before-close="handleCompleteClose"
+            custom-class="complete-order-dialog"
+            top="5vh"
         >
-            <el-form ref="completeForm" :model="completeForm" :rules="completeRules" label-width="100px">
-                <el-form-item label="工单号">
-                    <span>{{ selectedOrder.order_number }}</span>
-                </el-form-item>
-                <el-form-item label="设备名称">
-                    <span>{{ selectedOrder.equipment_name }}</span>
-                </el-form-item>
-                <el-form-item label="处理人">
-                    <span>{{ selectedOrder.assignee }}</span>
-                </el-form-item>
-                <el-form-item label="维修结果" prop="result_type">
-                    <el-select v-model="completeForm.result_type" placeholder="请选择维修结果" style="width: 100%">
-                        <el-option label="已修复" value="fixed"></el-option>
-                        <el-option label="部分修复" value="partially_fixed"></el-option>
-                        <el-option label="无法修复" value="cannot_fix"></el-option>
-                        <el-option label="需要更换零件" value="need_parts"></el-option>
-                    </el-select>
-                </el-form-item>
-                <el-form-item label="处理结果" prop="process_result">
+            <div class="dialog-header-info">
+                <el-tag type="success" effect="dark" size="medium">
+                    <i class="el-icon-finished"></i> 完成工单
+                </el-tag>
+                <span class="dialog-time">当前时间: {{ formatDate(new Date()) }}</span>
+            </div>
+
+            <el-divider content-position="left">
+                <i class="el-icon-document"></i> 工单信息
+            </el-divider>
+
+            <el-form ref="completeForm" :model="completeForm" :rules="completeRules" label-width="100px" class="complete-form">
+                <div class="info-section">
+                    <div class="info-row">
+                        <div class="info-item">
+                            <span class="info-label">工单号:</span>
+                            <span class="info-value">{{ selectedOrder.order_number }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">设备名称:</span>
+                            <span class="info-value">{{ selectedOrder.equipment_name }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">处理人:</span>
+                            <span class="info-value highlight-text">{{ completeForm.userName }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <el-divider content-position="left">
+                    <i class="el-icon-warning"></i> 故障描述
+                </el-divider>
+
+                <div class="fault-description-box">
+                    {{ selectedOrder.fault_description || '暂无故障描述' }}
+                </div>
+
+                <el-divider content-position="left">
+                    <i class="el-icon-s-operation"></i> 处理结果
+                </el-divider>
+
+                <el-form-item prop="process_result" class="result-form-item">
                     <el-input 
                         type="textarea" 
                         v-model="completeForm.process_result" 
                         placeholder="请详细描述处理过程和结果"
                         :rows="6"
+                        resize="none"
+                        maxlength="500"
+                        show-word-limit
                     ></el-input>
                 </el-form-item>
-                <el-form-item label="维修费用" prop="cost">
+
+                <el-divider content-position="left">
+                    <i class="el-icon-money"></i> 维修费用
+                </el-divider>
+                
+                <el-form-item prop="cost" class="cost-form-item">
                     <el-input-number 
                         v-model="completeForm.cost" 
                         :precision="2" 
                         :step="100" 
                         :min="0"
                         controls-position="right"
-                        style="width: 100%"
-                    ></el-input-number>
-                </el-form-item>
-                <el-form-item label="更换零件" v-if="completeForm.result_type === 'need_parts'">
-                    <el-tag
-                        :key="tag"
-                        v-for="tag in completeForm.parts"
-                        closable
-                        :disable-transitions="false"
-                        @close="handlePartClose(tag)"
-                        class="part-tag"
+                        style="width: 300px"
                     >
-                        {{tag}}
-                    </el-tag>
-                    <el-input
-                        class="input-new-tag"
-                        v-if="inputPartVisible"
-                        v-model="inputPartValue"
-                        ref="savePartInput"
-                        size="small"
-                        @keyup.enter.native="handlePartInputConfirm"
-                        @blur="handlePartInputConfirm"
-                    >
-                    </el-input>
-                    <el-button v-else class="button-new-tag" size="small" @click="showPartInput">+ 添加零件</el-button>
+                    </el-input-number>
+                    <span class="cost-unit">元</span>
                 </el-form-item>
             </el-form>
+
             <div slot="footer" class="dialog-footer">
-                <el-button @click="completeDialogVisible = false">取消</el-button>
-                <el-button type="primary" @click="submitCompleteForm">确认完成</el-button>
+                <el-button @click="completeDialogVisible = false" plain>取消</el-button>
+                <el-button type="success" @click="submitCompleteForm" :loading="submitting">
+                    <i class="el-icon-check"></i> 确认完成
+                </el-button>
             </div>
         </el-dialog>
     </div>
@@ -668,12 +797,37 @@
 
 <script>
 import { getEquipmentList, getEquipmentById} from '@/api/equipment'
-import { GetMaintenanceOrders, CreateMaintenanceOrder, UpdateMaintenanceOrder, GetMaintenanceOrderById, CancelMaintenanceOrder, CompleteMaintenanceOrder } from '@/api/equipmentMaintenance'
+import { GetMaintenanceOrders, CreateMaintenanceOrder, UpdateMaintenanceOrder, GetMaintenanceOrderById, CancelMaintenanceOrder, CompleteMaintenanceOrder, ProcessMaintenanceOrder } from '@/api/equipmentMaintenance'
 import { getCurrentUser, getCurrentUserId } from '@/utils/auth'
 import { GetDepartments } from '@/api/index'
 
 export default {
     name: 'MaintenanceOrder',
+    computed: {
+        // 解析工单图片JSON字符串
+        parsedImages() {
+            if (!this.selectedOrder || !this.selectedOrder.images) {
+                return [];
+            }
+            
+            try {
+                // 如果已经是数组，直接返回
+                if (Array.isArray(this.selectedOrder.images)) {
+                    return this.selectedOrder.images;
+                }
+                
+                // 尝试解析JSON字符串
+                const imagesData = JSON.parse(this.selectedOrder.images);
+                if (Array.isArray(imagesData)) {
+                    return imagesData;
+                }
+                return [];
+            } catch (error) {
+                console.error('解析工单图片失败:', error);
+                return [];
+            }
+        }
+    },
     data() {
         return {
             // 搜索和筛选
@@ -690,6 +844,8 @@ export default {
             // 加载状态
             loading: false,
             equipmentLoading: false,
+            submitting: false, // 提交完成工单时的加载状态
+            processing: false, // 提交处理工单时的加载状态
             
             // 工单列表
             orderList: [],
@@ -738,6 +894,7 @@ export default {
                 result_type: 'fixed',
                 process_result: '',
                 cost: 0,
+                replaceParts: false, // 是否更换零部件
                 parts: [],
             },
             inputPartVisible: false,
@@ -777,7 +934,7 @@ export default {
             },
             processRules: {
                 assignee: [
-                    { required: true, message: '请输入处理人姓名', trigger: 'blur' }
+                    { required: true, message: '处理人不能为空', trigger: 'blur' }
                 ],
                 estimated_time: [
                     { required: true, message: '请选择预计完成时间', trigger: 'change' }
@@ -984,23 +1141,40 @@ export default {
         // 处理工单
         processOrder(order) {
             this.selectedOrder = JSON.parse(JSON.stringify(order));
+            
+            // 从本地token中获取当前用户信息
+            const currentUser = getCurrentUser();
+            const userId = getCurrentUserId();
+            
             this.processForm = {
-                assignee: '',
+                assignee: currentUser ? (currentUser.realname || '') : '',
                 estimated_time: '',
-                process_remark: ''
+                process_remark: '',
+                // 存储用户ID和姓名
+                userId: userId,
+                userName: currentUser ? (currentUser.realname || '未知用户') : '未知用户'
             };
+            
+            this.processing = false; // 重置处理状态
             this.processDialogVisible = true;
         },
         
         // 完成工单
         completeOrder(order) {
             this.selectedOrder = JSON.parse(JSON.stringify(order));
+            
+            // 从本地token中获取当前用户信息
+            const currentUser = getCurrentUser();
+            const userId = getCurrentUserId();
+            
             this.completeForm = {
-                result_type: 'fixed',
                 process_result: '',
                 cost: 0,
-                parts: []
+                // 存储用户ID和姓名
+                userId: userId,
+                userName: currentUser ? (currentUser.realname || '未知用户') : '未知用户'
             };
+            this.submitting = false;
             this.completeDialogVisible = true;
         },
         
@@ -1269,11 +1443,43 @@ export default {
         
         // 图片上传相关
         handleImageChange(file, fileList) {
+            // 验证文件类型和大小
+            const isImage = file.raw.type.startsWith('image/');
+            const isLt5M = file.size / 1024 / 1024 < 5;
+            
+            if (!isImage) {
+                this.$message.error('只能上传图片文件!');
+                fileList.pop();
+                return false;
+            }
+            if (!isLt5M) {
+                this.$message.error('图片大小不能超过 5MB!');
+                fileList.pop();
+                return false;
+            }
+            
+            // 预览图片
+            if (!file.url && !file.preview) {
+                file.preview = URL.createObjectURL(file.raw);
+            }
+            
             this.createForm.images = fileList;
         },
         
         handleImageRemove(file, fileList) {
             this.createForm.images = fileList;
+            
+            // 释放预览URL的内存
+            if (file.preview) {
+                URL.revokeObjectURL(file.preview);
+            }
+        },
+        
+        // 图片上传前的验证
+        beforeImageUpload(file) {
+            // 这里返回false是因为我们设置了auto-upload=false
+            // 我们会在提交表单时才一起上传所有图片
+            return false;
         },
         
         // 提交创建工单表单
@@ -1281,6 +1487,14 @@ export default {
             this.$refs.createForm.validate(async (valid) => {
                 if (valid) {
                     try {
+                        // 显示加载中状态
+                        const loading = this.$loading({
+                            lock: true,
+                            text: '正在提交工单和上传图片...',
+                            spinner: 'el-icon-loading',
+                            background: 'rgba(0, 0, 0, 0.7)'
+                        });
+                        
                         // 从 token 中获取当前用户信息
                         const userInfo = getCurrentUser();
                         if (userInfo) {
@@ -1292,14 +1506,29 @@ export default {
                                 this.createForm.reporter = userInfo.realname;
                             }
                         }
-                        console.log("check!!!!!!!!")
+                        
+                        // 检查图片是否已准备好
+                        if (this.createForm.images && this.createForm.images.length > 0) {
+                            console.log(`准备上传 ${this.createForm.images.length} 张图片`);
+                        }
+                        
+                        // 调用API创建工单，包含图片上传
                         const response = await CreateMaintenanceOrder(this.createForm);
+                        
+                        // 关闭加载状态
+                        loading.close();
                         
                         // 创建成功
                         this.$message({
                             type: 'success',
-                            message: '工单创建成功'
+                            message: '工单创建成功',
+                            duration: 3000
                         });
+                        
+                        // 显示上传的图片URL（如果有的话）
+                        if (response.data && response.data.imageUrls && response.data.imageUrls.length > 0) {
+                            console.log('图片上传成功，链接：', response.data.imageUrls);
+                        }
                         
                         // 重新获取工单列表
                         this.fetchOrderList();
@@ -1308,7 +1537,11 @@ export default {
                         this.createDialogVisible = false;
                         this.resetCreateForm();
                     } catch (error) {
-                        this.$message.error(error);
+                        console.error('创建工单失败:', error);
+                        this.$message.error({
+                            message: error.message || '创建工单失败',
+                            duration: 3000
+                        });
                     }
                 }
             });
@@ -1318,40 +1551,56 @@ export default {
         submitProcessForm() {
             this.$refs.processForm.validate(async (valid) => {
                 if (valid) {
+                    // 防止重复提交
+                    if (this.processing) return;
+                    
+                    // 设置加载状态
+                    this.processing = true;
+                    
                     try {
-                        // 这里应该调用API处理工单
+                        // 准备请求数据
+                        const processData = {
+                            orderId: this.selectedOrder.id,
+                            assignee: this.processForm.assignee,
+                            estimated_time: this.processForm.estimated_time,
+                            process_remark: this.processForm.process_remark,
+                            // 使用已存储的用户ID
+                            user_id: this.processForm.userId
+                        };
 
-                        this.$message({
-                            type: 'success',
-                            message: '工单已开始处理'
-                        });
+                        // 调用处理工单API
+                        const response = await ProcessMaintenanceOrder(this.selectedOrder.id, processData);
                         
-                        // 模拟API调用成功后更新本地数据
-                        const index = this.orderList.findIndex(item => item.id === this.selectedOrder.id);
-                        if (index !== -1) {
-                            this.orderList[index].status = 'processing';
-                            this.orderList[index].assignee = this.processForm.assignee;
-                            this.orderList[index].process_time = new Date().toISOString().replace('T', ' ').substring(0, 19);
-                            this.orderList[index].estimated_time = this.processForm.estimated_time;
-                            this.orderList[index].process_remark = this.processForm.process_remark;
+                        if (response && response.success) {
+                            this.$message({
+                                type: 'success',
+                                message: '工单已开始处理',
+                                duration: 3000
+                            });
                             
-                            // 添加历史记录
-                            if (this.selectedOrder.id === this.orderList[index].id) {
-                                this.maintenanceHistory.push({
-                                    time: this.orderList[index].process_time,
-                                    type: 'process',
-                                    title: '开始处理',
-                                    content: this.processForm.process_remark || '工程师已接单，开始处理故障',
-                                    operator: this.processForm.assignee
-                                });
+                            // 重新获取工单列表，确保数据最新
+                            await this.fetchOrderList();
+                            
+                            // 如果当前正在查看该工单的详情，更新历史记录
+                            if (this.detailDialogVisible && this.selectedOrder.id) {
+                                // 刷新维修历史
+                                this.fetchMaintenanceHistory(this.selectedOrder.id);
                             }
                             
-                            this.handleSearch(); // 重新筛选
+                            // 关闭处理对话框
+                            this.processDialogVisible = false;
+                        } else {
+                            throw new Error(response?.message || '处理工单失败');
                         }
-                        this.processDialogVisible = false;
                     } catch (error) {
                         console.error('处理工单失败:', error);
-                        this.$message.error('处理工单失败');
+                        this.$message.error({
+                            message: error.message || '处理工单失败',
+                            duration: 3000
+                        });
+                    } finally {
+                        // 无论成功或失败，都重置处理状态
+                        this.processing = false;
                     }
                 }
             });
@@ -1362,39 +1611,48 @@ export default {
             this.$refs.completeForm.validate(async (valid) => {
                 if (valid) {
                     try {
-                        // 这里应该调用API完成工单
-                        this.$message({
-                            type: 'success',
-                            message: '工单已完成'
-                        });
+                        this.submitting = true; // 设置提交状态为加载中
                         
-                        // 模拟API调用成功后更新本地数据
-                        const index = this.orderList.findIndex(item => item.id === this.selectedOrder.id);
-                        if (index !== -1) {
-                            this.orderList[index].status = 'completed';
-                            this.orderList[index].complete_time = new Date().toISOString().replace('T', ' ').substring(0, 19);
-                            this.orderList[index].process_result = this.completeForm.process_result;
-                            this.orderList[index].result_type = this.completeForm.result_type;
-                            this.orderList[index].cost = this.completeForm.cost;
-                            this.orderList[index].parts = [...this.completeForm.parts];
+                        // 准备请求数据
+                        const completeData = {
+                            process_result: this.completeForm.process_result,
+                            cost: this.completeForm.cost,
+                            // 使用从本地token中解析出的用户ID
+                            user_id: this.completeForm.userId
+                        };
+                        
+                        // 调用完成工单API
+                        const response = await CompleteMaintenanceOrder(this.selectedOrder.id, completeData);
+                        
+                        if (response) {
+                            this.$message({
+                                type: 'success',
+                                message: '工单已完成',
+                                duration: 2000
+                            });
                             
-                            // 添加历史记录
-                            if (this.selectedOrder.id === this.orderList[index].id) {
-                                this.maintenanceHistory.push({
-                                    time: this.orderList[index].complete_time,
-                                    type: 'complete',
-                                    title: '完成维修',
-                                    content: this.completeForm.process_result,
-                                    operator: this.orderList[index].assignee
-                                });
+                            // 重新获取工单列表，确保数据最新
+                            await this.fetchOrderList();
+                            
+                            // 如果当前正在查看该工单的详情，更新历史记录
+                            if (this.detailDialogVisible && this.selectedOrder.id) {
+                                // 刷新维修历史
+                                this.fetchMaintenanceHistory(this.selectedOrder.id);
                             }
                             
-                            this.handleSearch(); // 重新筛选
+                            // 关闭完成对话框
+                            this.completeDialogVisible = false;
+                        } else {
+                            throw new Error(response?.message || '完成工单失败');
                         }
-                        this.completeDialogVisible = false;
                     } catch (error) {
                         console.error('完成工单失败:', error);
-                        this.$message.error('完成工单失败');
+                        this.$message.error({
+                            message: error.message || '完成工单失败',
+                            duration: 3000
+                        });
+                    } finally {
+                        this.submitting = false; // 无论成功或失败，都重置提交状态
                     }
                 }
             });
@@ -1671,6 +1929,103 @@ export default {
     padding: 20px 30px;
 }
 
+/* 完成工单对话框样式 */
+.complete-order-dialog .el-dialog__body,
+.process-order-dialog .el-dialog__body {
+    padding: 20px 30px;
+}
+
+.complete-order-dialog .el-dialog__header {
+    padding: 15px 20px;
+    background-color: #f8f9fa;
+}
+
+.dialog-header-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.dialog-time {
+    color: #909399;
+    font-size: 14px;
+}
+
+.info-section {
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.info-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.info-item {
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    align-items: center;
+}
+
+.info-label {
+    color: #606266;
+    font-weight: bold;
+    margin-right: 10px;
+    min-width: 70px;
+}
+
+.info-value {
+    color: #303133;
+}
+
+.highlight-text {
+    color: #409EFF;
+    font-weight: bold;
+}
+
+.fault-description-box {
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 20px;
+    line-height: 1.6;
+    color: #303133;
+    max-height: 150px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.result-form-item {
+    margin-bottom: 25px;
+}
+
+.cost-form-item {
+    display: flex;
+    align-items: center;
+}
+
+.cost-unit {
+    margin-left: 10px;
+    color: #606266;
+}
+
+.complete-form .el-divider__text {
+    background-color: #fff;
+    padding: 0 15px;
+    font-weight: bold;
+    color: #409EFF;
+}
+
+.complete-form .el-divider {
+    margin: 20px 0;
+}
+
 .step-content {
     margin: 30px 0;
     min-height: 250px;
@@ -1737,6 +2092,35 @@ export default {
     width: 120px;
     margin-right: 10px;
     vertical-align: bottom;
+}
+
+/* 图片上传相关样式 */
+.el-upload--picture-card {
+    width: 120px;
+    height: 120px;
+    line-height: 120px;
+}
+
+.el-upload-list--picture-card .el-upload-list__item {
+    width: 120px;
+    height: 120px;
+}
+
+.upload-preview {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+}
+
+.preview-count {
+    margin-right: 15px;
+}
+
+.el-upload__tip {
+    margin-top: 10px;
+    line-height: 1.4;
+    color: #909399;
+    font-size: 13px;
 }
 
 /* 统计卡片 */
@@ -1820,5 +2204,68 @@ export default {
     .detail-row {
         grid-template-columns: 1fr;
     }
+}
+/* 故障图片展示样式 */
+.fault-images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.fault-image {
+    width: 120px;
+    height: 120px;
+    border-radius: 4px;
+    border: 1px solid #ebeef5;
+    object-fit: cover;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.fault-image:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+.image-error {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    color: #909399;
+    font-size: 14px;
+}
+
+.image-error i {
+    font-size: 28px;
+    margin-bottom: 8px;
+}
+
+/* 处理工单对话框特有样式 */
+.process-order-dialog .el-tag {
+    font-size: 14px;
+}
+
+.process-order-dialog .el-divider__text {
+    background-color: #fff;
+    padding: 0 15px;
+    font-weight: 500;
+    color: #409EFF;
+}
+
+.process-form .el-textarea__inner {
+    min-height: 120px;
+    font-family: 'Microsoft YaHei', sans-serif;
+    line-height: 1.6;
+}
+
+.process-form .el-input__prefix {
+    color: #909399;
+}
+
+.process-form .el-form-item {
+    margin-bottom: 20px;
 }
 </style>

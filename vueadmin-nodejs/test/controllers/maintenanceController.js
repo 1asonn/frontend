@@ -2,6 +2,7 @@ const maintenanceService = require('../services/maintenanceService');
 const path = require('path');
 const fs = require('fs');
 const ExcelJS = require('exceljs');
+const { getDropboxClient } = require('../utils/dropboxAuth');
 
 // 统一响应格式
 const createResponse = (success, message, data = null) => {
@@ -16,16 +17,103 @@ const createResponse = (success, message, data = null) => {
 // 创建维修工单
 const createMaintenanceOrder = async (req, res) => {
     try {
-        const orderData = req.body;
+        // 解析请求中的工单数据
+        let orderData;
+        
+        // 如果是FormData提交，则req.body.data应该是JSON字符串
+        if (req.body && req.body.data) {
+            try {
+                orderData = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body.data;
+            } catch (parseError) {
+                console.error('解析工单数据错误:', parseError);
+                return res.status(400).json(createResponse(false, '工单数据格式错误'));
+            }
+        } else {
+            // 如果不是FormData提交，则直接使用req.body
+            orderData = req.body;
+        }
+        
+        // 检查必填字段
+        const requiredFields = [
+            'equipment_name', 'equipment_code', 'department', 
+            'fault_type', 'fault_description', 'reporter', 'contact_phone'
+        ];
+        
+        const missingFields = requiredFields.filter(field => !orderData[field]);
+        if (missingFields.length > 0) {
+            return res.status(400).json(createResponse(
+                false, 
+                `缺少必填字段: ${missingFields.join(', ')}`
+            ));
+        }
         
         // 添加创建人信息
         if (req.user && req.user.id) {
             orderData.created_by = req.user.id;
         }
         
+        // 处理图片上传
+        let imageUrls = [];
+        // 检查是否有上传的文件
+        if (req.files && req.files.length > 0) {
+            // 过滤出图片文件（根据文件类型）
+            const imageFiles = req.files.filter(file => {
+                const mimeType = file.mimetype.toLowerCase();
+                return mimeType.startsWith('image/');
+            });
+            
+            if (imageFiles.length === 0) {
+                console.log('未检测到有效的图片文件');
+            }
+            try {
+                // 获取带有有效 token 的 Dropbox 客户端
+                const dbx = await getDropboxClient();
+                
+                // 处理多个图片文件
+                const uploadPromises = imageFiles.map(async (file) => {
+                    // 设置文件路径和名称
+                    const fileName = `maintenance_${Date.now()}_${Math.floor(Math.random() * 10000)}${getExtension(file.originalname)}`;
+                    const filePath = `/maintenance/${fileName}`;
+                    
+                    // 上传文件到Dropbox
+                    await dbx.filesUpload({
+                        path: filePath,
+                        contents: file.buffer,
+                        mode: 'overwrite'
+                    });
+                    
+                    // 获取共享链接
+                    const linkResponse = await dbx.sharingCreateSharedLinkWithSettings({
+                        path: filePath,
+                        settings: {
+                            requested_visibility: { '.tag': 'public' }
+                        }
+                    });
+                    
+                    // 获取直接下载链接（替换dl=0为dl=1）
+                    return linkResponse.result.url.replace('dl=0', 'dl=1');
+                });
+                
+                // 等待所有图片上传完成
+                imageUrls = await Promise.all(uploadPromises);
+                
+                // 将图片URL数组添加到工单数据中
+                if (imageUrls.length > 0) {
+                    orderData.images = JSON.stringify(imageUrls);
+                }
+            } catch (uploadError) {
+                console.error('工单图片上传错误:', uploadError);
+                // 图片上传错误不应阻止工单创建
+            }
+        }
+        
+        // 创建工单
         const order = await maintenanceService.createMaintenanceOrder(orderData);
         
-        res.status(201).json(createResponse(true, '工单创建成功', order));
+        res.status(200).json(createResponse(true, '工单创建成功', {
+            order,
+            imageUrls
+        }));
     } catch (error) {
         console.error('创建维修工单错误:', error);
         res.status(500).json(createResponse(false, error.message || '服务器内部错误'));
@@ -51,7 +139,7 @@ const getMaintenanceOrders = async (req, res) => {
         
         const result = await maintenanceService.getMaintenanceOrders(params);
         
-        res.json(createResponse(true, '获取工单列表成功', result));
+        res.status(200).json(createResponse(true, '获取工单列表成功', result));
     } catch (error) {
         console.error('获取工单列表错误:', error);
         res.status(500).json(createResponse(false, error.message || '服务器内部错误'));
@@ -65,7 +153,7 @@ const getMaintenanceOrderById = async (req, res) => {
         
         const order = await maintenanceService.getMaintenanceOrderById(id);
         
-        res.json(createResponse(true, '获取工单详情成功', order));
+        res.status(200).json(createResponse(true, '获取工单详情成功', order));
     } catch (error) {
         console.error('获取工单详情错误:', error);
         if (error.message.includes('不存在')) {
@@ -82,7 +170,7 @@ const getMaintenanceHistory = async (req, res) => {
         
         const history = await maintenanceService.getMaintenanceHistory(id);
         
-        res.json(createResponse(true, '获取工单历史记录成功', history));
+        res.status(200).json(createResponse(true, '获取工单历史记录成功', history));
     } catch (error) {
         console.error('获取工单历史记录错误:', error);
         res.status(500).json(createResponse(false, error.message || '服务器内部错误'));
@@ -102,10 +190,10 @@ const processMaintenanceOrder = async (req, res) => {
                 processData.assignee = req.user.realname;
             }
         }
-        
+        console.log("this is processData", processData);
         const order = await maintenanceService.processMaintenanceOrder(id, processData);
         
-        res.json(createResponse(true, '工单已开始处理', order));
+        res.status(200).json(createResponse(true, '工单已开始处理', order));
     } catch (error) {
         console.error('处理工单错误:', error);
         if (error.message.includes('不存在') || error.message.includes('只有待处理')) {
@@ -123,7 +211,7 @@ const completeMaintenanceOrder = async (req, res) => {
         
         const order = await maintenanceService.completeMaintenanceOrder(id, completeData);
         
-        res.json(createResponse(true, '工单已完成', order));
+        res.status(200).json(createResponse(true, '工单已完成', order));
     } catch (error) {
         console.error('完成工单错误:', error);
         if (error.message.includes('不存在') || error.message.includes('只有处理中')) {
@@ -142,7 +230,7 @@ const cancelMaintenanceOrder = async (req, res) => {
         
         const order = await maintenanceService.cancelMaintenanceOrder(id, userId, username);
         
-        res.json(createResponse(true, '工单已取消', order));
+        res.status(200).json(createResponse(true, '工单已取消', order));
     } catch (error) {
         console.error('取消工单错误:', error);
         if (error.message.includes('不存在') || error.message.includes('只有待处理或处理中')) {
@@ -162,7 +250,7 @@ const updateMaintenanceOrder = async (req, res) => {
         
         const order = await maintenanceService.updateMaintenanceOrder(id, updateData, userId, username);
         
-        res.json(createResponse(true, '工单更新成功', order));
+        res.status(200).json(createResponse(true, '工单更新成功', order));
     } catch (error) {
         console.error('更新工单错误:', error);
         if (error.message.includes('不存在')) {
@@ -206,7 +294,6 @@ const exportMaintenanceData = async (req, res) => {
             { header: '联系电话', key: 'contact_phone', width: 15 },
             { header: '创建时间', key: 'create_time', width: 20 },
             { header: '处理人', key: 'assignee', width: 15 },
-            { header: '处理人ID', key: 'assignee_id', width: 10 },
             { header: '处理时间', key: 'process_time', width: 20 },
             { header: '完成时间', key: 'complete_time', width: 20 },
             { header: '处理结果', key: 'process_result', width: 30 },
@@ -287,6 +374,204 @@ const getMaintenanceStats = async (req, res) => {
         res.status(500).json(createResponse(false, error.message || '服务器内部错误'));
     }
 };
+// 获取设备维修历史记录
+const getEquipmentMaintenanceHistory = async (req, res) => {
+    try {
+        const { equipmentId } = req.params;
+        const { 
+            page = 1, 
+            size = 10, 
+            startDate, 
+            endDate, 
+            maintenanceType, 
+            operator,
+            faultDescription,
+            minCost,
+            maxCost,
+            orderField,
+            orderDirection
+        } = req.query;
+        
+        // 构建查询参数
+        const queryParams = {
+            page: parseInt(page),
+            size: parseInt(size)
+        };
+        
+        // 添加基本筛选条件
+        if (startDate) queryParams.start_date = startDate;
+        if (endDate) queryParams.end_date = endDate;
+        if (maintenanceType) queryParams.maintenance_type = maintenanceType;
+        
+        // 添加人员相关筛选条件
+        if (operator) queryParams.operator = operator;
+        
+        // 添加故障相关筛选条件
+        if (faultDescription) queryParams.fault_description = faultDescription;
+        
+        // 添加成本相关筛选条件
+        if (minCost !== undefined) queryParams.min_cost = minCost;
+        if (maxCost !== undefined) queryParams.max_cost = maxCost;
+        
+        // 添加排序参数
+        if (orderField) queryParams.orderField = orderField;
+        if (orderDirection) queryParams.orderDirection = orderDirection;
+        
+        // 使用设备服务获取维修记录
+        const equipmentService = require('../services/equipmentService');
+        const maintenanceRecords = await equipmentService.getMaintenanceList(
+            equipmentId,
+            queryParams.page,
+            queryParams.size,
+            queryParams
+        );
+        
+        res.status(200).json(createResponse(true, '获取设备维修历史记录成功', maintenanceRecords));
+    } catch (error) {
+        console.error('获取设备维修历史记录错误:', error);
+        if (error.message.includes('设备不存在')) {
+            return res.status(404).json(createResponse(false, error.message));
+        }
+        res.status(500).json(createResponse(false, error.message || '服务器内部错误'));
+    }
+};
+
+// 上传工单图片
+const uploadOrderImages = async (req, res) => {
+    try {
+        if (!req.files || req.files.length === 0) {
+            return res.json(createResponse(false, '未提供图片文件'));
+        }
+
+        // 获取带有有效 token 的 Dropbox 客户端
+        const dbx = await getDropboxClient();
+        
+        // 处理多个图片文件
+        const uploadPromises = req.files.map(async (file) => {
+            // 设置文件路径和名称
+            const fileName = `maintenance_${Date.now()}_${Math.floor(Math.random() * 10000)}${getExtension(file.originalname)}`;
+            const filePath = `/maintenance/${fileName}`;
+            
+            // 上传文件到Dropbox
+            await dbx.filesUpload({
+                path: filePath,
+                contents: file.buffer,
+                mode: 'overwrite'
+            });
+            
+            // 获取共享链接
+            const linkResponse = await dbx.sharingCreateSharedLinkWithSettings({
+                path: filePath,
+                settings: {
+                    requested_visibility: { '.tag': 'public' }
+                }
+            });
+            
+            // 获取直接下载链接（替换dl=0为dl=1）
+            return linkResponse.result.url.replace('dl=0', 'dl=1');
+        });
+        
+        // 等待所有图片上传完成
+        const imageUrls = await Promise.all(uploadPromises);
+        
+        res.json(createResponse(true, '图片上传成功', { imageUrls }));
+    } catch (error) {
+        console.error('上传工单图片错误:', error);
+        res.status(500).json(createResponse(false, '图片上传失败: ' + error.message));
+    }
+};
+
+// 为工单添加图片
+const addOrderImages = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        if (!req.files || req.files.length === 0) {
+            return res.json(createResponse(false, '未提供图片文件'));
+        }
+        
+        // 检查工单是否存在
+        const order = await maintenanceService.getMaintenanceOrderById(id);
+        if (!order) {
+            return res.status(404).json(createResponse(false, '工单不存在'));
+        }
+        
+        // 过滤出图片文件
+        const imageFiles = req.files.filter(file => {
+            const mimeType = file.mimetype.toLowerCase();
+            return mimeType.startsWith('image/');
+        });
+        
+        if (imageFiles.length === 0) {
+            return res.status(400).json(createResponse(false, '未检测到有效的图片文件'));
+        }
+        
+        // 获取带有有效 token 的 Dropbox 客户端
+        const dbx = await getDropboxClient();
+        
+        // 处理多个图片文件
+        const uploadPromises = imageFiles.map(async (file) => {
+            // 设置文件路径和名称
+            const fileName = `maintenance_${id}_${Date.now()}_${Math.floor(Math.random() * 10000)}${getExtension(file.originalname)}`;
+            const filePath = `/maintenance/${fileName}`;
+            
+            // 上传文件到Dropbox
+            await dbx.filesUpload({
+                path: filePath,
+                contents: file.buffer,
+                mode: 'overwrite'
+            });
+            
+            // 获取共享链接
+            const linkResponse = await dbx.sharingCreateSharedLinkWithSettings({
+                path: filePath,
+                settings: {
+                    requested_visibility: { '.tag': 'public' }
+                }
+            });
+            
+            // 获取直接下载链接（替换dl=0为dl=1）
+            return linkResponse.result.url.replace('dl=0', 'dl=1');
+        });
+        
+        // 等待所有图片上传完成
+        const newImageUrls = await Promise.all(uploadPromises);
+        
+        // 获取现有图片数组
+        let existingImages = [];
+        if (order.images) {
+            try {
+                existingImages = JSON.parse(order.images);
+            } catch (e) {
+                console.error('解析现有图片数组错误:', e);
+            }
+        }
+        
+        // 合并新旧图片数组
+        const allImages = [...existingImages, ...newImageUrls];
+        
+        // 更新工单记录
+        const updatedOrder = await maintenanceService.updateMaintenanceOrder(
+            id, 
+            { images: JSON.stringify(allImages) },
+            req.user ? req.user.id : null,
+            req.user ? req.user.username : '系统管理员'
+        );
+        
+        res.json(createResponse(true, '工单图片添加成功', {
+            order: updatedOrder,
+            imageUrls: allImages
+        }));
+    } catch (error) {
+        console.error('添加工单图片错误:', error);
+        res.status(500).json(createResponse(false, '添加工单图片失败: ' + error.message));
+    }
+};
+
+// 获取文件扩展名的辅助函数
+function getExtension(filename) {
+    return filename.substring(filename.lastIndexOf('.'));
+}
 
 module.exports = {
     createMaintenanceOrder,
@@ -298,5 +583,8 @@ module.exports = {
     cancelMaintenanceOrder,
     updateMaintenanceOrder,
     exportMaintenanceData,
-    getMaintenanceStats
+    getMaintenanceStats,
+    getEquipmentMaintenanceHistory,
+    uploadOrderImages,
+    addOrderImages
 };

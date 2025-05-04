@@ -9,6 +9,7 @@ const EquipmentMaintenance = sequelize.define('equipment_maintenance', {
         autoIncrement: true,
         comment: '维修记录ID'
     },
+    // 基本关联信息
     equipment_id: {
         type: Sequelize.INTEGER,
         allowNull: false,
@@ -18,92 +19,83 @@ const EquipmentMaintenance = sequelize.define('equipment_maintenance', {
         },
         comment: '设备ID'
     },
+    maintenance_order_id: {
+        type: Sequelize.INTEGER,
+        allowNull: true,
+        comment: '关联的维修工单ID'
+    },
+    order_number: {
+        type: Sequelize.STRING(50),
+        allowNull: true,
+        comment: '关联的工单编号'
+    },
+    
+    // 维修类型
+    maintenance_type: {
+        type: Sequelize.ENUM('preventive', 'repair', 'calibration'),
+        allowNull: false,
+        defaultValue: 'repair',
+        comment: '维修类型：预防性维护、故障维修、校准'
+    },
+    
+    // 时间跟踪
+    start_date: {
+        type: Sequelize.DATE,
+        allowNull: false,
+        defaultValue: Sequelize.NOW,
+        comment: '开始日期'
+    },
+    end_date: {
+        type: Sequelize.DATE,
+        allowNull: true,
+        comment: '结束日期'
+    },
+    next_maintenance_date: {
+        type: Sequelize.DATE,
+        allowNull: true,
+        comment: '下次维护日期'
+    },
+    
+    // 人员信息
     operator_id: {
         type: Sequelize.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: {
             model: User,
             key: 'id'
         },
-        comment: '操作员工ID'
+        comment: '操作人员ID'
     },
     operator: {
         type: Sequelize.STRING(50),
-        allowNull: false,
-        comment: '操作员工'
+        allowNull: true,
+        comment: '操作人员名称'
     },
-    maintenance_type: {
-        type: Sequelize.ENUM('routine', 'repair', 'calibration'),
-        allowNull: false,
-        comment: '维护类型：routine-例行保养，repair-故障维修，calibration-校准'
-    },
-    start_date: {
-        type: Sequelize.DATE,
-        allowNull: false,
-        comment: '维护开始日期'
-    },
-    end_date: {
-        type: Sequelize.DATE,
-        comment: '维护结束日期'
-    },
-    maintenance_staff: {
-        type: Sequelize.STRING(50),
-        allowNull: false,
-        comment: '维护人员'
-    },
+    
+    // 故障和维修详情
     fault_description: {
         type: Sequelize.TEXT,
         comment: '故障描述'
     },
     maintenance_details: {
         type: Sequelize.TEXT,
-        allowNull: false,
-        comment: '维护内容'
+        comment: '维修详情'
     },
-    parts_replaced: {
-        type: Sequelize.TEXT,
-        comment: '更换配件'
-    },
-    cost: {
+    
+    total_cost: {
         type: Sequelize.DECIMAL(10, 2),
         allowNull: false,
         defaultValue: 0,
-        comment: '维护费用'
+        comment: '维护总费用'
     },
-    status: {
-        type: Sequelize.ENUM('in_progress', 'completed', 'pending'),
-        defaultValue: 'in_progress',
-        comment: '维护状态：in_progress-进行中，completed-已完成，pending-待处理'
-    },
-    result: {
-        type: Sequelize.ENUM('success', 'partial', 'failed'),
-        comment: '维护结果：success-完全修复，partial-部分修复，failed-未修复'
-    },
-    next_maintenance_date: {
-        type: Sequelize.DATE,
-        comment: '下次维护日期'
-    },
-    maintenance_company: {
-        type: Sequelize.STRING(200),
-        comment: '维护公司'
-    },
-    company_contact: {
-        type: Sequelize.STRING(50),
-        comment: '公司联系人'
-    },
-    company_phone: {
-        type: Sequelize.STRING(20),
-        comment: '公司联系电话'
-    },
-    warranty_covered: {
-        type: Sequelize.BOOLEAN,
-        defaultValue: false,
-        comment: '是否在保修期内'
-    },
+    
+    // 其他信息
     remarks: {
         type: Sequelize.TEXT,
         comment: '备注'
     },
+    
+    // 时间戳
     created_at: {
         type: Sequelize.DATE,
         defaultValue: Sequelize.NOW,

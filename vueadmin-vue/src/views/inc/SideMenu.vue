@@ -40,6 +40,21 @@
           </el-menu-item>
         </router-link>
       </el-submenu>
+      
+      <!-- 系统工具菜单 -->
+      <el-submenu index="sysTools">
+        <template slot="title">
+          <i class="el-icon-s-tools menu-icon"></i>
+          <span>系统工具</span>
+        </template>
+        
+        <router-link class="router-link" to="/sys/sql-agent">
+          <el-menu-item index="SqlAgent" @click="selectMenu({name:'SqlAgent',title:'SQL智能查询'})">
+            <i class="el-icon-search menu-icon"></i>
+            <span slot="title">SQL智能查询</span>
+          </el-menu-item>
+        </router-link>
+      </el-submenu>
     </el-menu>
     
     <!-- 底部系统信息 -->

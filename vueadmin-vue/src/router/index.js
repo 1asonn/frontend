@@ -29,6 +29,11 @@ const routes = [
         path: '/userCenter',
         name: 'userCenter',
         component: () => import('../views/userCenter.vue')
+      },
+      {
+        path: '/sys/sql-agent',
+        name: 'SqlAgent',
+        component: () => import('../views/sys/SqlAgent.vue')
       }
     ]
   },

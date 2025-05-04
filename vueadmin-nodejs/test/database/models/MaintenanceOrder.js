@@ -156,6 +156,11 @@ const MaintenanceOrder = sequelize.define('maintenance_order', {
         type: Sequelize.INTEGER,
         allowNull: true,
         comment: '创建人ID'
+    },
+    images: {
+        type: Sequelize.TEXT,
+        allowNull: true,
+        comment: '工单相关图片数组，JSON格式存储图片URL'
     }
 }, {
     timestamps: true,
@@ -190,7 +195,7 @@ MaintenanceOrder.associate = (models) => {
 
 // 使用alter: true来更新表结构，包括新增字段
 try {
-    MaintenanceOrder.sync({ alter: false }).then(() => {
+    MaintenanceOrder.sync({ alter: true }).then(() => {
         console.log("维修工单表同步完成，包括新增字段");
     }).catch(err => {
         console.error("维修工单表同步错误，但不影响应用启动:", err.message);

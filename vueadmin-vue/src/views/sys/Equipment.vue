@@ -40,12 +40,12 @@
                     </el-card>
                 </div>
             </template>
-            <div class="empty-data" v-else-if="equipmentList.length === 0">
+            <div class="empty-data" v-else-if="filteredEquipmentList.length === 0">
                 <el-empty description="暂无设备数据" :image-size="200">
                     <!-- <el-button type="primary" @click="openAddDialog">添加设备</el-button> -->
                 </el-empty>
             </div>
-            <div class="container" v-for="item in equipmentList" :key="item.id">
+            <div class="container" v-for="item in filteredEquipmentList" :key="item.id">
                 <el-card :body-style="{ position:'relative', padding: '0px' }" class="equipment-card" shadow="hover">
                     <div class="image-container">
                         <img :src="item.image_url" @click="checkDetail(item)" class="image">
@@ -71,7 +71,7 @@
                         </div>
                         <div class="bottom">
                             <el-button type="primary" size="mini" icon="el-icon-edit" @click="editDetail(item)">编辑</el-button>
-                            <el-button type="info" size="mini" icon="el-icon-document">维护记录</el-button>
+                            <el-button type="info" size="mini" icon="el-icon-document" @click="showMaintenanceRecords(item)">维护记录</el-button>
                         </div>
                     </div>
                 </el-card>
@@ -262,13 +262,13 @@
                                 
                                 <el-row :gutter="20">
                                     <el-col :span="12">
-                                        <el-form-item label="所属科室" prop="department_id">
-                                            <el-select v-model="editForm.department_id" placeholder="请选择所属科室" style="width: 100%">
+                                        <el-form-item label="所属科室" prop="department">
+                                            <el-select v-model="editForm.department" placeholder="请选择所属科室" style="width: 100%">
                                                 <el-option 
                                                     v-for="dept in departmentOptions" 
                                                     :key="dept.id" 
                                                     :label="dept.name" 
-                                                    :value="dept.id">
+                                                    :value="dept.name">
                                                 </el-option>
                                             </el-select>
                                         </el-form-item>
@@ -495,8 +495,8 @@
                         
                         <el-row :gutter="20">
                             <el-col :span="12">
-                                <el-form-item label="所属科室" prop="department_id">
-                                    <el-select v-model="addForm.department_id" placeholder="请选择科室" style="width: 100%">
+                                <el-form-item label="所属科室" prop="department">
+                                    <el-select v-model="addForm.department" placeholder="请选择科室" style="width: 100%">
                                         <el-option 
                                             v-for="dept in departmentOptions" 
                                             :key="dept.id" 
@@ -668,12 +668,257 @@
                 <el-button v-else type="primary" @click="submitAddForm('addForm')" :loading="addSubmitLoading" icon="el-icon-check">创建设备</el-button>
             </span>
         </el-dialog>
+
+        <!-- 设备维护记录对话框 -->
+        <el-dialog
+            title="设备维护记录"
+            :visible.sync="maintenanceRecordsVisible"
+            width="80%"
+            custom-class="maintenance-records-dialog">
+            <div class="filter-container">
+                <el-form :inline="true" :model="maintenanceFilter" class="filter-form">
+                    <el-form-item label="开始日期">
+                        <el-date-picker
+                            v-model="maintenanceFilter.startDate"
+                            type="date"
+                            placeholder="选择开始日期"
+                            value-format="yyyy-MM-dd"
+                            @change="fetchMaintenanceRecords">
+                        </el-date-picker>
+                    </el-form-item>
+                    <el-form-item label="结束日期">
+                        <el-date-picker
+                            v-model="maintenanceFilter.endDate"
+                            type="date"
+                            placeholder="选择结束日期"
+                            value-format="yyyy-MM-dd"
+                            @change="fetchMaintenanceRecords">
+                        </el-date-picker>
+                    </el-form-item>
+                    <el-form-item label="维护类型">
+                        <el-select v-model="maintenanceFilter.maintenanceType" placeholder="全部类型" @change="fetchMaintenanceRecords">
+                            <el-option label="全部" value=""></el-option>
+                            <el-option label="预防性维护" value="preventive"></el-option>
+                            <el-option label="故障维修" value="repair"></el-option>
+                            <el-option label="校准" value="calibration"></el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="状态">
+                        <el-select v-model="maintenanceFilter.status" placeholder="全部状态" @change="fetchMaintenanceRecords">
+                            <el-option label="全部" value=""></el-option>
+                            <el-option label="进行中" value="in_progress"></el-option>
+                            <el-option label="已完成" value="completed"></el-option>
+                            <el-option label="待处理" value="pending"></el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="结果">
+                        <el-select v-model="maintenanceFilter.result" placeholder="全部结果" @change="fetchMaintenanceRecords">
+                            <el-option label="全部" value=""></el-option>
+                            <el-option label="完全修复" value="fully_fixed"></el-option>
+                            <el-option label="部分修复" value="partially_fixed"></el-option>
+                            <el-option label="未修复" value="not_fixed"></el-option>
+                            <el-option label="已完成" value="completed"></el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item>
+                        <el-button type="primary" icon="el-icon-search" @click="fetchMaintenanceRecords">查询</el-button>
+                        <el-button icon="el-icon-refresh" @click="resetMaintenanceFilter">重置</el-button>
+                    </el-form-item>
+                </el-form>
+            </div>
+
+            <el-table
+                v-loading="maintenanceLoading"
+                :data="maintenanceRecords"
+                style="width: 100%"
+                border>
+                <el-table-column prop="order_number" label="工单编号" width="140" align="center">
+                    <template slot-scope="scope">
+                        <el-tooltip effect="dark" :content="`工单ID: ${scope.row.maintenance_order_id || '-'}`" placement="top">
+                            <span>{{ scope.row.order_number || '-' }}</span>
+                        </el-tooltip>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="maintenance_type" label="维护类型" width="110" align="center">
+                    <template slot-scope="scope">
+                        <el-tag :type="getMaintenanceTypeTag(scope.row.maintenance_type)">
+                            {{ formatMaintenanceType(scope.row.maintenance_type) }}
+                        </el-tag>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="fault_description" label="故障描述" min-width="180" show-overflow-tooltip></el-table-column>
+                <el-table-column prop="status" label="状态" width="100" align="center">
+                    <template slot-scope="scope">
+                        <el-tag :type="getMaintenanceStatusTag(scope.row.status)">
+                            {{ formatMaintenanceStatus(scope.row.status) }}
+                        </el-tag>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="result" label="结果" width="100" align="center">
+                    <template slot-scope="scope">
+                        <el-tag v-if="scope.row.result" :type="getMaintenanceResultTag(scope.row.result)">
+                            {{ formatMaintenanceResult(scope.row.result) }}
+                        </el-tag>
+                        <span v-else>-</span>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="operator" label="操作人员" width="100" align="center">
+                    <template slot-scope="scope">
+                        {{ scope.row.operator || '-' }}
+                    </template>
+                </el-table-column>
+                <el-table-column label="时间信息" width="180" align="center">
+                    <template slot-scope="scope">
+                        <div>开始: {{ formatDate(scope.row.start_date) }}</div>
+                        <div v-if="scope.row.end_date">结束: {{ formatDate(scope.row.end_date) }}</div>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="total_cost" label="维护费用" width="100" align="center">
+                    <template slot-scope="scope">
+                        {{ scope.row.total_cost ? `￥${scope.row.total_cost}` : '-' }}
+                    </template>
+                </el-table-column>
+                <el-table-column prop="parts_replaced" label="更换零件" min-width="120" show-overflow-tooltip>
+                    <template slot-scope="scope">
+                        <span v-if="scope.row.parts_replaced">
+                            {{ formatPartsReplaced(scope.row.parts_replaced) }}
+                        </span>
+                        <span v-else>-</span>
+                    </template>
+                </el-table-column>
+                <el-table-column prop="maintenance_details" label="维修详情" min-width="150" show-overflow-tooltip>
+                    <template slot-scope="scope">
+                        {{ scope.row.maintenance_details || '-' }}
+                    </template>
+                </el-table-column>
+                <el-table-column prop="next_maintenance_date" label="下次维护日期" width="120" align="center">
+                    <template slot-scope="scope">
+                        {{ formatDate(scope.row.next_maintenance_date) || '-' }}
+                    </template>
+                </el-table-column>
+                <el-table-column prop="remarks" label="备注" min-width="120" show-overflow-tooltip>
+                    <template slot-scope="scope">
+                        {{ scope.row.remarks || '-' }}
+                    </template>
+                </el-table-column>
+                <el-table-column label="操作" width="80" align="center" fixed="right">
+                    <template slot-scope="scope">
+                        <el-button type="text" size="small" @click="viewMaintenanceDetail(scope.row)">
+                            <i class="el-icon-view"></i> 详情
+                        </el-button>
+                    </template>
+                </el-table-column>
+            </el-table>
+
+            <div class="pagination-container">
+                <el-pagination
+                    @size-change="handleMaintenanceSizeChange"
+                    @current-change="handleMaintenanceCurrentChange"
+                    :current-page="maintenancePagination.page"
+                    :page-sizes="[5, 10, 20, 50]"
+                    :page-size="maintenancePagination.size"
+                    layout="total, sizes, prev, pager, next, jumper"
+                    :total="maintenancePagination.total">
+                </el-pagination>
+            </div>
+        </el-dialog>
+
+        <!-- 维护记录详情对话框 -->
+        <el-dialog
+            title="维护记录详情"
+            :visible.sync="maintenanceDetailVisible"
+            width="60%"
+            custom-class="maintenance-detail-dialog">
+            <div v-if="selectedMaintenance" class="maintenance-detail-container">
+                <el-descriptions :column="2" border>
+                    <el-descriptions-item label="工单编号">
+                        <el-tag size="medium">{{ selectedMaintenance.order_number || '-' }}</el-tag>
+                    </el-descriptions-item>
+                    <el-descriptions-item label="维护类型">
+                        <el-tag :type="getMaintenanceTypeTag(selectedMaintenance.maintenance_type)">
+                            {{ formatMaintenanceType(selectedMaintenance.maintenance_type) }}
+                        </el-tag>
+                    </el-descriptions-item>
+                    <el-descriptions-item label="状态">
+                        <el-tag :type="getMaintenanceStatusTag(selectedMaintenance.status)">
+                            {{ formatMaintenanceStatus(selectedMaintenance.status) }}
+                        </el-tag>
+                    </el-descriptions-item>
+                    <el-descriptions-item label="结果">
+                        <el-tag v-if="selectedMaintenance.result" :type="getMaintenanceResultTag(selectedMaintenance.result)">
+                            {{ formatMaintenanceResult(selectedMaintenance.result) }}
+                        </el-tag>
+                        <span v-else>-</span>
+                    </el-descriptions-item>
+                    <el-descriptions-item label="开始日期">
+                        {{ formatDateTime(selectedMaintenance.start_date) }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="结束日期">
+                        {{ formatDateTime(selectedMaintenance.end_date) || '-' }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="操作人员">
+                        {{ selectedMaintenance.operator || '-' }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="维护费用">
+                        {{ selectedMaintenance.total_cost ? `￥${selectedMaintenance.total_cost}` : '-' }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="故障描述" :span="2">
+                        {{ selectedMaintenance.fault_description || '-' }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="维修详情" :span="2">
+                        {{ selectedMaintenance.maintenance_details || '-' }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="更换零件" :span="2">
+                        <span v-if="selectedMaintenance.parts_replaced">
+                            {{ formatPartsReplaced(selectedMaintenance.parts_replaced) }}
+                        </span>
+                        <span v-else>-</span>
+                    </el-descriptions-item>
+                    <el-descriptions-item label="下次维护日期">
+                        {{ formatDate(selectedMaintenance.next_maintenance_date) || '-' }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="创建时间">
+                        {{ formatDateTime(selectedMaintenance.created_at) }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="备注" :span="2">
+                        {{ selectedMaintenance.remarks || '-' }}
+                    </el-descriptions-item>
+                </el-descriptions>
+
+                <div class="equipment-info" v-if="selectedMaintenance.equipment">
+                    <h3>关联设备信息</h3>
+                    <el-descriptions :column="2" border>
+                        <el-descriptions-item label="设备名称">
+                            {{ selectedMaintenance.equipment.name }}
+                        </el-descriptions-item>
+                        <el-descriptions-item label="设备编号">
+                            {{ selectedMaintenance.equipment.equipment_code }}
+                        </el-descriptions-item>
+                        <el-descriptions-item label="设备型号">
+                            {{ selectedMaintenance.equipment.model }}
+                        </el-descriptions-item>
+                        <el-descriptions-item label="生产厂商">
+                            {{ selectedMaintenance.equipment.manufacturer }}
+                        </el-descriptions-item>
+                        <el-descriptions-item label="所属科室">
+                            {{ selectedMaintenance.equipment.department }}
+                        </el-descriptions-item>
+                        <el-descriptions-item label="设备状态">
+                            <el-tag :type="getStatusTagType(selectedMaintenance.equipment.status)">
+                                {{ formatStatus(selectedMaintenance.equipment.status) }}
+                            </el-tag>
+                        </el-descriptions-item>
+                    </el-descriptions>
+                </div>
+            </div>
+        </el-dialog>
     </div>
 </template>
 
 <script>
 import { getEquipmentList, createEquipment, updateEquipment, deleteEquipment, uploadEquipmentImage } from '@/api'
 import { GetDepartmentList } from '@/api/index'
+import { GetEquipmentMaintenanceHistory } from '@/api/equipmentMaintenance'
 
 export default {
     data() {
@@ -709,7 +954,7 @@ export default {
             rules: {
                 name: [{ required: true, message: '请输入设备名称', trigger: 'blur' }],
                 equipment_code: [{ required: true, message: '请输入设备编号', trigger: 'blur' }],
-                department_id: [{ required: true, message: '请选择所属科室', trigger: 'change' }],
+                department: [{ required: true, message: '请选择所属科室', trigger: 'change' }],
                 status: [{ required: true, message: '请选择设备状态', trigger: 'change' }],
                 model: [{ required: true, message: '请输入设备型号', trigger: 'blur' }],
                 manufacturer: [{ required: true, message: '请输入生产厂商', trigger: 'blur' }],
@@ -741,7 +986,27 @@ export default {
                 next_maintenance_date: '',
                 description: '',
                 image_url: ''
-            }
+            },
+            // 维护记录相关
+            maintenanceRecordsVisible: false,
+            maintenanceLoading: false,
+            maintenanceRecords: [],
+            currentEquipment: null,
+            maintenanceFilter: {
+                startDate: '',
+                endDate: '',
+                maintenanceType: '',
+                status: '',
+                result: ''
+            },
+            maintenancePagination: {
+                page: 1,
+                size: 10,
+                total: 0
+            },
+            // 维护记录详情
+            maintenanceDetailVisible: false,
+            selectedMaintenance: null
         }
     },
     computed: {
@@ -796,6 +1061,190 @@ export default {
                 this.formChanged = false;
                 this.$message.success('表单已重置');
             }).catch(() => {});
+        },
+        
+        // 维护记录相关方法
+        // 显示维护记录对话框
+        showMaintenanceRecords(equipment) {
+            this.currentEquipment = equipment;
+            this.resetMaintenanceFilter();
+            this.maintenanceRecordsVisible = true;
+            this.fetchMaintenanceRecords();
+        },
+        
+        // 获取设备维护记录
+        async fetchMaintenanceRecords() {
+            if (!this.currentEquipment) return;
+            
+            this.maintenanceLoading = true;
+            try {
+                // 构建查询参数
+                const params = {
+                    page: this.maintenancePagination.page,
+                    size: this.maintenancePagination.size
+                };
+                
+                // 添加筛选条件
+                if (this.maintenanceFilter.startDate) params.startDate = this.maintenanceFilter.startDate;
+                if (this.maintenanceFilter.endDate) params.endDate = this.maintenanceFilter.endDate;
+                if (this.maintenanceFilter.maintenanceType) params.maintenanceType = this.maintenanceFilter.maintenanceType;
+                if (this.maintenanceFilter.status) params.status = this.maintenanceFilter.status;
+                if (this.maintenanceFilter.result) params.result = this.maintenanceFilter.result;
+                
+                const response = await GetEquipmentMaintenanceHistory(this.currentEquipment.id, params);
+                
+                if (response && response.success) {
+                    // 适应新的响应格式，使用 items 而非 records
+                    this.maintenanceRecords = response.data.items || [];
+                    this.maintenancePagination.total = response.data.total || 0;
+                    this.maintenancePagination.page = response.data.page || 1;
+                    this.maintenancePagination.size = response.data.size || 10;
+                } else {
+                    this.$message.error(response.message || '获取维护记录失败');
+                    this.maintenanceRecords = [];
+                    this.maintenancePagination.total = 0;
+                }
+            } catch (error) {
+                console.error('获取维护记录错误:', error);
+                this.$message.error(error.message || '获取维护记录失败');
+                this.maintenanceRecords = [];
+                this.maintenancePagination.total = 0;
+            } finally {
+                this.maintenanceLoading = false;
+            }
+        },
+        
+        // 重置维护记录筛选条件
+        resetMaintenanceFilter() {
+            this.maintenanceFilter = {
+                startDate: '',
+                endDate: '',
+                maintenanceType: '',
+                status: '',
+                result: ''
+            };
+            this.maintenancePagination.page = 1;
+            if (this.maintenanceRecordsVisible) {
+                this.fetchMaintenanceRecords();
+            }
+        },
+        
+        // 查看维护记录详情
+        viewMaintenanceDetail(record) {
+            this.selectedMaintenance = JSON.parse(JSON.stringify(record)); // 深拷贝防止引用问题
+            this.maintenanceDetailVisible = true;
+        },
+        
+        // 处理维护记录分页大小变化
+        handleMaintenanceSizeChange(size) {
+            this.maintenancePagination.size = size;
+            this.fetchMaintenanceRecords();
+        },
+        
+        // 处理维护记录当前页变化
+        handleMaintenanceCurrentChange(page) {
+            this.maintenancePagination.page = page;
+            this.fetchMaintenanceRecords();
+        },
+        
+        // 格式化维护类型
+        formatMaintenanceType(type) {
+            const typeMap = {
+                'preventive': '预防性维护',
+                'repair': '故障维修',
+                'calibration': '校准'
+            };
+            return typeMap[type] || type;
+        },
+        
+        // 获取维护类型标签样式
+        getMaintenanceTypeTag(type) {
+            const typeMap = {
+                'preventive': 'info',
+                'repair': 'danger',
+                'calibration': 'success'
+            };
+            return typeMap[type] || '';
+        },
+        
+        // 格式化维护状态
+        formatMaintenanceStatus(status) {
+            const statusMap = {
+                'pending': '待处理',
+                'in_progress': '进行中',
+                'completed': '已完成'
+            };
+            return statusMap[status] || status;
+        },
+        
+        // 获取维护状态标签样式
+        getMaintenanceStatusTag(status) {
+            const statusMap = {
+                'pending': 'info',
+                'in_progress': 'warning',
+                'completed': 'success'
+            };
+            return statusMap[status] || '';
+        },
+        
+        // 格式化维护结果
+        formatMaintenanceResult(result) {
+            const resultMap = {
+                'fully_fixed': '完全修复',
+                'partially_fixed': '部分修复',
+                'not_fixed': '未修复',
+                'completed': '已完成'
+            };
+            return resultMap[result] || result;
+        },
+        
+        // 获取维护结果标签样式
+        getMaintenanceResultTag(result) {
+            const resultMap = {
+                'fully_fixed': 'success',
+                'partially_fixed': 'warning',
+                'not_fixed': 'danger',
+                'completed': 'info'
+            };
+            return resultMap[result] || '';
+        },
+        
+        // 格式化更换零件
+        formatPartsReplaced(parts) {
+            if (!parts) return '-';
+            
+            try {
+                // 如果是JSON字符串，尝试解析
+                const partsArray = typeof parts === 'string' ? JSON.parse(parts) : parts;
+                
+                if (Array.isArray(partsArray)) {
+                    return partsArray.join(', ');
+                } else if (typeof partsArray === 'object') {
+                    return Object.entries(partsArray)
+                        .map(([key, value]) => `${key}: ${value}`)
+                        .join(', ');
+                }
+                
+                return String(parts);
+            } catch (error) {
+                console.error('解析更换零件错误:', error);
+                return String(parts);
+            }
+        },
+        
+        // 格式化日期时间
+        formatDateTime(datetime) {
+            if (!datetime) return '-';
+            const date = new Date(datetime);
+            return date.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
         },
         
         // 获取科室列表
@@ -949,10 +1398,6 @@ export default {
             this.editDetail(this.selectedEquipment);
         },
         
-        showMaintenanceRecords() {
-            this.$message.info('正在开发维护记录功能，敬请期待');
-        },
-        
         printEquipmentDetail() {
             this.$message.success('正在准备打印信息...');
             window.print();
@@ -1021,7 +1466,7 @@ export default {
             if (!this.editForm.equipment_code) {
                 validationErrors.push('设备编号');
             }
-            if (!this.editForm.department_id) {
+            if (!this.editForm.department) {
                 validationErrors.push('所属科室');
             }
             

@@ -23,6 +23,7 @@ const departmentRouter = require('./router/department.js');
 const shiftSettingRouter = require('./router/shiftSetting.js');
 const filesRouter = require('./router/files.js');
 const maintenanceRouter = require('./router/maintenance.js');
+const sqlAgentRouter = require('./router/sqlAgent.js');
 
 // Initialize model associations
 require('./database/models');
@@ -49,7 +50,8 @@ app.use(
             /^\/user\/sendSmsCode/,
             /^\/user\/sendResetPasswordCode/,
             /^\/user\/verifyResetPasswordCode/,
-            /^\/user\/resetPasswordBySms/
+            /^\/user\/resetPasswordBySms/,
+            /^\/sqlAgent\/.*/
         ] 
     })
 );
@@ -81,6 +83,7 @@ app.use('/department', departmentRouter);
 app.use('/shiftSetting', shiftSettingRouter);
 app.use('/files', filesRouter);
 app.use('/maintenance', maintenanceRouter);
+app.use('/sqlAgent', sqlAgentRouter);
 
 // Start server
 app.listen(config.port, () => {
