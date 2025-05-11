@@ -148,7 +148,7 @@ export default {
     },
     created(){
         this.getUserInfo();
-        // this.getScheduleData()
+        this.getScheduleData()
     },
     methods:{
         // 获取用户信息
@@ -222,11 +222,50 @@ export default {
             try {
                 const response = await GetCurrentSchedule()
                 console.log("schedule", response)
-                const { monday, tuesday, wednesday, thursday, friday, saturday, sunday } = response.data.data
-                this.scheduleData = { monday, tuesday, wednesday, thursday, friday, saturday, sunday }
+                
+                // 注意：API返回格式变化，现在response直接是数据对象
+                if (response && response.data) {
+                    // 处理新的API返回格式
+                    console.log('排班数据:', response.data);
+                    
+                    if (response.data.detailed_shift_mapping) {
+                        // 使用详细的班次信息
+                        const scheduleData = {};
+                        const weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+                        
+                        weekdays.forEach(day => {
+                            const shiftInfo = response.data.detailed_shift_mapping[day];
+                            if (shiftInfo) {
+                                // 如果有班次信息，使用timeRange字段
+                                scheduleData[day] = {
+                                    timeRange: shiftInfo.timeRange,
+                                    name: shiftInfo.name,
+                                    description: shiftInfo.description,
+                                    id: shiftInfo.id
+                                };
+                            } else {
+                                // 如果没有班次信息，设置为休息
+                                scheduleData[day] = null;
+                            }
+                        });
+                        
+                        this.scheduleData = scheduleData;
+                    } else {
+                        // 兼容旧格式
+                        const { monday, tuesday, wednesday, thursday, friday, saturday, sunday } = response.data;
+                        this.scheduleData = { monday, tuesday, wednesday, thursday, friday, saturday, sunday };
+                    }
+                    
+                    this.$message.success('排班信息加载成功');
+                    this.scheduleRefreshKey++; // 强制刷新日历组件
+                } else {
+                    this.$message.warning('没有找到排班信息');
+                    this.scheduleData = {};
+                }
             } catch (error) {
                 console.error('获取排班失败:', error)
                 this.$message.error('获取排班信息失败');
+                this.scheduleData = {};
             }
         },
         

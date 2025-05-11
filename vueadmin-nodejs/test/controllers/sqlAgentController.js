@@ -41,7 +41,7 @@ const executeQuery = async (req, res) => {
 };
 
 /**
- * 导出查询结果为Excel
+ * 导出查询结果为Excel并上传到Dropbox
  */
 const exportQueryResult = async (req, res) => {
   try {
@@ -62,9 +62,11 @@ const exportQueryResult = async (req, res) => {
       return res.status(400).json(createResponse(false, '导出失败: ' + (result.exportResult?.message || '未知错误')));
     }
     
-    res.json(createResponse(true, '导出成功', {
-      downloadUrl: result.exportResult.downloadUrl,
+    res.json(createResponse(true, '导出成功并已上传到Dropbox', {
+      downloadUrl: result.exportResult.downloadUrl, // Dropbox下载链接
+      shareUrl: result.exportResult.shareUrl,      // Dropbox分享链接
       fileName: result.exportResult.fileName,
+      fileSize: result.exportResult.filePath ? require('fs').statSync(result.exportResult.filePath).size : null,
       result: result.result
     }));
   } catch (error) {

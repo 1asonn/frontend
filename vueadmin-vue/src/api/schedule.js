@@ -25,8 +25,8 @@ export const GetSchedulesByPage = async ({ page, size, departmentId }) => {
 //获取当前用户的排班信息
 export const GetCurrentSchedule = async() => {
     try {
-        const response = await request.get('/schedule/currentSchedule')
-        return response
+        const response = await request.get('/schedule/schedule')
+        return response.data
     } catch (error) {
         console.error('获取当前职工排班失败',error)
         throw error
@@ -87,20 +87,31 @@ export const DeleteShift = async (id) => {
 export const GetDepartmentSchedule = async (departmentId) => {
     try {
         const response = await request.get(`/schedule/getSchListBydepartment/${departmentId}`)
-        return response.data
+        return response
     } catch (error) {
         console.error('获取部门排班失败:', error)
         throw error
     }
 }
 
-// 保存排班
+// 保存单个职工排班
 export const SaveSchedule = async (data) => {
     try {
         const response = await request.post('/schedule/schedule', data)
         return response.data
     } catch (error) {
         console.error('保存排班失败:', error)
+        throw error
+    }
+}
+
+// 批量保存职工排班
+export const BatchSaveSchedule = async (data) => {
+    try {
+        const response = await request.post('/schedule/batchSchedule', data)
+        return response.data
+    } catch (error) {
+        console.error('批量保存排班失败:', error)
         throw error
     }
 }

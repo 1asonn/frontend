@@ -5,6 +5,8 @@ const { DataSource } = require("typeorm");
 const path = require('path');
 const fs = require('fs');
 const ExcelJS = require('exceljs');
+const cosService = require('./cosService');
+const { v4: uuidv4 } = require('uuid');
 
 // 创建LLM实例
 const llm = new ChatOpenAI({
@@ -27,7 +29,7 @@ const datasource = new DataSource({
   synchronize: true,
 });
 
-// 导出查询结果到Excel
+// 导出查询结果到Excel并上传到腾讯云COS
 async function exportQueryResultToExcel(sql, fileName) {
   try {
     // 确保数据库连接已初始化
@@ -63,6 +65,7 @@ async function exportQueryResultToExcel(sql, fileName) {
     // 确保uploads目录存在
     const uploadsDir = path.join(__dirname, '../uploads');
     const reportsDir = path.join(uploadsDir, 'reports');
+    const sqlReportsDir = path.join(reportsDir, 'sql-reports');
     
     if (!fs.existsSync(uploadsDir)) {
       fs.mkdirSync(uploadsDir, { recursive: true });
@@ -72,22 +75,57 @@ async function exportQueryResultToExcel(sql, fileName) {
       fs.mkdirSync(reportsDir, { recursive: true });
     }
     
+    if (!fs.existsSync(sqlReportsDir)) {
+      fs.mkdirSync(sqlReportsDir, { recursive: true });
+    }
+    
     // 生成文件名
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const outputFileName = `${fileName || 'sql_report'}_${timestamp}.xlsx`;
-    const outputPath = path.join(reportsDir, outputFileName);
+    const uniqueId = uuidv4().substring(0, 8);
+    const safeFileName = (fileName || 'sql_report').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const outputFileName = `${safeFileName}_${timestamp}_${uniqueId}.xlsx`;
+    const outputPath = path.join(sqlReportsDir, outputFileName);
     
     // 保存文件
     await workbook.xlsx.writeFile(outputPath);
+    
+    // 读取文件
+    const fileBuffer = fs.readFileSync(outputPath);
+    
+    // 在COS中的存储路径
+    const cosKey = `reports/sql-reports/${outputFileName}`;
+    
+    // 上传到腾讯云COS
+    const uploadResult = await cosService.uploadFile({
+      file: outputPath,
+      key: cosKey
+    });
+    
+    if (!uploadResult.success) {
+      throw new Error(`上传到腾讯云COS失败: ${uploadResult.error}`);
+    }
+    
+    // 获取临时访问链接(3天有效期)
+    const urlResult = await cosService.getFileUrl({
+      key: cosKey,
+      expires: 259200 // 3天 = 3*24*60*60秒
+    });
+    
+    if (!urlResult.success) {
+      throw new Error(`获取文件访问链接失败: ${urlResult.error}`);
+    }
     
     return {
       success: true,
       filePath: outputPath,
       fileName: outputFileName,
-      downloadUrl: `/uploads/reports/${outputFileName}`
+      localUrl: `/uploads/reports/sql-reports/${outputFileName}`,
+      downloadUrl: urlResult.url,  // COS临时下载链接
+      cosUrl: uploadResult.url,    // COS原始URL
+      cosKey: cosKey               // COS中的对象Key
     };
   } catch (error) {
-    console.error('导出Excel失败:', error);
+    console.error('导出Excel并上传到腾讯云COS失败:', error);
     return { success: false, message: error.message };
   }
 }
@@ -115,8 +153,8 @@ class SqlAgentService {
       // 创建SQL数据库实例
       this.db = await SqlDatabase.fromDataSourceParams({
         appDataSource: datasource,
-        includesTables: ['maintenance_orders', 'medical_equipment', 'equipment_maintenance', 'maintenance_history', 'users', 'departments'],
-        sampleRowsInTableInfo: 3
+        includesTables: ['maintenance_orders', 'medical_equipment', 'equipment_maintenance', 'users', 'departments','patients','roles','suppliers','schedules','shift_settings','medicines'],
+        sampleRowsInTableInfo: 5
       });
       
       // 创建SQL工具包和执行器
@@ -130,6 +168,76 @@ class SqlAgentService {
       - 日期加减: DATE_ADD(date, INTERVAL value unit) 或 DATE_SUB(date, INTERVAL value unit)
       - 例如，30天前的日期: DATE_SUB(NOW(), INTERVAL 30 DAY)
       - 不要使用SQLite的datetime()函数
+      - 生成的sql语句不要进行换行
+
+      非常重要：在生成SQL语句前，请先使用info-sql工具获取相关表的结构信息，确保使用的字段确实存在。如果查询失败并提示"Unknown column"，请立即查看表结构并修正查询。
+      
+
+      重要表结构信息：
+      1. equipment_maintenance表的关键字段：
+         - id: 主键
+         - equipment_id: 关联medical_equipment表的id
+         - maintenance_order_id: 关联maintenance_orders表的id（不是order_id）
+         - maintenance_type: 维护类型（repair/preventive/calibration）
+         - start_date: 维护开始日期（不是date或maintenance_date）
+         - end_date: 维护结束日期 
+         - fault_description: 故障描述
+         - maintance_details: 修复内容
+         - remark: 修复备注
+         - operator: 操作人
+         - next_maintenance_date: 下次维护日期
+         - total_cost: 维护费用
+      
+      2. maintenance_orders表的关键字段：
+         - id: 主键
+         - order_number: 工单编号
+         - equipment_id: 关联medical_equipment表的id
+         - equipment_name: 设备名称
+         - fault_description: 故障描述
+         - create_time: 创建时间（不是order_date）
+         - process_time: 处理时间
+         - complete_time: 完成时间
+      
+      3. medical_equipment表的关键字段：
+         - id: 主键
+         - equipment_code: 设备编码
+         - name: 设备名称
+         - model: 设备型号
+         - department: 所属部门
+         - status: 状态（normal/maintenance/scrapped）
+         - purchase_date: 采购日期
+         - next_maintenance_date: 下次维护日期
+      
+      表关系说明：
+      - departments表的id字段是主键，对应其他表中的department_id外键
+      - users表的id字段是主键，对应其他表中的user_id、created_by、reporter_id、assignee_id、employee_id等外键,realname是职工姓名,username是职工的账号
+      - medical_equipment表的id字段是主键，对应maintenance_orders表和equipment_maintenance表中的equipment_id外键
+      - roles表的id字段是主键，对应users表中的role_id外键
+      - shift_settings表的id字段是主键，表中存储班次名称(name)、开始时间(startTime)和结束时间(endTime)
+      - schedules表中的星期字段(monday、tuesday、wednesday、thursday、friday、saturday、sunday)存储的是shift_settings表中的id值，但这些字段可能为NULL，表示该天没有排班
+      - 查询排班信息时，需要使用LEFT JOIN关联schedules和shift_settings表，以确保即使某天没有排班(对应字段为NULL)的情况下也能返回结果
+      - schedules表的employee_id字段是职工id
+
+      排班查询示例:
+        SELECT 
+            u.realname AS 职工姓名,
+            d.name AS 部门名称,
+            mon.name AS 周一班次,
+            mon.startTime AS 周一开始时间,
+            mon.endTime AS 周一结束时间,
+            tue.name AS 周二班次
+            -- 其他星期类似
+        FROM 
+            schedules s
+        JOIN 
+            users u ON s.employee_id = u.id
+        JOIN 
+            departments d ON s.department_id = d.id
+        LEFT JOIN 
+            shift_settings mon ON s.monday = mon.id
+        LEFT JOIN 
+            shift_settings tue ON s.tuesday = tue.id
+        -- 其他星期的LEFT JOIN
       `;
       
       this.executor = createSqlAgent(llm, this.toolkit, { prefix: mysqlGuidance });
@@ -157,7 +265,7 @@ class SqlAgentService {
       }
       
       // 添加MySQL语法提示到查询中
-      const enhancedQuery = `${query}\n请使用MySQL语法，特别是日期函数。例如，使用DATE_SUB(NOW(), INTERVAL 30 DAY)来表示30天前的日期，而不是使用SQLite的datetime('now', '-30 days')函数。`;
+      const enhancedQuery = `${query}\n请使用MySQL语法，特别是日期函数。例如，使用DATE_SUB(NOW(), INTERVAL 30 DAY)来表示30天前的日期，而不是使用SQLite的datetime('now', '-30 days')函数`;
       
       console.log(`执行查询: "${enhancedQuery}"...`);
       

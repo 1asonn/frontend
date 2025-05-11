@@ -70,6 +70,15 @@ const MaintenanceOrder = sequelize.define('maintenance_order', {
         allowNull: false,
         comment: '报修人'
     },
+    reporter_id: {
+        type: Sequelize.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'users',
+            key: 'id'
+        },
+        comment: '报修人ID，关联users表'
+    },
     contact_phone: {
         type: Sequelize.STRING,
         allowNull: false,
@@ -115,21 +124,11 @@ const MaintenanceOrder = sequelize.define('maintenance_order', {
         allowNull: true,
         comment: '处理结果'
     },
-    result_type: {
-        type: Sequelize.ENUM('fixed', 'partially_fixed', 'cannot_fix', 'need_parts'),
-        allowNull: true,
-        comment: '维修结果类型：已修复、部分修复、无法修复、需要更换零件'
-    },
     cost: {
         type: Sequelize.DECIMAL(10, 2),
         allowNull: true,
         defaultValue: 0,
         comment: '维修费用'
-    },
-    parts: {
-        type: Sequelize.TEXT,
-        allowNull: true,
-        comment: '更换零件，JSON格式存储'
     },
     create_time: {
         type: Sequelize.DATE,
@@ -152,11 +151,6 @@ const MaintenanceOrder = sequelize.define('maintenance_order', {
         allowNull: true,
         comment: '取消时间'
     },
-    created_by: {
-        type: Sequelize.INTEGER,
-        allowNull: true,
-        comment: '创建人ID'
-    },
     images: {
         type: Sequelize.TEXT,
         allowNull: true,
@@ -170,10 +164,11 @@ const MaintenanceOrder = sequelize.define('maintenance_order', {
 
 // 定义关联关系
 MaintenanceOrder.associate = (models) => {
-    MaintenanceOrder.belongsTo(models.MedicalEquipment, {
-        foreignKey: 'equipment_id',
-        as: 'equipment'
-    });
+    // 注释掉与不存在的MedicalEquipment模型的关联
+    // MaintenanceOrder.belongsTo(models.MedicalEquipment, {
+    //     foreignKey: 'equipment_id',
+    //     as: 'equipment'
+    // });
     
     MaintenanceOrder.hasMany(models.MaintenanceHistory, {
         foreignKey: 'order_id',
@@ -186,9 +181,9 @@ MaintenanceOrder.associate = (models) => {
         as: 'assignee_info'
     });
     
-    // 关联到User表，创建人
+    // 关联到User表，报修人/创建者
     MaintenanceOrder.belongsTo(models.User, {
-        foreignKey: 'created_by',
+        foreignKey: 'reporter_id',
         as: 'creator_info'
     });
 };

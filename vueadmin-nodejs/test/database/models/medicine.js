@@ -51,6 +51,11 @@ const Medicine = sequelize.define('medicine',{
         defaultValue: 100,
         comment: '库存预警阈值'
     },
+    storage_conditions:{
+        type: Sequelize.STRING(100),
+        allowNull: true,
+        comment: '储存条件，如“常温”“冷藏”等'
+    },
     created_at: {
         type: Sequelize.DATE,
         defaultValue: Sequelize.NOW,

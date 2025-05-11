@@ -36,8 +36,7 @@ router.get('/', async (req, res) => {
                 where: {
                     expiry_date: {
                         [Op.gt]: new Date() // 只查询未过期的库存
-                    },
-                    status: 'in_stock' // 只查询在库的药品
+                    }
                 },
                 required: false
             }]
@@ -241,8 +240,7 @@ router.get('/risk/alerts', async (req, res) => {
                 where: {
                     expiry_date: {
                         [Op.gt]: now // 只查询未过期的库存
-                    },
-                    status: 'in_stock' // 只查询在库的药品
+                    }
                 },
                 required: false // 即使没有库存记录也返回药品信息
             }]

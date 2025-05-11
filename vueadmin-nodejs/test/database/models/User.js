@@ -64,6 +64,11 @@ const User = sequelize.define('user',{
             key:'id'
         },
         comment:'部门ID'
+    },
+    last_login_at:{
+        type:Sequelize.DATE,
+        allowNull:true,
+        comment:'最后登录时间'
     }
 },{
     timestamps:true,
@@ -100,10 +105,10 @@ User.associate = (models) => {
             as: 'assigned_orders'
         })
         
-        // 关联到MaintenanceOrder表，作为创建人
+        // 关联到MaintenanceOrder表，作为报修人
         User.hasMany(models.MaintenanceOrder, {
-            foreignKey: 'created_by',
-            as: 'created_orders'
+            foreignKey: 'reporter_id',
+            as: 'reported_orders'
         })
     }
 }
@@ -139,7 +144,7 @@ const syncWithRetry = async (model, options, maxRetries = 3) => {
 // 使用重试机制进行同步，但不修改表结构
 try {
   // 使用force: false只创建不存在的表，不修改现有表结构
-  User.sync({ force: false }).then(() => {
+  User.sync({ alter: true }).then(() => {
     console.log("用户表检查完成");
   }).catch(err => {
     console.error("用户表同步错误，但不影响应用启动:", err.message);

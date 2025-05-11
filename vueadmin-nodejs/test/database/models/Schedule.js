@@ -72,6 +72,8 @@ Schedule.belongsTo(Department, {
   as: 'department'
 });
 
+// 不需要额外的ScheduleShift关联，直接使用monday-sunday字段存储班次ID
+
 Schedule.sync({ alter: true }).then(() => {
   console.log("排班表模型已同步!")
 });

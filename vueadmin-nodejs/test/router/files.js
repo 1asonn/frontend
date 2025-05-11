@@ -280,4 +280,101 @@ router.get('/sharelink/:path', async (req, res) => {
     }
 });
 
+/**
+ * @api {get} /files/list-with-links 获取文件列表及下载链接
+ * @apiDescription 获取指定路径下的文件列表及其下载链接
+ * @apiName listFilesWithLinks
+ * @apiGroup Files
+ * 
+ * @apiParam {String} path 要获取文件列表的路径（查询参数）
+ * @apiParam {String} linkType 下载链接类型 (temp 或 share，默认为 temp)
+ * 
+ * @apiSuccess {Boolean} success 请求是否成功
+ * @apiSuccess {Object[]} data 文件列表数据，每个文件包含下载链接
+ */
+router.get('/list-with-links', async (req, res) => {
+    try {
+        // 获取带有有效 token 的 Dropbox 客户端
+        const dbx = await getDropboxClient();
+        const path = req.query.path || '';
+        const linkType = req.query.linkType || 'temp';
+        const folderPath = path ? `/${path}` : '';
+        
+        // 获取文件列表
+        const listResponse = await dbx.filesListFolder({ path: folderPath });
+        const files = listResponse.result.entries;
+        
+        // 为每个文件获取下载链接
+        const filesWithLinks = await Promise.all(files.map(async (file) => {
+            // 只为文件（非文件夹）获取下载链接
+            if (file['.tag'] === 'file') {
+                let linkResponse;
+                
+                if (linkType === 'temp') {
+                    // 获取临时下载链接
+                    linkResponse = await dbx.filesGetTemporaryLink({ path: file.path_lower });
+                    return {
+                        ...file,
+                        downloadLink: linkResponse.result.link,
+                        linkType: 'temporary'
+                    };
+                } else {
+                    // 获取共享链接
+                    try {
+                        linkResponse = await dbx.sharingCreateSharedLinkWithSettings({
+                            path: file.path_lower,
+                            settings: {
+                                requested_visibility: { '.tag': 'public' }
+                            }
+                        });
+                    } catch (error) {
+                        // 如果链接已存在，获取现有链接
+                        if (error.status === 409 && error.error && error.error.error && 
+                            error.error.error['.tag'] === 'shared_link_already_exists') {
+                            linkResponse = await dbx.sharingListSharedLinks({
+                                path: file.path_lower,
+                                direct_only: true
+                            });
+                            
+                            if (linkResponse.result.links && linkResponse.result.links.length > 0) {
+                                return {
+                                    ...file,
+                                    downloadLink: linkResponse.result.links[0].url.replace('www.dropbox.com', 'dl.dropboxusercontent.com'),
+                                    linkType: 'shared'
+                                };
+                            }
+                        } else {
+                            throw error;
+                        }
+                    }
+                    
+                    return {
+                        ...file,
+                        downloadLink: linkResponse.result.url.replace('www.dropbox.com', 'dl.dropboxusercontent.com'),
+                        linkType: 'shared'
+                    };
+                }
+            } else {
+                // 对于文件夹，不提供下载链接
+                return {
+                    ...file,
+                    isFolder: true
+                };
+            }
+        }));
+        
+        res.status(200).json({
+            success: true,
+            data: filesWithLinks
+        });
+    } catch (error) {
+        console.error('Dropbox API error:', error);
+        res.status(500).json({
+            success: false,
+            message: '获取文件列表及下载链接失败',
+            error: error.message
+        });
+    }
+});
+
 module.exports = router;

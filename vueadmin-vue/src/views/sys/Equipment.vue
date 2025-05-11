@@ -89,6 +89,7 @@
                             <el-button type="primary" size="small" icon="el-icon-edit" @click="editFromDetail">编辑设备</el-button>
                             <el-button type="success" size="small" icon="el-icon-document" @click="showMaintenanceRecords">维护记录</el-button>
                             <el-button type="info" size="small" icon="el-icon-printer" @click="printEquipmentDetail">打印信息</el-button>
+                            <el-button type="warning" size="small" icon="el-icon-data-analysis" @click="showAIHealthReport(selectedEquipment)">AI健康报表</el-button>
                         </div>
                     </div>
                     
@@ -739,54 +740,33 @@
                         </el-tooltip>
                     </template>
                 </el-table-column>
-                <el-table-column prop="maintenance_type" label="维护类型" width="110" align="center">
+                <el-table-column label="维护类型" width="100">
                     <template slot-scope="scope">
                         <el-tag :type="getMaintenanceTypeTag(scope.row.maintenance_type)">
                             {{ formatMaintenanceType(scope.row.maintenance_type) }}
                         </el-tag>
                     </template>
                 </el-table-column>
-                <el-table-column prop="fault_description" label="故障描述" min-width="180" show-overflow-tooltip></el-table-column>
-                <el-table-column prop="status" label="状态" width="100" align="center">
+                <el-table-column prop="start_date" label="开始日期" width="180">
                     <template slot-scope="scope">
-                        <el-tag :type="getMaintenanceStatusTag(scope.row.status)">
-                            {{ formatMaintenanceStatus(scope.row.status) }}
-                        </el-tag>
+                        {{ formatDateTime(scope.row.start_date) }}
                     </template>
                 </el-table-column>
-                <el-table-column prop="result" label="结果" width="100" align="center">
+                <el-table-column prop="end_date" label="结束日期" width="180">
                     <template slot-scope="scope">
-                        <el-tag v-if="scope.row.result" :type="getMaintenanceResultTag(scope.row.result)">
-                            {{ formatMaintenanceResult(scope.row.result) }}
-                        </el-tag>
-                        <span v-else>-</span>
+                        {{ formatDateTime(scope.row.end_date) || '-' }}
                     </template>
                 </el-table-column>
-                <el-table-column prop="operator" label="操作人员" width="100" align="center">
-                    <template slot-scope="scope">
-                        {{ scope.row.operator || '-' }}
-                    </template>
+                <el-table-column prop="operator" label="操作人员" width="120">
                 </el-table-column>
-                <el-table-column label="时间信息" width="180" align="center">
-                    <template slot-scope="scope">
-                        <div>开始: {{ formatDate(scope.row.start_date) }}</div>
-                        <div v-if="scope.row.end_date">结束: {{ formatDate(scope.row.end_date) }}</div>
-                    </template>
-                </el-table-column>
-                <el-table-column prop="total_cost" label="维护费用" width="100" align="center">
+                <el-table-column prop="total_cost" label="维护费用" width="120">
                     <template slot-scope="scope">
                         {{ scope.row.total_cost ? `￥${scope.row.total_cost}` : '-' }}
                     </template>
                 </el-table-column>
-                <el-table-column prop="parts_replaced" label="更换零件" min-width="120" show-overflow-tooltip>
-                    <template slot-scope="scope">
-                        <span v-if="scope.row.parts_replaced">
-                            {{ formatPartsReplaced(scope.row.parts_replaced) }}
-                        </span>
-                        <span v-else>-</span>
-                    </template>
+                <el-table-column prop="fault_description" label="故障描述" min-width="200" show-overflow-tooltip>
                 </el-table-column>
-                <el-table-column prop="maintenance_details" label="维修详情" min-width="150" show-overflow-tooltip>
+                <el-table-column prop="maintenance_details" label="维修详情" min-width="200" show-overflow-tooltip>
                     <template slot-scope="scope">
                         {{ scope.row.maintenance_details || '-' }}
                     </template>
@@ -823,12 +803,194 @@
             </div>
         </el-dialog>
 
+        <!-- 工单详情对话框 -->
+        <el-dialog
+            title="维修工单详情"
+            :visible.sync="workOrderDetailDialogVisible"
+            width="70%"
+            class="work-order-detail-dialog"
+            @closed="handleWorkOrderDetailClosed">
+            <div v-loading="workOrderDetailLoading" class="work-order-detail-container">
+                <template v-if="currentWorkOrder">
+                    <el-descriptions title="工单信息" :column="3" border>
+                        <el-descriptions-item label="工单编号">
+                            {{ currentWorkOrder.order_number || '无' }}
+                        </el-descriptions-item>
+                        <el-descriptions-item label="工单状态">
+                            <el-tag :type="getStatusType(currentWorkOrder.status)">
+                                {{ formatStatus(currentWorkOrder.status) }}
+                            </el-tag>
+                        </el-descriptions-item>
+                        <el-descriptions-item label="维护类型">
+                            <el-tag :type="getMaintenanceTypeTag(currentWorkOrder.maintenance_type)">
+                                {{ formatMaintenanceType(currentWorkOrder.maintenance_type) }}
+                            </el-tag>
+                        </el-descriptions-item>
+                        <el-descriptions-item label="创建时间">
+                            {{ formatDateTime(currentWorkOrder.create_time) || '无' }}
+                        </el-descriptions-item>
+                        <el-descriptions-item label="开始时间">
+                            {{ formatDateTime(currentWorkOrder.start_date) || '无' }}
+                        </el-descriptions-item>
+                        <el-descriptions-item label="完成时间">
+                            {{ formatDateTime(currentWorkOrder.end_date) || '无' }}
+                        </el-descriptions-item>
+                        <el-descriptions-item label="报修人">
+                            {{ currentWorkOrder.reporter || '无' }}
+                        </el-descriptions-item>
+                        <el-descriptions-item label="处理人">
+                            {{ currentWorkOrder.assignee || '无' }}
+                        </el-descriptions-item>
+                        <el-descriptions-item label="维修费用">
+                            {{ currentWorkOrder.total_cost ? '¥' + currentWorkOrder.total_cost : '无' }}
+                        </el-descriptions-item>
+                    </el-descriptions>
+                    
+                    <el-divider content-position="left">设备信息</el-divider>
+                    
+                    <el-descriptions :column="3" border>
+                        <el-descriptions-item label="设备名称">
+                            {{ currentWorkOrder.equipment_name || '无' }}
+                        </el-descriptions-item>
+                        <el-descriptions-item label="设备编号">
+                            {{ currentWorkOrder.equipment_code || '无' }}
+                        </el-descriptions-item>
+                        <el-descriptions-item label="所属科室">
+                            {{ currentWorkOrder.department || '无' }}
+                        </el-descriptions-item>
+                        <el-descriptions-item label="设备位置">
+                            {{ currentWorkOrder.location || '无' }}
+                        </el-descriptions-item>
+                        <el-descriptions-item label="设备型号">
+                            {{ currentWorkOrder.model || '无' }}
+                        </el-descriptions-item>
+                        <el-descriptions-item label="制造商">
+                            {{ currentWorkOrder.manufacturer || '无' }}
+                        </el-descriptions-item>
+                    </el-descriptions>
+                    
+                    <el-divider content-position="left">故障信息</el-divider>
+                    
+                    <div class="detail-section">
+                        <div class="detail-row">
+                            <div class="detail-item full-width">
+                                <div class="detail-label">故障描述</div>
+                                <div class="description-content">
+                                    {{ currentWorkOrder.fault_description || '无故障描述' }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="detail-row" v-if="currentWorkOrder.images && currentWorkOrder.images.length">
+                            <div class="detail-item full-width">
+                                <div class="detail-label">故障图片</div>
+                                <div class="fault-images">
+                                    <div v-for="(image, index) in currentWorkOrder.images" :key="index" class="fault-image">
+                                        <el-image 
+                                            :src="image.url" 
+                                            fit="cover"
+                                            :preview-src-list="getImageUrlList(currentWorkOrder.images)">
+                                            <div slot="error" class="image-error">
+                                                <i class="el-icon-picture-outline"></i>
+                                                <span>加载失败</span>
+                                            </div>
+                                        </el-image>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <el-divider content-position="left">维修信息</el-divider>
+                    
+                    <div class="detail-section">
+                        <div class="detail-row">
+                            <div class="detail-item full-width">
+                                <div class="detail-label">维修详情</div>
+                                <div class="description-content">
+                                    {{ currentWorkOrder.maintenance_details || '无维修详情' }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="detail-row">
+                            <div class="detail-item">
+                                <div class="detail-label">维修结果</div>
+                                <div class="detail-value">
+                                    <el-tag v-if="currentWorkOrder.result_type" :type="getResultTypeTag(currentWorkOrder.result_type)">
+                                        {{ formatResultType(currentWorkOrder.result_type) }}
+                                    </el-tag>
+                                    <span v-else>无</span>
+                                </div>
+                            </div>
+                            
+                            <div class="detail-item">
+                                <div class="detail-label">更换部件</div>
+                                <div class="detail-value">
+                                    <template v-if="currentWorkOrder.replaced_parts && currentWorkOrder.replaced_parts.length">
+                                        <el-tag 
+                                            v-for="(part, index) in currentWorkOrder.replaced_parts" 
+                                            :key="index"
+                                            size="medium"
+                                            class="part-tag">
+                                            {{ part }}
+                                        </el-tag>
+                                    </template>
+                                    <span v-else>无</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="detail-row">
+                            <div class="detail-item full-width">
+                                <div class="detail-label">备注</div>
+                                <div class="description-content">
+                                    {{ currentWorkOrder.remarks || '无备注' }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <el-divider content-position="left">工单历史</el-divider>
+                    
+                    <div class="history-section">
+                        <template v-if="workOrderHistory && workOrderHistory.length">
+                            <el-timeline>
+                                <el-timeline-item
+                                    v-for="(history, index) in workOrderHistory"
+                                    :key="index"
+                                    :timestamp="formatDateTime(history.timestamp)"
+                                    :type="getHistoryTypeColor(history.action_type)">
+                                    <div class="history-content">
+                                        <div>{{ history.description }}</div>
+                                        <div class="history-operator" v-if="history.operator">
+                                            操作人: {{ history.operator }}
+                                        </div>
+                                    </div>
+                                </el-timeline-item>
+                            </el-timeline>
+                        </template>
+                        <div v-else class="empty-history">
+                            <i class="el-icon-info"></i>
+                            <p>暂无工单历史记录</p>
+                        </div>
+                    </div>
+                </template>
+                <div v-else class="empty-data">
+                    <el-empty description="无法加载工单详情"></el-empty>
+                </div>
+            </div>
+            <span slot="footer" class="dialog-footer">
+                <el-button @click="workOrderDetailDialogVisible = false">关闭</el-button>
+            </span>
+        </el-dialog>
+
         <!-- 维护记录详情对话框 -->
         <el-dialog
             title="维护记录详情"
             :visible.sync="maintenanceDetailVisible"
             width="60%"
-            custom-class="maintenance-detail-dialog">
+            class="maintenance-detail-dialog">
             <div v-if="selectedMaintenance" class="maintenance-detail-container">
                 <el-descriptions :column="2" border>
                     <el-descriptions-item label="工单编号">
@@ -838,17 +1000,6 @@
                         <el-tag :type="getMaintenanceTypeTag(selectedMaintenance.maintenance_type)">
                             {{ formatMaintenanceType(selectedMaintenance.maintenance_type) }}
                         </el-tag>
-                    </el-descriptions-item>
-                    <el-descriptions-item label="状态">
-                        <el-tag :type="getMaintenanceStatusTag(selectedMaintenance.status)">
-                            {{ formatMaintenanceStatus(selectedMaintenance.status) }}
-                        </el-tag>
-                    </el-descriptions-item>
-                    <el-descriptions-item label="结果">
-                        <el-tag v-if="selectedMaintenance.result" :type="getMaintenanceResultTag(selectedMaintenance.result)">
-                            {{ formatMaintenanceResult(selectedMaintenance.result) }}
-                        </el-tag>
-                        <span v-else>-</span>
                     </el-descriptions-item>
                     <el-descriptions-item label="开始日期">
                         {{ formatDateTime(selectedMaintenance.start_date) }}
@@ -868,12 +1019,6 @@
                     <el-descriptions-item label="维修详情" :span="2">
                         {{ selectedMaintenance.maintenance_details || '-' }}
                     </el-descriptions-item>
-                    <el-descriptions-item label="更换零件" :span="2">
-                        <span v-if="selectedMaintenance.parts_replaced">
-                            {{ formatPartsReplaced(selectedMaintenance.parts_replaced) }}
-                        </span>
-                        <span v-else>-</span>
-                    </el-descriptions-item>
                     <el-descriptions-item label="下次维护日期">
                         {{ formatDate(selectedMaintenance.next_maintenance_date) || '-' }}
                     </el-descriptions-item>
@@ -885,40 +1030,573 @@
                     </el-descriptions-item>
                 </el-descriptions>
 
-                <div class="equipment-info" v-if="selectedMaintenance.equipment">
-                    <h3>关联设备信息</h3>
+                <div class="work-order-info" v-if="selectedMaintenance.maintenance_order_id">
+                    <h3>关联工单信息</h3>
                     <el-descriptions :column="2" border>
-                        <el-descriptions-item label="设备名称">
-                            {{ selectedMaintenance.equipment.name }}
+                        <el-descriptions-item label="工单编号">
+                            <el-tag size="medium">{{ selectedMaintenance.order_number }}</el-tag>
                         </el-descriptions-item>
-                        <el-descriptions-item label="设备编号">
-                            {{ selectedMaintenance.equipment.equipment_code }}
+                        <el-descriptions-item label="工单ID">
+                            {{ selectedMaintenance.maintenance_order_id }}
                         </el-descriptions-item>
-                        <el-descriptions-item label="设备型号">
-                            {{ selectedMaintenance.equipment.model }}
+                        <el-descriptions-item label="设备ID">
+                            {{ selectedMaintenance.equipment_id }}
                         </el-descriptions-item>
-                        <el-descriptions-item label="生产厂商">
-                            {{ selectedMaintenance.equipment.manufacturer }}
+                        <el-descriptions-item label="创建时间">
+                            {{ formatDateTime(selectedMaintenance.created_at) }}
                         </el-descriptions-item>
-                        <el-descriptions-item label="所属科室">
-                            {{ selectedMaintenance.equipment.department }}
-                        </el-descriptions-item>
-                        <el-descriptions-item label="设备状态">
-                            <el-tag :type="getStatusTagType(selectedMaintenance.equipment.status)">
-                                {{ formatStatus(selectedMaintenance.equipment.status) }}
-                            </el-tag>
+                        <el-descriptions-item label="操作" :span="2">
+                            <el-button 
+                                type="primary" 
+                                size="small" 
+                                @click="viewWorkOrderDetail(selectedMaintenance.maintenance_order_id)">
+                                <i class="el-icon-view"></i> 查看工单详情
+                            </el-button>
                         </el-descriptions-item>
                     </el-descriptions>
                 </div>
             </div>
         </el-dialog>
+
+        <!-- 工单详情对话框 -->
+        <el-dialog
+            title="维修工单详情"
+            :visible.sync="workOrderDetailVisible"
+            width="80%"
+            :close-on-click-modal="false"
+            custom-class="work-order-detail-dialog"
+            :fullscreen="false"
+            top="3vh"
+            :destroy-on-close="true"
+        >
+            <div v-loading="workOrderLoading" element-loading-text="加载工单详情中..." element-loading-spinner="el-icon-loading" element-loading-background="rgba(255, 255, 255, 0.8)">
+                <div v-if="selectedWorkOrder" class="work-order-detail-container">
+                    <!-- 工单状态和基本信息头部 -->
+                    <div class="work-order-header">
+                        <el-card shadow="hover" class="header-card">
+                            <div class="header-content">
+                                <div class="work-order-status">
+                                    <el-tag 
+                                        :type="getStatusType(selectedWorkOrder.status)" 
+                                        effect="dark"
+                                        size="large"
+                                        class="status-tag"
+                                    >
+                                        {{ formatStatus(selectedWorkOrder.status) }}
+                                    </el-tag>
+                                </div>
+                                <div class="work-order-basic-info">
+                                    <div class="order-number">
+                                        <i class="el-icon-document"></i>
+                                        <span class="info-label">工单编号:</span>
+                                        <span class="info-value">{{ selectedWorkOrder.order_number || '暂无' }}</span>
+                                    </div>
+                                    <div class="order-time">
+                                        <i class="el-icon-time"></i>
+                                        <span class="info-label">创建时间:</span>
+                                        <span class="info-value">{{ formatDateTime(selectedWorkOrder.create_time) || '暂无' }}</span>
+                                    </div>
+                                    <div class="maintenance-type">
+                                        <i class="el-icon-s-operation"></i>
+                                        <span class="info-label">维修类型:</span>
+                                        <el-tag size="small" :type="getMaintenanceTypeTag(selectedWorkOrder.maintenance_type)">
+                                            {{ formatMaintenanceType(selectedWorkOrder.maintenance_type) || '暂无' }}
+                                        </el-tag>
+                                    </div>
+                                </div>
+                            </div>
+                        </el-card>
+                    </div>
+
+                    <!-- 信息部分 -->
+                    <div class="info-section">
+                        <el-row :gutter="20">
+                            <el-col :span="12">
+                                <el-card shadow="hover" class="detail-card info-card">
+                                    <div slot="header" class="card-header">
+                                        <i class="el-icon-cpu"></i> 设备信息
+                                    </div>
+                                    <div class="equipment-info">
+                                        <div class="equipment-name">
+                                            <el-tag type="success" size="medium" effect="dark">{{ selectedWorkOrder.equipment_name || '暂无' }}</el-tag>
+                                        </div>
+                                        <div class="info-grid">
+                                            <div class="info-item">
+                                                <div class="info-item-label">设备编号</div>
+                                                <div class="info-item-value">{{ selectedWorkOrder.equipment_code || '暂无' }}</div>
+                                            </div>
+                                            <div class="info-item">
+                                                <div class="info-item-label">设备型号</div>
+                                                <div class="info-item-value">{{ selectedWorkOrder.equipment_model || '暂无' }}</div>
+                                            </div>
+                                            <div class="info-item">
+                                                <div class="info-item-label">所属科室</div>
+                                                <div class="info-item-value">{{ selectedWorkOrder.department || '暂无' }}</div>
+                                            </div>
+                                            <div class="info-item">
+                                                <div class="info-item-label">存放位置</div>
+                                                <div class="info-item-value">{{ selectedWorkOrder.location || '暂无' }}</div>
+                                            </div>
+                                            <div class="info-item">
+                                                <div class="info-item-label">制造商</div>
+                                                <div class="info-item-value">{{ selectedWorkOrder.manufacturer || '暂无' }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </el-card>
+                            </el-col>
+                            <el-col :span="12">
+                                <el-card shadow="hover" class="detail-card info-card">
+                                    <div slot="header" class="card-header">
+                                        <i class="el-icon-warning"></i> 故障信息
+                                    </div>
+                                    <div class="fault-info">
+                                        <div class="fault-type">
+                                            <el-tag type="danger" size="medium" effect="dark">{{ selectedWorkOrder.fault_type || '暂无' }}</el-tag>
+                                        </div>
+                                        <div class="info-grid">
+                                            <div class="info-item">
+                                                <div class="info-item-label">报修人</div>
+                                                <div class="info-item-value">{{ selectedWorkOrder.reporter || '暂无' }}</div>
+                                            </div>
+                                            <div class="info-item">
+                                                <div class="info-item-label">联系电话</div>
+                                                <div class="info-item-value">{{ selectedWorkOrder.contact_phone || '暂无' }}</div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="fault-description">
+                                            <div class="fault-description-title">故障描述</div>
+                                            <div class="fault-description-content">
+                                                {{ selectedWorkOrder.fault_description || '暂无故障描述' }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </el-card>
+                            </el-col>
+                        </el-row>
+                    </div>
+                    
+                    <!-- 故障图片展示 -->
+                    <div class="image-section" v-if="workOrderImages && workOrderImages.length > 0">
+                        <el-card shadow="hover" class="detail-card image-card">
+                            <div slot="header" class="card-header">
+                                <i class="el-icon-picture-outline"></i> 故障图片
+                                <span class="image-count">{{ workOrderImages.length }}张图片</span>
+                            </div>
+                            <div class="images-wrapper">
+                                <el-carousel :interval="4000" type="card" height="300px" v-if="workOrderImages.length > 1" indicator-position="outside">
+                                    <el-carousel-item v-for="(url, index) in workOrderImages" :key="index">
+                                        <div class="carousel-item-wrapper">
+                                            <el-image 
+                                                :src="url"
+                                                :preview-src-list="workOrderImages"
+                                                fit="contain"
+                                                class="carousel-image"
+                                            >
+                                                <div slot="error" class="image-error">
+                                                    <i class="el-icon-picture-outline"></i>
+                                                    <span>图片加载失败</span>
+                                                </div>
+                                            </el-image>
+                                            <div class="image-index">{{ index + 1 }} / {{ workOrderImages.length }}</div>
+                                        </div>
+                                    </el-carousel-item>
+                                </el-carousel>
+                                
+                                <div class="single-image-container" v-else>
+                                    <el-image 
+                                        :src="workOrderImages[0]"
+                                        :preview-src-list="workOrderImages"
+                                        fit="contain"
+                                        class="single-fault-image"
+                                    >
+                                        <div slot="error" class="image-error">
+                                            <i class="el-icon-picture-outline"></i>
+                                            <span>图片加载失败</span>
+                                        </div>
+                                    </el-image>
+                                </div>
+                            </div>
+                            
+                            <div class="image-thumbnails" v-if="workOrderImages.length > 1">
+                                <div 
+                                    v-for="(url, index) in workOrderImages" 
+                                    :key="index"
+                                    class="image-thumbnail"
+                                    @click="previewImage(index)"
+                                >
+                                    <el-image 
+                                        :src="url"
+                                        fit="cover"
+                                        class="thumbnail-image"
+                                    ></el-image>
+                                </div>
+                            </div>
+                        </el-card>
+                    </div>
+
+                    <!-- 处理信息部分 -->
+                    <div class="process-section" v-if="selectedWorkOrder.assignee">
+                        <el-card shadow="hover" class="detail-card process-card">
+                            <div slot="header" class="card-header">
+                                <i class="el-icon-s-operation"></i> 处理信息
+                                <el-tag type="primary" size="small" effect="dark" class="header-tag">处理中</el-tag>
+                            </div>
+                            <div class="process-info">
+                                <div class="process-person">
+                                    <i class="el-icon-user"></i>
+                                    <span class="process-person-name">{{ selectedWorkOrder.assignee || '暂无' }}</span>
+                                </div>
+                                
+                                <div class="process-time-info">
+                                    <div class="time-item">
+                                        <i class="el-icon-time"></i>
+                                        <span class="time-label">处理时间：</span>
+                                        <span class="time-value">{{ formatDateTime(selectedWorkOrder.process_time) || '暂无' }}</span>
+                                    </div>
+                                    <div class="time-item">
+                                        <i class="el-icon-date"></i>
+                                        <span class="time-label">预计完成：</span>
+                                        <span class="time-value">{{ formatDateTime(selectedWorkOrder.estimated_time) || '暂无' }}</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="process-remark" v-if="selectedWorkOrder.process_remark">
+                                    <div class="remark-title">
+                                        <i class="el-icon-document"></i> 处理备注
+                                    </div>
+                                    <div class="remark-content">
+                                        {{ selectedWorkOrder.process_remark || '暂无备注' }}
+                                    </div>
+                                </div>
+                            </div>
+                        </el-card>
+                    </div>
+
+                    <!-- 完成信息部分 -->
+                    <div class="complete-section" v-if="selectedWorkOrder.status === 'completed'">
+                        <el-card shadow="hover" class="detail-card complete-card">
+                            <div slot="header" class="card-header">
+                                <i class="el-icon-finished"></i> 完成信息
+                                <el-tag type="success" size="small" effect="dark" class="header-tag">已完成</el-tag>
+                            </div>
+                            
+                            <div class="complete-info">
+                                <div class="complete-header">
+                                    <div class="complete-time">
+                                        <i class="el-icon-time"></i>
+                                        <span class="time-label">完成时间：</span>
+                                        <span class="time-value">{{ formatDateTime(selectedWorkOrder.complete_time) || '暂无' }}</span>
+                                    </div>
+                                    
+                                    <div class="result-type">
+                                        <el-tag :type="getResultTypeTag(selectedWorkOrder.result_type)" effect="dark" size="medium">
+                                            {{ formatResultType(selectedWorkOrder.result_type) || '暂无' }}
+                                        </el-tag>
+                                    </div>
+                                    
+                                    <div class="repair-cost" v-if="selectedWorkOrder.cost">
+                                        <i class="el-icon-money"></i>
+                                        <span class="cost-label">维修费用：</span>
+                                        <span class="cost-value">{{ selectedWorkOrder.cost ? `￥${selectedWorkOrder.cost}` : '暂无' }}</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="result-section">
+                                    <div class="section-title">
+                                        <i class="el-icon-document-checked"></i> 处理结果
+                                    </div>
+                                    <div class="section-content result-content">
+                                        {{ selectedWorkOrder.process_result || '暂无处理结果' }}
+                                    </div>
+                                </div>
+                                
+                                <div class="parts-section" v-if="selectedWorkOrder.parts">
+                                    <div class="section-title">
+                                        <i class="el-icon-set-up"></i> 更换零件
+                                    </div>
+                                    <div class="parts-list">
+                                        <el-tag v-for="(part, index) in formatParts(selectedWorkOrder.parts)" 
+                                                :key="index" 
+                                                type="warning" 
+                                                effect="plain" 
+                                                class="part-tag">
+                                            <i class="el-icon-goods"></i> {{ part }}
+                                        </el-tag>
+                                        <span v-if="!selectedWorkOrder.parts" class="no-parts">暂无更换零件</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </el-card>
+                    </div>
+
+                    <!-- 工单历史部分 -->
+                    <div class="history-section-container">
+                        <el-card shadow="hover" class="detail-card history-card-container">
+                            <div slot="header" class="card-header">
+                                <i class="el-icon-time"></i> 工单历史
+                                <span class="history-count" v-if="workOrderHistory && workOrderHistory.length > 0">{{ workOrderHistory.length }}条记录</span>
+                            </div>
+                            
+                            <div class="history-section">
+                                <el-timeline v-if="workOrderHistory && workOrderHistory.length > 0">
+                                    <el-timeline-item
+                                        v-for="(history, index) in workOrderHistory"
+                                        :key="index"
+                                        :type="getHistoryTypeColor(history.type)"
+                                        :timestamp="formatDateTime(history.time)"
+                                        placement="top"
+                                        :size="'large'"
+                                        :icon="getHistoryIcon(history.type)"
+                                    >
+                                        <el-card shadow="hover" class="history-item-card">
+                                            <div class="history-header">
+                                                <span class="history-type-tag" :class="'history-type-' + history.type">
+                                                    {{ getHistoryTypeText(history.type) }}
+                                                </span>
+                                                <h4 class="history-title">{{ history.title }}</h4>
+                                            </div>
+                                            <div class="history-body">
+                                                <p class="history-content">{{ history.content }}</p>
+                                            </div>
+                                            <div v-if="history.operator" class="history-footer">
+                                                <p class="history-operator">
+                                                    <i class="el-icon-user"></i> 操作人: {{ history.operator }}
+                                                </p>
+                                            </div>
+                                        </el-card>
+                                    </el-timeline-item>
+                                </el-timeline>
+                                <div v-else class="empty-history">
+                                    <i class="el-icon-document"></i>
+                                    <p>暂无工单历史记录</p>
+                                </div>
+                            </div>
+                        </el-card>
+                    </div>
+                </div>
+            </div>
+
+            <span slot="footer" class="dialog-footer">
+                <el-button plain @click="workOrderDetailVisible = false" icon="el-icon-back">返回</el-button>
+                
+                <div class="action-buttons">
+                    <el-button 
+                        v-if="selectedWorkOrder && selectedWorkOrder.status === 'pending'" 
+                        type="success" 
+                        icon="el-icon-s-operation"
+                        @click="handleProcessWorkOrder(selectedWorkOrder)"
+                    >处理工单</el-button>
+                    
+                    <el-button 
+                        v-if="selectedWorkOrder && selectedWorkOrder.status === 'processing'" 
+                        type="primary" 
+                        icon="el-icon-finished"
+                        @click="handleCompleteWorkOrder(selectedWorkOrder)"
+                    >完成工单</el-button>
+                    
+                    <el-button 
+                        v-if="selectedWorkOrder && (selectedWorkOrder.status === 'pending' || selectedWorkOrder.status === 'processing')" 
+                        type="danger" 
+                        icon="el-icon-close"
+                        @click="handleCancelWorkOrder(selectedWorkOrder)"
+                    >取消工单</el-button>
+                    
+                    <el-button 
+                        type="info" 
+                        icon="el-icon-printer"
+                        @click="printWorkOrder"
+                    >打印工单</el-button>
+                </div>
+            </span>
+        </el-dialog>
+            <!-- AI健康报表对话框 -->
+    <el-dialog
+        title="设备AI健康报表"
+        :visible.sync="aiHealthReportVisible"
+        width="65%"
+        class="ai-health-report-dialog"
+        :before-close="handleAIHealthReportClose"
+    >
+        <div v-loading="aiHealthReportLoading">
+            <div v-if="currentEquipmentForReport" class="report-header">
+                <div class="equipment-info-box">
+                    <div class="equipment-image">
+                        <el-image
+                            :src="currentEquipmentForReport.image_url"
+                            fit="cover"
+                            :preview-src-list="[currentEquipmentForReport.image_url]"
+                        >
+                            <div slot="error" class="image-error">
+                                <i class="el-icon-picture-outline"></i>
+                            </div>
+                        </el-image>
+                    </div>
+                    <div class="equipment-info">
+                        <h3>{{ currentEquipmentForReport.name }}</h3>
+                        <p><span class="info-label">设备编号：</span>{{ currentEquipmentForReport.equipment_code }}</p>
+                        <p><span class="info-label">科室：</span>{{ currentEquipmentForReport.department }}</p>
+                        <p><span class="info-label">位置：</span>{{ currentEquipmentForReport.location || '未设置' }}</p>
+                        <p><span class="info-label">状态：</span>
+                            <el-tag :type="getStatusType(currentEquipmentForReport.status)" size="small">
+                                {{ formatStatus(currentEquipmentForReport.status) }}
+                            </el-tag>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="health-score-box">
+                    <div class="health-score">
+                        <el-progress type="dashboard" :percentage="healthReport.score" :stroke-width="6" :color="getHealthScoreColor"></el-progress>
+                        <div class="score-label">健康评分</div>
+                    </div>
+                    <div class="health-status">
+                        <div class="status-title">当前状态</div>
+                        <div class="status-value" :class="getHealthStatusClass">{{ healthReport.status }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <el-divider content-position="left">设备健康分析</el-divider>
+
+            <div class="report-metrics">
+                <el-row :gutter="20">
+                    <el-col :span="8">
+                        <el-card shadow="hover" class="metric-card">
+                            <div slot="header" class="metric-header">
+                                <i class="el-icon-time"></i>
+                                <span>上次维护</span>
+                            </div>
+                            <div class="metric-content">
+                                <div class="metric-value">{{ healthReport.lastMaintenance ? formatDate(healthReport.lastMaintenance) : '无记录' }}</div>
+                            </div>
+                        </el-card>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-card shadow="hover" class="metric-card">
+                            <div slot="header" class="metric-header">
+                                <i class="el-icon-date"></i>
+                                <span>下次维护</span>
+                            </div>
+                            <div class="metric-content">
+                                <div class="metric-value" :class="{warning: isMaintenanceSoon, danger: isMaintenanceOverdue}">{{ healthReport.nextMaintenance ? formatDate(healthReport.nextMaintenance) : '未安排' }}</div>
+                                <div v-if="isMaintenanceOverdue" class="metric-alert">已逾期</div>
+                                <div v-else-if="isMaintenanceSoon" class="metric-alert">即将到期</div>
+                            </div>
+                        </el-card>
+                    </el-col>
+                    <el-col :span="8">
+                        <el-card shadow="hover" class="metric-card">
+                            <div slot="header" class="metric-header">
+                                <i class="el-icon-warning"></i>
+                                <span>故障风险</span>
+                            </div>
+                            <div class="metric-content">
+                                <el-progress :percentage="healthReport.failureRisk" :color="getFailureRiskColor" :stroke-width="10" :show-text="false"></el-progress>
+                                <div class="risk-level" :class="getFailureRiskClass">{{ getFailureRiskText }}</div>
+                            </div>
+                        </el-card>
+                    </el-col>
+                </el-row>
+            </div>
+
+            <el-divider content-position="left">AI维护建议</el-divider>
+
+            <div class="recommendations-section">
+                <el-timeline>
+                    <el-timeline-item
+                        v-for="(recommendation, index) in healthReport.recommendations"
+                        :key="index"
+                        :type="recommendation.type"
+                        :color="getRecommendationColor(recommendation.priority)"
+                        :timestamp="recommendation.timeframe"
+                        placement="top"
+                    >
+                        <el-card>
+                            <div class="recommendation-header">
+                                <el-tag size="small" :type="getRecommendationTagType(recommendation.priority)">{{ getRecommendationPriorityText(recommendation.priority) }}</el-tag>
+                                <h4>{{ recommendation.title }}</h4>
+                            </div>
+                            <p>{{ recommendation.description }}</p>
+                            <div class="recommendation-benefits" v-if="recommendation.benefits && recommendation.benefits.length > 0">
+                                <span>预期效果：</span>
+                                <el-tag
+                                    v-for="(benefit, bidx) in recommendation.benefits"
+                                    :key="bidx"
+                                    size="small"
+                                    effect="plain"
+                                    class="benefit-tag"
+                                >{{ benefit }}</el-tag>
+                            </div>
+                        </el-card>
+                    </el-timeline-item>
+                </el-timeline>
+                
+                <div v-if="!healthReport.recommendations || healthReport.recommendations.length === 0" class="empty-recommendations">
+                    <i class="el-icon-success"></i>
+                    <p>当前设备运行良好，无特别维护建议</p>
+                </div>
+            </div>
+
+            <el-divider content-position="left">历史健康记录</el-divider>
+
+            <div class="health-history-section">
+                <el-table
+                    :data="healthReport.history"
+                    style="width: 100%"
+                    border
+                    :empty-text="'暂无历史健康记录'"
+                >
+                    <el-table-column prop="date" label="日期" width="120" align="center">
+                        <template slot-scope="scope">
+                            {{ formatDate(scope.row.date) }}
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="score" label="健康评分" width="100" align="center">
+                        <template slot-scope="scope">
+                            <span :class="getScoreClass(scope.row.score)">{{ scope.row.score }}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="status" label="设备状态" width="120" align="center">
+                        <template slot-scope="scope">
+                            <el-tag :type="getStatusReportType(scope.row.status)" size="small">{{ scope.row.status }}</el-tag>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="event" label="事件" min-width="200">
+                        <template slot-scope="scope">
+                            {{ scope.row.event }}
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="failureRisk" label="故障风险" width="120" align="center">
+                        <template slot-scope="scope">
+                            <el-progress :percentage="scope.row.failureRisk" :color="getHistoryRiskColor(scope.row.failureRisk)" :stroke-width="5"></el-progress>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </div>
+        </div>
+
+        <div v-if="!aiHealthReportLoading" slot="footer" class="dialog-footer">
+            <div class="report-info">
+                <p class="report-generation-info">报告生成时间: {{ formatDateTime(new Date()) }}</p>
+            </div>
+            <div class="action-buttons">
+                <el-button @click="handleAIHealthReportClose">关闭</el-button>
+                <el-button type="primary" @click="generateReport(currentEquipmentForReport.id)">重新生成报表</el-button>
+                <el-button type="success" @click="exportReport">导出报表</el-button>
+            </div>
+        </div>
+    </el-dialog>
     </div>
+
+
 </template>
 
 <script>
-import { getEquipmentList, createEquipment, updateEquipment, deleteEquipment, uploadEquipmentImage } from '@/api'
+import { getEquipmentList, createEquipment, updateEquipment, deleteEquipment, uploadEquipmentImage, getEquipmentHealthReport, exportEquipmentHealthReport } from '@/api/equipment'
 import { GetDepartmentList } from '@/api/index'
-import { GetEquipmentMaintenanceHistory } from '@/api/equipmentMaintenance'
+import { GetEquipmentMaintenanceHistory, GetMaintenanceOrderById, GetMaintenanceOrderHistory } from '@/api/equipmentMaintenance'
 
 export default {
     data() {
@@ -996,23 +1674,118 @@ export default {
                 startDate: '',
                 endDate: '',
                 maintenanceType: '',
-                status: '',
-                result: ''
+                status: ''
             },
+            // 维护记录详情对话框
+            maintenanceDetailVisible: false,
+            selectedMaintenance: null,
+            totalMaintenanceRecords: 0,
+            currentPage: 1,
+            pageSize: 10,
             maintenancePagination: {
                 page: 1,
                 size: 10,
                 total: 0
             },
-            // 维护记录详情
-            maintenanceDetailVisible: false,
-            selectedMaintenance: null
-        }
+            
+            // 工单详情相关
+            workOrderDetailDialogVisible: false,
+            workOrderDetailVisible: false,
+            workOrderDetailLoading: false,
+            workOrderLoading: false,
+            currentWorkOrder: null,
+            selectedWorkOrder: null,
+            workOrderHistory: [],
+
+            // AI健康报表相关
+            aiHealthReportVisible: false,
+            aiHealthReportLoading: false,
+            currentEquipmentForReport: null,
+            healthReport: {
+                score: 0,
+                status: '',
+                lastMaintenance: null,
+                nextMaintenance: null,
+                maintenanceFrequency: '',
+                usageRate: 0,
+                failureRisk: 0,
+                recommendations: [],
+                history: []
+            }
+        };
     },
     computed: {
         filteredEquipmentList() {
             // 直接返回设备列表，筛选已由后端实现
             return this.equipmentList;
+        },
+        
+        // 解析工单图片
+        workOrderImages() {
+            if (!this.selectedWorkOrder || !this.selectedWorkOrder.images) return [];
+            
+            try {
+                if (typeof this.selectedWorkOrder.images === 'string') {
+                    return JSON.parse(this.selectedWorkOrder.images);
+                } else if (Array.isArray(this.selectedWorkOrder.images)) {
+                    return this.selectedWorkOrder.images;
+                }
+            } catch (e) {
+                console.error('Failed to parse work order images:', e);
+            }
+            
+            return [];
+        },
+
+        // AI健康报表相关计算属性
+        getHealthScoreColor() {
+            const score = this.healthReport.score;
+            if (score >= 80) return '#67C23A';  // 绿色 - 优秀
+            if (score >= 60) return '#E6A23C';  // 橙色 - 一般
+            return '#F56C6C';                   // 红色 - 差
+        },
+        
+        getHealthStatusClass() {
+            const score = this.healthReport.score;
+            if (score >= 80) return 'status-good';
+            if (score >= 60) return 'status-warning';
+            return 'status-danger';
+        },
+        
+        isMaintenanceSoon() {
+            if (!this.healthReport.nextMaintenance) return false;
+            const now = new Date();
+            const nextMaintenance = new Date(this.healthReport.nextMaintenance);
+            const daysUntilMaintenance = Math.floor((nextMaintenance - now) / (1000 * 60 * 60 * 24));
+            return daysUntilMaintenance >= 0 && daysUntilMaintenance <= 15;
+        },
+        
+        isMaintenanceOverdue() {
+            if (!this.healthReport.nextMaintenance) return false;
+            const now = new Date();
+            const nextMaintenance = new Date(this.healthReport.nextMaintenance);
+            return nextMaintenance < now;
+        },
+        
+        getFailureRiskColor() {
+            const risk = this.healthReport.failureRisk;
+            if (risk < 30) return '#67C23A';    // 绿色 - 低风险
+            if (risk < 70) return '#E6A23C';    // 橙色 - 中风险
+            return '#F56C6C';                   // 红色 - 高风险
+        },
+        
+        getFailureRiskClass() {
+            const risk = this.healthReport.failureRisk;
+            if (risk < 30) return 'risk-low';
+            if (risk < 70) return 'risk-medium';
+            return 'risk-high';
+        },
+        
+        getFailureRiskText() {
+            const risk = this.healthReport.failureRisk;
+            if (risk < 30) return '低风险';
+            if (risk < 70) return '中等风险';
+            return '高风险';
         }
     },
     created() {
@@ -1135,6 +1908,89 @@ export default {
             this.maintenanceDetailVisible = true;
         },
         
+        // 查看工单详情
+        viewWorkOrderDetail(workOrder) {
+            this.workOrderDetailLoading = true;
+            this.workOrderDetailDialogVisible = true;
+            this.currentWorkOrder = null;
+            this.workOrderHistory = [];
+            
+            // 获取工单详情
+            GetMaintenanceOrderById(workOrder.id)
+                .then(response => {
+                    this.currentWorkOrder = response.data;
+                    // 获取工单历史
+                    return GetMaintenanceOrderHistory(workOrder.id);
+                })
+                .then(response => {
+                    this.workOrderHistory = response.data || [];
+                    this.workOrderDetailLoading = false;
+                })
+                .catch(error => {
+                    console.error('获取工单详情失败:', error);
+                    this.$message.error('获取工单详情失败');
+                    this.workOrderDetailLoading = false;
+                });
+        },
+        
+        // 处理工单详情对话框关闭
+        handleWorkOrderDetailClosed() {
+            this.currentWorkOrder = null;
+            this.workOrderHistory = [];
+        },
+        
+        // 获取图片URL列表用于预览
+        getImageUrlList(images) {
+            if (!images || !Array.isArray(images)) return [];
+            return images.map(image => image.url);
+        },
+        
+        // 查看关联的工单详情
+        async viewWorkOrderDetail(orderId) {
+            // 显示加载中
+            this.workOrderLoading = true;
+            
+            try {
+                // 调用API获取工单详情
+                const response = await GetMaintenanceOrderById(orderId);
+                
+                if (response && response.success) {
+                    // 关闭当前对话框
+                    this.maintenanceDetailVisible = false;
+                    
+                    // 设置选中的工单并显示工单详情对话框
+                    this.selectedWorkOrder = response.data;
+                    this.workOrderDetailVisible = true;
+                    
+                    // 获取工单历史记录
+                    this.fetchWorkOrderHistory(orderId);
+                } else {
+                    this.$message.error(response.message || '获取工单详情失败');
+                }
+            } catch (error) {
+                console.error('获取工单详情错误:', error);
+                this.$message.error(error.message || '获取工单详情失败');
+            } finally {
+                this.workOrderLoading = false;
+            }
+        },
+        
+        // 获取工单历史记录
+        async fetchWorkOrderHistory(orderId) {
+            try {
+                const response = await GetMaintenanceOrderHistory(orderId);
+                
+                if (response && response.success) {
+                    this.workOrderHistory = response.data || [];
+                } else {
+                    this.workOrderHistory = [];
+                }
+            } catch (error) {
+                console.error('获取工单历史记录错误:', error);
+                this.workOrderHistory = [];
+            }
+        },
+        
         // 处理维护记录分页大小变化
         handleMaintenanceSizeChange(size) {
             this.maintenancePagination.size = size;
@@ -1151,20 +2007,141 @@ export default {
         formatMaintenanceType(type) {
             const typeMap = {
                 'preventive': '预防性维护',
-                'repair': '故障维修',
-                'calibration': '校准'
+                'corrective': '故障维修',
+                'calibration': '校准',
+                'inspection': '检查',
+                'upgrade': '升级',
+                'other': '其他'
             };
-            return typeMap[type] || type;
+            return typeMap[type] || type || '未知';
         },
         
         // 获取维护类型标签样式
         getMaintenanceTypeTag(type) {
             const typeMap = {
                 'preventive': 'info',
-                'repair': 'danger',
-                'calibration': 'success'
+                'corrective': 'danger',
+                'calibration': 'success',
+                'inspection': 'warning',
+                'upgrade': 'primary',
+                'other': ''
             };
             return typeMap[type] || '';
+        },
+        
+        // 获取工单状态类型
+        getStatusType(status) {
+            switch(status) {
+                case 'pending': return 'warning';
+                case 'processing': return 'primary';
+                case 'completed': return 'success';
+                case 'cancelled': return 'info';
+                default: return 'info';
+            }
+        },
+        
+        // 格式化工单状态
+        formatStatus(status) {
+            switch(status) {
+                case 'pending': return '待处理';
+                case 'processing': return '处理中';
+                case 'completed': return '已完成';
+                case 'cancelled': return '已取消';
+                default: return '未知状态';
+            }
+        },
+        
+        // 获取历史记录图标
+        getHistoryIcon(type) {
+            switch(type) {
+                case 'create': return 'el-icon-plus';
+                case 'process': return 'el-icon-s-operation';
+                case 'complete': return 'el-icon-check';
+                case 'cancel': return 'el-icon-close';
+                default: return 'el-icon-time';
+            }
+        },
+        
+        // 获取历史记录类型文本
+        getHistoryTypeText(type) {
+            switch(type) {
+                case 'create': return '创建';
+                case 'process': return '处理';
+                case 'complete': return '完成';
+                case 'cancel': return '取消';
+                default: return '操作';
+            }
+        },
+        
+        // 预览图片
+        previewImage(index) {
+            // 使用Element UI的图片预览功能
+            const previewInstance = this.$refs.imagePreview;
+            if (previewInstance) {
+                previewInstance.showViewer = true;
+                previewInstance.currentImg = index;
+            }
+        },
+        
+        // 格式化零件列表
+        formatParts(parts) {
+            if (!parts) return [];
+            try {
+                if (typeof parts === 'string') {
+                    // 尝试解析JSON
+                    try {
+                        const parsedParts = JSON.parse(parts);
+                        if (Array.isArray(parsedParts)) {
+                            return parsedParts;
+                        }
+                    } catch (e) {
+                        // 如果不是JSON，则按逗号分隔
+                        return parts.split(',').map(part => part.trim()).filter(part => part);
+                    }
+                } else if (Array.isArray(parts)) {
+                    return parts;
+                }
+            } catch (e) {
+                console.error('解析零件列表失败:', e);
+            }
+            
+            // 如果不是数组或字符串，返回原始值作为单个项
+            return [parts.toString()];
+        },
+        
+        // 获取结果类型标签颜色
+        getResultTypeTag(type) {
+            const typeMap = {
+                'fixed': 'success',
+                'replaced': 'warning',
+                'unrepairable': 'danger',
+                'other': 'info'
+            };
+            return typeMap[type] || 'info';
+        },
+        
+        // 格式化结果类型
+        formatResultType(type) {
+            const typeMap = {
+                'fixed': '已修复',
+                'replaced': '已更换',
+                'unrepairable': '无法修复',
+                'other': '其他'
+            };
+            return typeMap[type] || type || '未知';
+        },
+        
+        // 获取历史记录类型颜色
+        getHistoryTypeColor(type) {
+            const typeMap = {
+                'create': 'primary',
+                'assign': 'warning',
+                'process': 'warning',
+                'complete': 'success',
+                'cancel': 'danger',
+                'update': 'info'
+            };
+            return typeMap[type] || 'info';
         },
         
         // 格式化维护状态
@@ -1361,6 +2338,15 @@ export default {
             return typeMap[status] || 'info';
         },
         
+        getStatusType(status) {
+            const statusMap = {
+                'normal': 'success',
+                'maintenance': 'warning',
+                'scrapped': 'danger'
+            };
+            return statusMap[status] || 'info';
+        },
+        
         isWarrantyExpired(date) {
             if (!date) return true;
             const warrantyDate = new Date(date);
@@ -1393,6 +2379,7 @@ export default {
             }
         },
         
+        // 从详情页面编辑设备
         editFromDetail() {
             this.dialogVisible = false;
             this.editDetail(this.selectedEquipment);
@@ -1401,6 +2388,250 @@ export default {
         printEquipmentDetail() {
             this.$message.success('正在准备打印信息...');
             window.print();
+        },
+
+        // AI健康报表相关方法
+        // 显示AI健康报表
+        showAIHealthReport(equipment) {
+            if (!equipment || !equipment.id) {
+                this.$message.error('设备信息不完整，无法生成AI健康报表');
+                return;
+            }
+            
+            this.currentEquipmentForReport = equipment;
+            this.aiHealthReportVisible = true;
+            this.generateReport(equipment.id);
+        },
+        
+        // 生成AI健康报表
+        async generateReport(equipmentId) {
+            if (!equipmentId) {
+                this.$message.error('设备ID不能为空');
+                return;
+            }
+            
+            this.aiHealthReportLoading = true;
+            
+            try {
+                const response = await getEquipmentHealthReport(equipmentId);
+                
+                if (response.success) {
+                    this.healthReport = response.data;
+                    this.$message.success('AI健康报表生成成功');
+                } else {
+                    this.$message.error(response.message || 'AI健康报表生成失败');
+                }
+            } catch (error) {
+                console.error('生成AI健康报表失败:', error);
+                this.$message.error('生成AI健康报表失败: ' + (error.message || '服务器错误'));
+                // 如果生成失败，设置一个默认的报表数据用于展示UI
+                this.setDemoHealthReport();
+            } finally {
+                this.aiHealthReportLoading = false;
+            }
+        },
+        
+        // 关闭AI健康报表对话框
+        handleAIHealthReportClose() {
+            this.aiHealthReportVisible = false;
+            this.currentEquipmentForReport = null;
+            // 重置健康报表数据
+            this.healthReport = {
+                score: 0,
+                status: '',
+                lastMaintenance: null,
+                nextMaintenance: null,
+                maintenanceFrequency: '',
+                usageRate: 0,
+                failureRisk: 0,
+                recommendations: [],
+                history: []
+            };
+        },
+        
+        // 导出AI健康报表
+        async exportReport() {
+            if (!this.currentEquipmentForReport || !this.currentEquipmentForReport.id) {
+                this.$message.error('设备信息不完整，无法导出报表');
+                return;
+            }
+            
+            try {
+                this.$message.info('正在准备导出报表...');
+                const format = 'pdf'; // 默认为PDF格式
+                
+                const response = await exportEquipmentHealthReport(this.currentEquipmentForReport.id, format);
+                
+                // 创建Blob对象
+                const blob = new Blob([response.data], { type: 'application/pdf' });
+                
+                // 创建下载链接
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `设备健康报表_${this.currentEquipmentForReport.name}_${this.formatDate(new Date())}.pdf`;
+                link.click();
+                
+                // 释放URL对象
+                URL.revokeObjectURL(link.href);
+                
+                this.$message.success('报表导出成功');
+            } catch (error) {
+                console.error('导出AI健康报表失败:', error);
+                this.$message.error('导出AI健康报表失败: ' + (error.message || '服务器错误'));
+            }
+        },
+        
+        // 设置演示健康报表数据（当API不可用时使用）
+        setDemoHealthReport() {
+            const today = new Date();
+            const lastMonth = new Date(today);
+            lastMonth.setMonth(today.getMonth() - 1);
+            
+            const nextMonth = new Date(today);
+            nextMonth.setMonth(today.getMonth() + 1);
+            
+            this.healthReport = {
+                score: 78,
+                status: '状态良好',
+                lastMaintenance: lastMonth.toISOString().split('T')[0],
+                nextMaintenance: nextMonth.toISOString().split('T')[0],
+                maintenanceFrequency: '每季度',
+                usageRate: 65,
+                failureRisk: 25,
+                recommendations: [
+                    {
+                        priority: 'high',
+                        type: 'warning',
+                        title: '建议更换滤芯',
+                        description: '设备滤芯已使用超过3个月，建议进行更换以保持设备性能。',
+                        timeframe: '两周内',
+                        benefits: ['提高性能', '延长寿命']
+                    },
+                    {
+                        priority: 'medium',
+                        type: 'info',
+                        title: '校准传感器',
+                        description: '设备传感器可能存在轻微偏差，建议进行校准以确保精确度。',
+                        timeframe: '一个月内',
+                        benefits: ['提高精度', '减少误差']
+                    }
+                ],
+                history: [
+                    {
+                        date: '2025-01-15',
+                        score: 85,
+                        status: '状态优秀',
+                        event: '完成季度维护',
+                        failureRisk: 15
+                    },
+                    {
+                        date: '2025-02-20',
+                        score: 72,
+                        status: '状态良好',
+                        event: '更换了主板',
+                        failureRisk: 30
+                    },
+                    {
+                        date: '2025-03-10',
+                        score: 78,
+                        status: '状态良好',
+                        event: '例行检查',
+                        failureRisk: 25
+                    }
+                ]
+            };
+        },
+        
+        // 获取推荐颜色
+        getRecommendationColor(priority) {
+            const colorMap = {
+                'high': '#F56C6C',
+                'medium': '#E6A23C',
+                'low': '#67C23A'
+            };
+            return colorMap[priority] || '#909399';
+        },
+        
+        // 获取推荐类型标签
+        getRecommendationTagType(priority) {
+            const typeMap = {
+                'high': 'danger',
+                'medium': 'warning',
+                'low': 'success'
+            };
+            return typeMap[priority] || 'info';
+        },
+        
+        // 获取推荐优先级文本
+        getRecommendationPriorityText(priority) {
+            const textMap = {
+                'high': '高优先级',
+                'medium': '中优先级',
+                'low': '低优先级'
+            };
+            return textMap[priority] || '未知优先级';
+        },
+        
+        // 获取历史记录风险颜色
+        getHistoryRiskColor(risk) {
+            if (risk < 30) return '#67C23A';
+            if (risk < 70) return '#E6A23C';
+            return '#F56C6C';
+        },
+        
+        // 获取分数样式类
+        getScoreClass(score) {
+            if (score >= 80) return 'score-good';
+            if (score >= 60) return 'score-warning';
+            return 'score-danger';
+        },
+        
+        // 获取状态报表类型
+        getStatusReportType(status) {
+            if (status.includes('优秀')) return 'success';
+            if (status.includes('良好')) return 'warning';
+            if (status.includes('一般')) return 'info';
+            if (status.includes('差')) return 'danger';
+            return 'info';
+        },
+        
+        // 格式化日期时间
+        formatDateTime(date) {
+            if (!date) return '';
+            const d = new Date(date);
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            const hours = String(d.getHours()).padStart(2, '0');
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}`;
+        },
+        
+        // 打印工单详情
+        printWorkOrder() {
+            if (!this.selectedWorkOrder) {
+                this.$message.warning('未选择工单或工单数据不完整');
+                return;
+            }
+            
+            this.$message.success('正在准备打印工单...');
+            
+            // 保存当前页面状态
+            const originalTitle = document.title;
+            const originalBodyClass = document.body.className;
+            
+            // 添加打印样式类
+            document.body.classList.add('printing-work-order');
+            document.title = `维修工单_${this.selectedWorkOrder.order_number || '无编号'}`;
+            
+            // 执行打印
+            window.print();
+            
+            // 恢复原始状态
+            setTimeout(() => {
+                document.title = originalTitle;
+                document.body.className = originalBodyClass;
+            }, 500);
         },
         
         copyContactNumber() {
@@ -1930,11 +3161,280 @@ export default {
                 });
             });
         },
+        
     }
-}
+    }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+/* AI健康报表样式 */
+.ai-health-report-dialog {
+    .report-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 20px;
+        gap: 20px;
+        
+        @media (max-width: 768px) {
+            flex-direction: column;
+        }
+    }
+    
+    .equipment-info-box {
+        display: flex;
+        gap: 20px;
+        flex: 1;
+    }
+    
+    .equipment-image {
+        width: 120px;
+        height: 120px;
+        
+        .el-image {
+            width: 100%;
+            height: 100%;
+            border-radius: 6px;
+        }
+        
+        .image-error {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f5f7fa;
+            border-radius: 6px;
+            
+            i {
+                font-size: 40px;
+                color: #909399;
+            }
+        }
+    }
+    
+    .equipment-info {
+        h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 18px;
+            color: #303133;
+        }
+        
+        p {
+            margin: 5px 0;
+            color: #606266;
+            font-size: 14px;
+            
+            .info-label {
+                font-weight: 500;
+                color: #303133;
+            }
+        }
+    }
+    
+    .health-score-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 0 20px;
+        min-width: 180px;
+        
+        .health-score {
+            text-align: center;
+            margin-bottom: 10px;
+            
+            .score-label {
+                margin-top: 10px;
+                font-size: 16px;
+                font-weight: 500;
+                color: #303133;
+            }
+        }
+        
+        .health-status {
+            text-align: center;
+            
+            .status-title {
+                font-size: 14px;
+                color: #909399;
+                margin-bottom: 5px;
+            }
+            
+            .status-value {
+                font-size: 16px;
+                font-weight: 500;
+                padding: 5px 15px;
+                border-radius: 15px;
+                
+                &.status-good {
+                    color: #67C23A;
+                    background-color: rgba(103, 194, 58, 0.1);
+                }
+                
+                &.status-warning {
+                    color: #E6A23C;
+                    background-color: rgba(230, 162, 60, 0.1);
+                }
+                
+                &.status-danger {
+                    color: #F56C6C;
+                    background-color: rgba(245, 108, 108, 0.1);
+                }
+            }
+        }
+    }
+    
+    .report-metrics {
+        margin-bottom: 30px;
+        
+        .metric-card {
+            .metric-header {
+                display: flex;
+                align-items: center;
+                font-size: 15px;
+                
+                i {
+                    margin-right: 8px;
+                    font-size: 18px;
+                }
+            }
+            
+            .metric-content {
+                padding: 10px 0;
+                
+                .metric-value {
+                    font-size: 16px;
+                    font-weight: 500;
+                    color: #303133;
+                    text-align: center;
+                    
+                    &.warning {
+                        color: #E6A23C;
+                    }
+                    
+                    &.danger {
+                        color: #F56C6C;
+                    }
+                }
+                
+                .metric-alert {
+                    text-align: center;
+                    font-size: 12px;
+                    margin-top: 5px;
+                    padding: 2px 0;
+                    border-radius: 10px;
+                    background-color: #f56c6c10;
+                    color: #F56C6C;
+                }
+                
+                .risk-level {
+                    margin-top: 10px;
+                    text-align: center;
+                    font-weight: 500;
+                    
+                    &.risk-low {
+                        color: #67C23A;
+                    }
+                    
+                    &.risk-medium {
+                        color: #E6A23C;
+                    }
+                    
+                    &.risk-high {
+                        color: #F56C6C;
+                    }
+                }
+            }
+        }
+    }
+    
+    .recommendations-section {
+        margin-bottom: 30px;
+        
+        .recommendation-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            
+            h4 {
+                margin: 0 0 0 10px;
+                font-size: 16px;
+            }
+        }
+        
+        .recommendation-benefits {
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 5px;
+            
+            span {
+                font-size: 13px;
+                color: #909399;
+                margin-right: 5px;
+            }
+            
+            .benefit-tag {
+                margin-right: 5px;
+            }
+        }
+        
+        .empty-recommendations {
+            text-align: center;
+            padding: 30px;
+            color: #67C23A;
+            
+            i {
+                font-size: 40px;
+                margin-bottom: 10px;
+            }
+            
+            p {
+                font-size: 16px;
+            }
+        }
+    }
+    
+    .health-history-section {
+        margin-bottom: 20px;
+        
+        .score-good {
+            color: #67C23A;
+            font-weight: 500;
+        }
+        
+        .score-warning {
+            color: #E6A23C;
+            font-weight: 500;
+        }
+        
+        .score-danger {
+            color: #F56C6C;
+            font-weight: 500;
+        }
+    }
+    
+    .dialog-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        
+        .report-info {
+            .report-generation-info {
+                margin: 0;
+                font-size: 13px;
+                color: #909399;
+            }
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+    }
+}
 .main {
     padding: 20px;
 }
@@ -2397,6 +3897,642 @@ p{
 .equipment-status-dot.status-scrapped {
     background-color: #F56C6C;
     box-shadow: 0 0 5px #F56C6C;
+}
+
+/* 工单详情对话框样式 */
+.work-order-detail-dialog {
+    .el-dialog__body {
+        padding: 15px 20px;
+    }
+    
+    .el-dialog__header {
+        padding: 15px 20px;
+        background: linear-gradient(135deg, #409EFF 0%, #3a8ee6 100%);
+        border-bottom: 1px solid #ebeef5;
+        margin-right: 0;
+    }
+    
+    .el-dialog__title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #fff;
+    }
+    
+    .el-dialog__headerbtn .el-dialog__close {
+        color: #fff;
+    }
+    
+    .el-dialog__footer {
+        padding: 15px 20px;
+        border-top: 1px solid #ebeef5;
+        background-color: #f9f9f9;
+    }
+}
+
+/* 工单详情内容样式 */
+.work-order-detail-container {
+    padding: 0;
+    margin: 0;
+    
+    .work-order-header {
+        margin-bottom: 20px;
+        
+        .header-card {
+            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+            overflow: hidden;
+            
+            .header-content {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 15px;
+                
+                @media (max-width: 768px) {
+                    flex-direction: column;
+                    align-items: flex-start;
+                }
+            }
+            
+            .work-order-status {
+                display: flex;
+                align-items: center;
+                
+                .status-tag {
+                    font-size: 16px;
+                    padding: 8px 16px;
+                    border-radius: 4px;
+                }
+            }
+            
+            .work-order-basic-info {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 15px;
+                
+                @media (max-width: 768px) {
+                    margin-top: 15px;
+                }
+                
+                .order-number, .order-time, .maintenance-type {
+                    display: flex;
+                    align-items: center;
+                    
+                    i {
+                        margin-right: 5px;
+                        font-size: 16px;
+                        color: #909399;
+                    }
+                    
+                    .info-label {
+                        color: #606266;
+                        margin-right: 5px;
+                        font-weight: 500;
+                    }
+                    
+                    .info-value {
+                        color: #303133;
+                        font-weight: 600;
+                    }
+                }
+            }
+        }
+    }
+    
+    /* 信息卡片样式 */
+    .info-section {
+        margin-bottom: 20px;
+        
+        .el-row {
+            margin-bottom: 20px;
+        }
+        
+        .detail-card {
+            height: 100%;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            overflow: hidden;
+            
+            &:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            }
+            
+            .card-header {
+                display: flex;
+                align-items: center;
+                font-size: 16px;
+                font-weight: 600;
+                
+                i {
+                    margin-right: 8px;
+                    font-size: 18px;
+                }
+                
+                .header-tag {
+                    margin-left: auto;
+                }
+            }
+            
+            .equipment-info, .fault-info, .process-info, .complete-info {
+                padding: 15px;
+            }
+            
+            .equipment-name, .fault-type {
+                margin-bottom: 15px;
+                
+                .el-tag {
+                    padding: 6px 12px;
+                    font-size: 14px;
+                }
+            }
+            
+            .info-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+                
+                @media (max-width: 576px) {
+                    grid-template-columns: 1fr;
+                }
+                
+                .info-item {
+                    .info-item-label {
+                        color: #909399;
+                        font-size: 13px;
+                        margin-bottom: 4px;
+                        display: block;
+                    }
+                    
+                    .info-item-value {
+                        color: #303133;
+                        font-weight: 500;
+                        font-size: 14px;
+                    }
+                }
+            }
+            
+            .fault-description, .process-description {
+                margin-top: 15px;
+                
+                .fault-description-title, .remark-title, .section-title {
+                    font-weight: 600;
+                    margin-bottom: 8px;
+                    color: #606266;
+                    display: flex;
+                    align-items: center;
+                    
+                    i {
+                        margin-right: 5px;
+                        font-size: 16px;
+                    }
+                }
+                
+                .fault-description-content, .remark-content, .section-content {
+                    background-color: #f5f7fa;
+                    padding: 10px;
+                    border-radius: 4px;
+                    color: #606266;
+                    line-height: 1.6;
+                    font-size: 14px;
+                }
+            }
+        }
+    }
+    
+    /* 图片展示样式 */
+    .image-section {
+        margin-bottom: 20px;
+        
+        .image-card {
+            .card-header {
+                .image-count {
+                    margin-left: auto;
+                    font-size: 13px;
+                    color: #909399;
+                    font-weight: normal;
+                }
+            }
+            
+            .images-wrapper {
+                padding: 15px;
+                
+                .carousel-item-wrapper {
+                    height: 100%;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    position: relative;
+                    
+                    .carousel-image {
+                        max-height: 280px;
+                        border-radius: 4px;
+                        box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+                    }
+                    
+                    .image-index {
+                        position: absolute;
+                        bottom: 10px;
+                        right: 10px;
+                        background-color: rgba(0, 0, 0, 0.6);
+                        color: white;
+                        padding: 2px 8px;
+                        border-radius: 10px;
+                        font-size: 12px;
+                    }
+                }
+                
+                .single-image-container {
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    
+                    .single-fault-image {
+                        max-height: 280px;
+                        border-radius: 4px;
+                        box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+                    }
+                }
+                
+                .image-error {
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100%;
+                    color: #909399;
+                    
+                    i {
+                        font-size: 32px;
+                        margin-bottom: 10px;
+                    }
+                }
+            }
+            
+            .image-thumbnails {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                padding: 0 15px 15px;
+                
+                .image-thumbnail {
+                    width: 60px;
+                    height: 60px;
+                    border-radius: 4px;
+                    overflow: hidden;
+                    cursor: pointer;
+                    border: 2px solid transparent;
+                    transition: all 0.3s ease;
+                    
+                    &:hover {
+                        border-color: #409EFF;
+                        transform: scale(1.05);
+                    }
+                    
+                    .thumbnail-image {
+                        width: 100%;
+                        height: 100%;
+                    }
+                }
+            }
+        }
+    }
+    
+    /* 处理信息样式 */
+    .process-section {
+        margin-bottom: 20px;
+        
+        .process-card {
+            .process-info {
+                .process-person {
+                    display: flex;
+                    align-items: center;
+                    margin-bottom: 15px;
+                    
+                    i {
+                        font-size: 18px;
+                        margin-right: 8px;
+                        color: #409EFF;
+                    }
+                    
+                    .process-person-name {
+                        font-size: 16px;
+                        font-weight: 600;
+                        color: #303133;
+                    }
+                }
+                
+                .process-time-info {
+                    margin-bottom: 15px;
+                    background-color: #f5f7fa;
+                    padding: 12px;
+                    border-radius: 6px;
+                    
+                    .time-item {
+                        display: flex;
+                        align-items: center;
+                        margin-bottom: 8px;
+                        
+                        &:last-child {
+                            margin-bottom: 0;
+                        }
+                        
+                        i {
+                            font-size: 16px;
+                            margin-right: 8px;
+                            color: #909399;
+                        }
+                        
+                        .time-label {
+                            font-weight: 500;
+                            color: #606266;
+                            margin-right: 5px;
+                        }
+                        
+                        .time-value {
+                            color: #303133;
+                        }
+                    }
+                }
+                
+                .process-remark {
+                    .remark-title {
+                        display: flex;
+                        align-items: center;
+                        font-weight: 600;
+                        margin-bottom: 8px;
+                        
+                        i {
+                            font-size: 16px;
+                            margin-right: 8px;
+                            color: #E6A23C;
+                        }
+                    }
+                    
+                    .remark-content {
+                        background-color: #fdf6ec;
+                        padding: 12px;
+                        border-radius: 6px;
+                        color: #606266;
+                        line-height: 1.6;
+                    }
+                }
+            }
+        }
+    }
+    
+    /* 完成信息样式 */
+    .complete-section {
+        margin-bottom: 20px;
+        
+        .complete-card {
+            .complete-info {
+                .complete-header {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 15px;
+                    margin-bottom: 15px;
+                    padding-bottom: 15px;
+                    border-bottom: 1px dashed #ebeef5;
+                    
+                    .complete-time, .repair-cost {
+                        display: flex;
+                        align-items: center;
+                        
+                        i {
+                            font-size: 16px;
+                            margin-right: 8px;
+                            color: #909399;
+                        }
+                        
+                        .time-label, .cost-label {
+                            font-weight: 500;
+                            color: #606266;
+                            margin-right: 5px;
+                        }
+                        
+                        .time-value, .cost-value {
+                            color: #303133;
+                        }
+                    }
+                    
+                    .result-type {
+                        margin-left: auto;
+                        
+                        .el-tag {
+                            padding: 6px 12px;
+                        }
+                    }
+                }
+                
+                .result-section, .parts-section {
+                    margin-bottom: 15px;
+                    
+                    .section-title {
+                        display: flex;
+                        align-items: center;
+                        font-weight: 600;
+                        margin-bottom: 10px;
+                        
+                        i {
+                            font-size: 16px;
+                            margin-right: 8px;
+                            color: #67C23A;
+                        }
+                    }
+                    
+                    .result-content {
+                        background-color: #f0f9eb;
+                        padding: 12px;
+                        border-radius: 6px;
+                        color: #606266;
+                        line-height: 1.6;
+                    }
+                    
+                    .parts-list {
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: 8px;
+                        
+                        .part-tag {
+                            display: flex;
+                            align-items: center;
+                            
+                            i {
+                                margin-right: 5px;
+                            }
+                        }
+                        
+                        .no-parts {
+                            color: #909399;
+                            font-style: italic;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    /* 工单历史样式 */
+    .history-section-container {
+        margin-bottom: 20px;
+        
+        .history-card-container {
+            .card-header {
+                .history-count {
+                    margin-left: auto;
+                    font-size: 13px;
+                    color: #909399;
+                    font-weight: normal;
+                }
+            }
+            
+            .history-section {
+                padding: 15px;
+                
+                .el-timeline {
+                    padding-left: 0;
+                    
+                    .el-timeline-item {
+                        .el-timeline-item__tail {
+                            border-left: 2px solid #e4e7ed;
+                        }
+                        
+                        .el-timeline-item__node {
+                            background-color: #409EFF;
+                        }
+                        
+                        .el-timeline-item__wrapper {
+                            padding-left: 20px;
+                        }
+                        
+                        .el-timeline-item__timestamp {
+                            color: #909399;
+                            font-size: 13px;
+                        }
+                        
+                        .history-item-card {
+                            margin-bottom: 15px;
+                            border-radius: 6px;
+                            transition: all 0.3s ease;
+                            
+                            &:hover {
+                                transform: translateY(-3px);
+                                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+                            }
+                            
+                            .history-header {
+                                display: flex;
+                                align-items: center;
+                                margin-bottom: 10px;
+                                
+                                .history-type-tag {
+                                    padding: 2px 8px;
+                                    border-radius: 10px;
+                                    font-size: 12px;
+                                    margin-right: 10px;
+                                    color: white;
+                                    
+                                    &.history-type-create {
+                                        background-color: #409EFF;
+                                    }
+                                    
+                                    &.history-type-process {
+                                        background-color: #E6A23C;
+                                    }
+                                    
+                                    &.history-type-complete {
+                                        background-color: #67C23A;
+                                    }
+                                    
+                                    &.history-type-cancel {
+                                        background-color: #F56C6C;
+                                    }
+                                }
+                                
+                                .history-title {
+                                    margin: 0;
+                                    font-size: 15px;
+                                    font-weight: 600;
+                                    color: #303133;
+                                }
+                            }
+                            
+                            .history-body {
+                                margin-bottom: 10px;
+                                
+                                .history-content {
+                                    margin: 0;
+                                    color: #606266;
+                                    line-height: 1.6;
+                                    font-size: 14px;
+                                }
+                            }
+                            
+                            .history-footer {
+                                border-top: 1px dashed #ebeef5;
+                                padding-top: 10px;
+                                
+                                .history-operator {
+                                    margin: 0;
+                                    color: #909399;
+                                    font-size: 13px;
+                                    display: flex;
+                                    align-items: center;
+                                    
+                                    i {
+                                        margin-right: 5px;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                .empty-history {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 30px 0;
+                    color: #909399;
+                    
+                    i {
+                        font-size: 48px;
+                        margin-bottom: 15px;
+                        color: #dcdfe6;
+                    }
+                    
+                    p {
+                        margin: 0;
+                        font-size: 14px;
+                    }
+                }
+            }
+        }
+    }
+    
+    /* 对话框底部按钮样式 */
+    .dialog-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            
+            .el-button {
+                padding: 10px 20px;
+                
+                i {
+                    margin-right: 5px;
+                }
+            }
+        }
+    }
 }
 
 .empty-data {

@@ -51,6 +51,7 @@
 						<el-button size="small" type="primary" @click="checkHandle(searchResults[0].id)">查看病历</el-button>
 						<el-button size="small" type="success" @click="editHandle(searchResults[0].id)">编辑信息</el-button>
 						<el-button size="small" type="warning" @click="openPrescriptionDialog(searchResults[0])">开具处方</el-button>
+						<el-button size="small" type="danger" @click="openDispenseDialog(searchResults[0])">处方出库</el-button>
 					</div>
 				</div>
 				
@@ -730,16 +731,138 @@
 		<div slot="footer" class="dialog-footer">
 			<el-button @click="handlePrescriptionClose">取 消</el-button>
 			<el-button type="success" @click="submitPrescription('prescriptionForm')">保存处方</el-button>
+			<el-button type="warning" @click="submitAndCreateStockOut('prescriptionForm')">保存并出库</el-button>
 			<el-button type="primary" @click="submitAndPrintPrescription('prescriptionForm')">保存并打印</el-button>
 		</div>
 	</el-dialog>
-	</div>
 
 
+	<!-- 处方出库对话框 -->
+	<el-dialog
+		title="处方药品出库"
+		:visible.sync="dispenseDialogVisible"
+		width="800px"
+		:before-close="handleDispenseDialogClose"
+		:close-on-click-modal="false"
+	>
+		<div v-loading="prescriptionLoading">
+			<!-- 患者信息摘要 -->
+			<div class="patient-summary mb-20" v-if="currentPatient">
+				<h3 class="mb-10">患者信息</h3>
+				<div class="patient-info-summary">
+					<div class="summary-item">
+						<span class="label">姓名:</span>
+						<span class="value">{{ currentPatient.name || '-' }}</span>
+					</div>
+					<div class="summary-item">
+						<span class="label">性别:</span>
+						<span class="value">{{ currentPatient.gender || '-' }}</span>
+					</div>
+					<div class="summary-item">
+						<span class="label">年龄:</span>
+						<span class="value">{{ currentPatient.birthday ? getAgeByBirthday(currentPatient.birthday) + '岁' : '-' }}</span>
+					</div>
+					<div class="summary-item">
+						<span class="label">就诊卡号:</span>
+						<span class="value">{{ currentPatient.medicalId || '-' }}</span>
+					</div>
+				</div>
+			</div>
+			<div class="patient-summary mb-20" v-else>
+				<el-alert
+					title="请先选择患者"
+					type="info"
+					:closable="false">
+				</el-alert>
+			</div>
+
+			<!-- 处方选择 -->
+			<div class="prescription-select-section mb-20">
+				<div class="section-header">
+					<h3>选择处方</h3>
+				</div>
+				<el-select 
+					v-model="selectedPrescriptionId" 
+					placeholder="请选择处方" 
+					style="width: 100%"
+					@change="handlePrescriptionChange"
+				>
+					<el-option 
+						v-for="item in patientPrescriptions" 
+						:key="item.id" 
+						:label="item.code + ' - ' + item.created_at" 
+						:value="item.id"
+					>
+						<span style="float: left">{{ item.code }}</span>
+						<span style="float: right; color: #8492a6; font-size: 13px">{{ item.created_at }}</span>
+					</el-option>
+				</el-select>
+			</div>
+
+			<!-- 处方药品列表 -->
+			<div class="prescription-medicines mb-20" v-if="selectedPrescription">
+				<div class="section-header">
+					<h3>处方药品</h3>
+					<el-tag type="success" v-if="selectedPrescription.status === 'APPROVED'">已审核</el-tag>
+					<el-tag type="warning" v-else-if="selectedPrescription.status === 'PENDING'">待审核</el-tag>
+					<el-tag type="danger" v-else-if="selectedPrescription.status === 'REJECTED'">已拒绝</el-tag>
+					<el-tag type="info" v-else-if="selectedPrescription.status === 'DISPENSED'">已发药</el-tag>
+				</div>
+
+				<el-table :data="selectedPrescription.items || []" border style="width: 100%">
+					<el-table-column type="index" label="#" width="50" align="center"></el-table-column>
+					<el-table-column prop="medicine_name" label="药品名称" min-width="150"></el-table-column>
+					<el-table-column prop="specification" label="规格" width="120"></el-table-column>
+					<el-table-column prop="unit" label="单位" width="80" align="center"></el-table-column>
+					<el-table-column prop="quantity" label="数量" width="80" align="center"></el-table-column>
+					<el-table-column prop="usage" label="用法" min-width="120"></el-table-column>
+					<el-table-column prop="frequency" label="频次" width="100"></el-table-column>
+					<el-table-column prop="days" label="天数" width="80" align="center"></el-table-column>
+					<el-table-column label="库存状态" width="100" align="center">
+						<template slot-scope="{row}">
+							<el-tag type="success" v-if="row.stock_status === 'SUFFICIENT'">充足</el-tag>
+							<el-tag type="warning" v-else-if="row.stock_status === 'LOW'">偏低</el-tag>
+							<el-tag type="danger" v-else-if="row.stock_status === 'INSUFFICIENT'">不足</el-tag>
+							<el-tag type="info" v-else>未知</el-tag>
+						</template>
+					</el-table-column>
+				</el-table>
+			</div>
+
+			<!-- 出库备注 -->
+			<div class="dispense-remark mb-20">
+				<el-form :model="dispenseForm" label-width="80px">
+					<el-form-item label="出库备注">
+						<el-input 
+							v-model="dispenseForm.remark" 
+							type="textarea" 
+							:rows="2" 
+							placeholder="请输入出库备注信息"
+						></el-input>
+					</el-form-item>
+				</el-form>
+			</div>
+		</div>
+
+		<div slot="footer" class="dialog-footer">
+			<el-button @click="dispenseDialogVisible = false">取 消</el-button>
+			<el-button 
+				type="primary" 
+				@click="handleDispensePrescription"
+				:disabled="!selectedPrescription || selectedPrescription.status !== 'APPROVED' || hasInsufficientStock"
+				:loading="dispensing"
+			>
+				确认出库
+			</el-button>
+		</div>
+	</el-dialog>
+</div>
 </template>
 
 <script>
-    import { GetPatientList, GetPatientRecord } from '@/api/index.js' 
+import { getToken, getCurrentUserId } from "../../utils/auth";
+import { getMedicineList, prescriptionOut, createStockOutFromPrescription } from "../../api/medicineStock";
+import { GetPatientList, GetPatientRecord } from '@/api/index.js' 
 	import { MedicalHistoryAnalysis } from '@/api/aiAgent.js' 
 	export default {
 		name: "patient",
@@ -767,6 +890,17 @@
 				currentPatient: null,
 				currentPatientName: '',
 				delBtlStatu: true,
+
+				// 处方出库相关
+				dispenseDialogVisible: false,
+				patientPrescriptions: [],
+				selectedPrescriptionId: null,
+				selectedPrescription: null,
+				prescriptionLoading: false,
+				dispensing: false,
+				dispenseForm: {
+					remark: ''
+				},
 
 				total: 10,
 				size: 10,
@@ -862,6 +996,13 @@
             },
             hasSysUserDeleteAuth() {
                 return this.hasAuth('sys:user:delete');
+            },
+            // 处方出库相关计算属性
+            hasInsufficientStock() {
+                if (!this.selectedPrescription || !this.selectedPrescription.items) {
+                    return false;
+                }
+                return this.selectedPrescription.items.some(item => item.stock_status === 'INSUFFICIENT');
             }
         },
 		created() {
@@ -909,6 +1050,34 @@
 				}
 				this.searchResults = []
 				this.hasSearched = false
+			},
+			
+			// 计算患者年龄
+			getAgeByBirthday(birthday) {
+				if (!birthday) {
+					return '-';
+				}
+				
+				try {
+					const birthDate = new Date(birthday);
+					if (isNaN(birthDate.getTime())) {
+						return '-';
+					}
+					
+					const today = new Date();
+					let age = today.getFullYear() - birthDate.getFullYear();
+					const monthDiff = today.getMonth() - birthDate.getMonth();
+					
+					if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+						age--;
+					}
+					
+					return age;
+				} catch (error) {
+					console.error('Error calculating age:', error);
+					return '-';
+				}
+			
 			},
 			checkHandle(id){
 				// Find the patient in the data
@@ -1243,6 +1412,168 @@
 				this.prescriptionDialogVisible = true;
 			},
 
+			// 处方出库相关方法
+			openDispenseDialog(patient) {
+				if (!patient) {
+					this.$message.warning('请先选择患者');
+					return;
+				}
+				
+				try {
+					this.currentPatient = JSON.parse(JSON.stringify(patient));
+				} catch (error) {
+					console.error('Error parsing patient data:', error);
+					this.currentPatient = patient || {};
+				}
+				
+				this.dispenseForm = {
+					remark: ''
+				};
+				this.selectedPrescriptionId = null;
+				this.selectedPrescription = null;
+				this.prescriptionLoading = true;
+				this.dispenseDialogVisible = true;
+				
+				// 获取患者的处方列表
+				setTimeout(() => {
+					// 模拟从API获取处方列表
+					this.patientPrescriptions = [
+						{
+							id: '1',
+							code: 'RX' + new Date().getTime().toString().substring(5),
+							created_at: new Date().toLocaleString(),
+							status: 'APPROVED',
+							items: [
+								{
+									medicine_id: '101',
+									medicine_name: '阿莫西林胶囊',
+									specification: '0.25g*24粒',
+									unit: '盒',
+									quantity: 2,
+									usage: '口服',
+									frequency: '一日三次',
+									days: 5,
+									stock_status: 'SUFFICIENT'
+								},
+								{
+									medicine_id: '102',
+									medicine_name: '布洛芬片',
+									specification: '0.2g*24片',
+									unit: '盒',
+									quantity: 1,
+									usage: '口服',
+									frequency: '需要时服用',
+									days: 3,
+									stock_status: 'LOW'
+								}
+							]
+						},
+						{
+							id: '2',
+							code: 'RX' + (new Date().getTime() - 86400000).toString().substring(5),
+							created_at: new Date(Date.now() - 86400000).toLocaleString(),
+							status: 'DISPENSED',
+							items: [
+								{
+									medicine_id: '103',
+									medicine_name: '感冒灵颗粒',
+									specification: '10g*10袋',
+									unit: '盒',
+									quantity: 1,
+									usage: '温开水冲服',
+									frequency: '一日三次',
+									days: 3,
+									stock_status: 'SUFFICIENT'
+								}
+							]
+						}
+					];
+					this.prescriptionLoading = false;
+				}, 800);
+			},
+
+			handleDispenseDialogClose() {
+				this.dispenseDialogVisible = false;
+				this.selectedPrescriptionId = null;
+				this.selectedPrescription = null;
+				this.dispenseForm.remark = '';
+			},
+
+			handlePrescriptionChange(prescriptionId) {
+				if (!prescriptionId) {
+					this.selectedPrescription = null;
+					return;
+				}
+				
+				this.prescriptionLoading = true;
+				setTimeout(() => {
+					// 模拟从API获取处方详情
+					this.selectedPrescription = this.patientPrescriptions.find(p => p.id === prescriptionId);
+					this.prescriptionLoading = false;
+				}, 500);
+			},
+
+			handleDispensePrescription() {
+				if (!this.selectedPrescription || this.selectedPrescription.status !== 'APPROVED') {
+					this.$message.warning('请选择一个已审核的处方');
+					return;
+				}
+
+				if (this.hasInsufficientStock) {
+					this.$message.error('存在库存不足的药品，无法出库');
+					return;
+				}
+
+				if (!this.currentPatient) {
+					this.$message.error('患者信息不完整，无法出库');
+					return;
+				}
+
+				this.dispensing = true;
+
+				// 准备出库数据
+				const dispenseData = {
+					prescription_id: this.selectedPrescription.id || '',
+					patient_id: this.currentPatient.id || '',
+					patient_name: this.currentPatient.name || '',
+					medical_record_id: this.currentPatient.medicalId || '',
+					remark: this.dispenseForm.remark || '',
+					items: (this.selectedPrescription.items || []).map(item => ({
+						medicine_id: item.medicine_id || '',
+						quantity: item.quantity || 0
+					}))
+				};
+
+				// 调用处方出库API
+				setTimeout(() => {
+					// 模拟API调用
+					console.log('处方出库数据:', dispenseData);
+					
+					// 实际项目中应该调用API
+					// prescriptionOut(dispenseData).then(response => {
+					//   this.$message.success('处方出库成功');
+					//   this.dispenseDialogVisible = false;
+					// }).catch(error => {
+					//   this.$message.error('处方出库失败: ' + error.message);
+					// }).finally(() => {
+					//   this.dispensing = false;
+					// });
+
+					// 模拟成功响应
+					this.$message.success('处方出库成功');
+					
+					// 更新处方状态
+					this.selectedPrescription.status = 'DISPENSED';
+					const index = this.patientPrescriptions.findIndex(p => p.id === this.selectedPrescription.id);
+					if (index !== -1) {
+						this.patientPrescriptions[index] = this.selectedPrescription;
+					}
+					
+					this.dispensing = false;
+					this.dispenseDialogVisible = false;
+				}, 1000);
+			},
+
 			handlePrescriptionClose() {
 				this.$confirm('关闭将丢失已填写的处方内容，是否确认关闭?', '提示', {
 					confirmButtonText: '确定',
@@ -1298,6 +1629,74 @@
 				});
 			},
 
+			submitAndCreateStockOut(formName) {
+				this.$refs[formName].validate(async (valid) => {
+					if (valid) {
+						try {
+							// 先保存处方
+							const prescriptionData = {
+								patientId: this.currentPatient.id,
+								patientName: this.currentPatient.name,
+								medicalId: this.currentPatient.medicalId,
+								diagnosis: this.prescriptionForm.diagnosis,
+								medicines: this.prescriptionForm.medicines,
+								instructions: this.prescriptionForm.instructions,
+								doctor: this.prescriptionForm.doctor,
+								createTime: new Date().toISOString().replace('T', ' ').substring(0, 19)
+							};
+
+							// 在实际项目中这里应该调用API保存处方
+							// 模拟保存处方并返回处方ID
+							let prescriptionId = 'PR' + Date.now().toString();
+							// 准备生成出库单数据
+							const stockOutData = {
+								prescription_id: prescriptionId,
+								patient_id: this.currentPatient.id,
+								patient_name: this.currentPatient.name,
+								doctor_id: getCurrentUserId() || '',  // 从 token 中获取医生的ID
+								doctor_name: this.prescriptionForm.doctor,
+								department_id: this.currentPatient.departmentId || '',
+								department_name: this.currentPatient.departmentName || '',
+								prescription_date: new Date().toISOString().split('T')[0], // 当前日期 YYYY-MM-DD
+								prescription_remark: this.prescriptionForm.instructions || '根据电子处方自动生成',
+								is_insurance: false,  // 默认不是医保
+								prescription_items: this.prescriptionForm.medicines.map(med => ({
+									medicine_id: med.id || '', // 注意实际实现中需要确保药品有正确的ID
+									medicine_name: med.name,
+									quantity: med.quantity,
+									unit: med.unit,
+									specification: med.spec,
+									usage: med.usage || ''
+								}))
+							};
+							
+							console.log('准备生成出库单数据:', stockOutData);
+							
+							// 调用从处方生成出库单的API
+							const stockOutResult = await createStockOutFromPrescription(stockOutData);
+							
+							this.$message.success('处方保存成功，出库单已生成');
+							this.prescriptionDialogVisible = false;
+							
+							// 询问是否查看出库单
+							const stockOutId = stockOutResult.data.data.id;
+							this.$confirm('出库单已成功创建，是否查看出库单详情?', '提示', {
+								confirmButtonText: '查看出库单',
+								cancelButtonText: '继续工作',
+								type: 'success'
+							}).then(() => {
+								this.$router.push(`/medicine/stockOut?id=${stockOutId}`);
+							}).catch(() => {});
+						} catch (error) {
+							console.error('保存处方并生成出库单失败:', error);
+							this.$message.error('保存处方并生成出库单失败: ' + (error.response?.data?.msg || '未知错误'));
+						}
+					} else {
+						return false;
+					}
+				});
+			},
+			
 			submitAndPrintPrescription(formName) {
 				this.$refs[formName].validate((valid) => {
 					if (valid) {

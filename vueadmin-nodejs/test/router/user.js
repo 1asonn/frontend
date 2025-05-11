@@ -141,6 +141,9 @@ router.post('/login', validateLoginInput, async (req, res) => {
             return res.status(401).json(createResponse(false, '用户名或密码错误'));
         }
 
+        // 更新用户最后登录时间
+        await user.update({ last_login_at: new Date() });
+        
         // 生成JWT Token
         const token = jwt.sign(
             {

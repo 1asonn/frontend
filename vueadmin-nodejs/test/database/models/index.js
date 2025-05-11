@@ -3,9 +3,14 @@ const Role = require('./Role');
 const Department = require('./Department');
 const Schedule = require('./Schedule');
 const ShiftSetting = require('./ShiftSetting');
-const MedicalEquipment = require('./MedicalEquipment');
 const MaintenanceOrder = require('./MaintenanceOrder');
 const MaintenanceHistory = require('./MaintenanceHistory');
+const Supplier = require('./supplier');
+const Medicine = require('./Medicine');
+const MedicineTransaction = require('./MedicineTransaction');
+const MedicineTransactionItem = require('./MedicineTransactionItem');
+const MedicineStock = require('./MedicineStock');
+const MedicineStockHistory = require('./MedicineStockHistory');
 
 // 初始化模型关联关系
 const initializeAssociations = () => {
@@ -16,9 +21,14 @@ const initializeAssociations = () => {
         Department,
         Schedule,
         ShiftSetting,
-        MedicalEquipment,
         MaintenanceOrder,
-        MaintenanceHistory
+        MaintenanceHistory,
+        Supplier,
+        Medicine,
+        MedicineTransaction,
+        MedicineTransactionItem,
+        MedicineStock,
+        MedicineStockHistory
     };
 
     Object.values(models).forEach(model => {
@@ -37,7 +47,12 @@ module.exports = {
     Department,
     Schedule,
     ShiftSetting,
-    MedicalEquipment,
     MaintenanceOrder,
-    MaintenanceHistory
+    MaintenanceHistory,
+    Supplier,
+    Medicine,
+    MedicineTransaction,
+    MedicineTransactionItem,
+    MedicineStock,
+    MedicineStockHistory
 };

@@ -15,6 +15,15 @@ const Department = sequelize.define('department',{
     description: {
         type: Sequelize.STRING,
         comment: '部门描述'
+    },
+    manager_id: {
+        type: Sequelize.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'users',
+            key: 'id'
+        },
+        comment: '负责人ID'
     }
 }, {
     timestamps: true,
@@ -46,10 +55,19 @@ Department.associate = (models) => {
             as: 'medical_equipments'
         });
     }
+    // 关联到负责人
+    if (models.User) {
+        Department.belongsTo(models.User, {
+            foreignKey: 'manager_id',
+            as: 'manager'
+        });
+    }
 };
 
-Department.sync().then(() => {
+Department.sync({ alter: true }).then(() => {
     console.log("部门表模型已同步!")
+}).catch(err => {
+    console.error("部门表同步错误:", err.message);
 })
 
 module.exports = Department

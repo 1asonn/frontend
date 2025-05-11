@@ -320,8 +320,8 @@
 							</div>
 							<div class="user-info-summary">
 								<h2>{{selectedUser.realname || '未设置姓名'}}</h2>
-								<p><el-tag size="small" type="primary">{{getRoleName(selectedUser.roleId)}}</el-tag></p>
-								<p><el-tag size="small" type="info">{{getDepartmentName(selectedUser.departmentId)}}</el-tag></p>
+								<p><el-tag size="small" type="primary">{{getRoleName(selectedUser.roleId || selectedUser.role_id)}}</el-tag></p>
+								<p><el-tag size="small" type="info">{{getDepartmentName(selectedUser.departmentId || selectedUser.department_id)}}</el-tag></p>
 							</div>
 						</div>
 
@@ -341,11 +341,11 @@
 							</div>
 							<div class="info-item">
 								<span class="info-label">出生日期</span>
-								<span class="info-value">{{selectedUser.birth_date || '未设置'}}</span>
+								<span class="info-value">{{selectedUser.birth_date || selectedUser.birthDate || '未设置'}}</span>
 							</div>
 							<div class="info-item">
 								<span class="info-label">年龄</span>
-								<span class="info-value">{{calculateAge(selectedUser.birth_date) || '未知'}}</span>
+								<span class="info-value">{{calculateAge(selectedUser.birth_date || selectedUser.birthDate) || '未知'}}</span>
 							</div>
 						</div>
 
@@ -360,11 +360,21 @@
 							</div>
 							<div class="info-item">
 								<span class="info-label">身份证号</span>
-								<span class="info-value">{{selectedUser.idCard || '未设置'}}</span>
+								<span class="info-value contact-value">
+									{{selectedUser.identity || selectedUser.idCard || '未设置'}}
+									<el-button v-if="selectedUser.identity || selectedUser.idCard" type="text" icon="el-icon-document-copy" @click="copyContactNumber(selectedUser.identity || selectedUser.idCard)"></el-button>
+								</span>
 							</div>
 							<div class="info-item full-width">
 								<span class="info-label">地址</span>
 								<span class="info-value">{{selectedUser.address || '未设置'}}</span>
+							</div>
+							<div class="info-item" v-if="selectedUser.email">
+								<span class="info-label">邮箱</span>
+								<span class="info-value contact-value">
+									{{selectedUser.email}}
+									<el-button v-if="selectedUser.email" type="text" icon="el-icon-document-copy" @click="copyContactNumber(selectedUser.email)"></el-button>
+								</span>
 							</div>
 						</div>
 					</el-card>
@@ -392,7 +402,7 @@
 								color="#409EFF">
 								<el-card class="timeline-card">
 									<h4>最后登录时间</h4>
-									<p>{{selectedUser.lastLogin || '从未登录'}}</p>
+									<p>{{formatDateTime(selectedUser.last_login_at) || '从未登录'}}</p>
 								</el-card>
 							</el-timeline-item>
 							<el-timeline-item
@@ -909,7 +919,7 @@
 				console.error('打开注册对话框失败:', error)
 				this.$message.error('加载必要数据失败，请重试')
 			}
-		},
+		    },
 			handleSelect(selectionInfo) {
 				const { start, end } = selectionInfo;
 				this.events.push({
@@ -957,18 +967,117 @@
 			async checkHandle(id){
 				try {
 					this.detailLoading = true
-					const res = await this.$axios.get('/sys/user/info/' + id)
-					this.selectedUser = res.data.data
-					this.drawer = true
+					console.log('获取用户ID:', id)
+					
+					// 直接从当前表格数据中查找用户
+					const userFromTable = this.tableData.find(user => user.id === id)
+					
+					if (userFromTable) {
+						console.log('从表格数据中找到用户:', userFromTable)
+						
+						// 创建一个新对象以避免引用问题
+						const userData = JSON.parse(JSON.stringify(userFromTable))
+						
+						// 格式化日期
+						if (userData.birth_date) {
+							try {
+								userData.birth_date = this.formatDate(userData.birth_date)
+							} catch (e) {
+								console.warn('日期格式化失败:', e)
+							}
+						}
+						
+						// 格式化创建时间
+						if (userData.createdAt) {
+							try {
+								userData.createdAt = this.formatDateTime(userData.createdAt)
+							} catch (e) {
+								console.warn('创建时间格式化失败:', e)
+							}
+						}
+						
+						// 格式化更新时间
+						if (userData.updatedAt) {
+							try {
+								userData.updatedAt = this.formatDateTime(userData.updatedAt)
+							} catch (e) {
+								console.warn('更新时间格式化失败:', e)
+							}
+						}
+						
+						// 保存处理后的用户数据
+						this.selectedUser = userData
+						console.log('设置selectedUser:', this.selectedUser)
+						
+						// 确保角色和部门数据已加载
+						if (!this.roles || this.roles.length === 0) {
+							await this.getRoles()
+						}
+						if (!this.departments || this.departments.length === 0) {
+							await this.getDepartments()
+						}
+						
+						// 打开抽屉
+						this.drawer = true
+					} else {
+						// 如果表格中没有找到，尝试从API获取
+						console.log('表格中未找到用户，尝试从API获取')
+						const res = await this.$axios.get('/sys/user/info/' + id)
+						
+						// 确保数据存在
+						if (res.data && (res.data.data || res.data.records)) {
+							// 处理日期格式
+							const userData = res.data.data || (res.data.records && res.data.records[0])
+							
+							if (userData) {
+								// 格式化日期
+								if (userData.birth_date) {
+									try {
+										userData.birth_date = this.formatDate(userData.birth_date)
+									} catch (e) {
+										console.warn('日期格式化失败:', e)
+									}
+								}
+								
+								// 格式化创建时间
+								if (userData.createdAt) {
+									try {
+										userData.createdAt = this.formatDateTime(userData.createdAt)
+									} catch (e) {
+										console.warn('创建时间格式化失败:', e)
+									}
+								}
+								
+								// 格式化更新时间
+								if (userData.updatedAt) {
+									try {
+										userData.updatedAt = this.formatDateTime(userData.updatedAt)
+									} catch (e) {
+										console.warn('更新时间格式化失败:', e)
+									}
+								}
+								
+								// 保存处理后的用户数据
+								this.selectedUser = userData
+								console.log('从API设置selectedUser:', this.selectedUser)
+								
+								// 打开抽屉
+								this.drawer = true
+							} else {
+								this.$message.warning('获取用户详情数据为空')
+							}
+						} else {
+							this.$message.warning('获取用户详情数据为空')
+						}
+					}
 				} catch (error) {
 					console.error('获取用户详情失败:', error)
-					this.$message.error('获取用户详情失败')
+					this.$message.error('获取用户详情失败: ' + (error.message || ''))
 				} finally {
 					this.detailLoading = false
 				}
 			},
-
-            test(){
+			test(){
                 console.log("permList",this.$store.state.menu.permList)
             },
             
@@ -1238,16 +1347,65 @@
 			
 			// 计算年龄
 			calculateAge(birthDate) {
-				if (!birthDate) return '';
-				const today = new Date();
-				const birth = new Date(birthDate);
-				let age = today.getFullYear() - birth.getFullYear();
-				const monthDiff = today.getMonth() - birth.getMonth();
-				if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-					age--;
+				if (!birthDate) return null
+				
+				try {
+					const today = new Date()
+					const birthDateObj = new Date(birthDate)
+					let age = today.getFullYear() - birthDateObj.getFullYear()
+					const monthDiff = today.getMonth() - birthDateObj.getMonth()
+					
+					if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDateObj.getDate())) {
+						age--
+					}
+					
+					return age
+				} catch (error) {
+					console.error('计算年龄失败:', error)
+					return null
 				}
-				return age;
-			}
+			},
+			
+			// 格式化日期（仅年月日）
+			formatDate(dateString) {
+				if (!dateString) return ''
+				
+				try {
+					const date = new Date(dateString)
+					if (isNaN(date.getTime())) return dateString
+					
+					const year = date.getFullYear()
+					const month = String(date.getMonth() + 1).padStart(2, '0')
+					const day = String(date.getDate()).padStart(2, '0')
+					
+					return `${year}-${month}-${day}`
+				} catch (error) {
+					console.error('日期格式化失败:', error)
+					return dateString
+				}
+			},
+			
+			// 格式化日期时间
+			formatDateTime(dateTimeString) {
+				if (!dateTimeString) return ''
+				
+				try {
+					const date = new Date(dateTimeString)
+					if (isNaN(date.getTime())) return dateTimeString
+					
+					const year = date.getFullYear()
+					const month = String(date.getMonth() + 1).padStart(2, '0')
+					const day = String(date.getDate()).padStart(2, '0')
+					const hours = String(date.getHours()).padStart(2, '0')
+					const minutes = String(date.getMinutes()).padStart(2, '0')
+					const seconds = String(date.getSeconds()).padStart(2, '0')
+					
+					return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+				} catch (error) {
+					console.error('日期时间格式化失败:', error)
+					return dateTimeString
+				}
+			},
 		}
 	}
 </script>

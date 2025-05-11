@@ -151,3 +151,16 @@ export const getMaintenanceList = async (equipmentId, params = {}) => {
         throw error;
     }
 };
+
+export const exportEquipmentHealthReport = async (equipmentId, format = 'pdf') => {
+    try {
+        const response = await request.get(`/equipment/${equipmentId}/health-report/export`, {
+            params: { format },
+            responseType: 'blob'
+        });
+        return response;
+    } catch (error) {
+        console.error('导出设备AI健康报表失败:', error);
+        throw error;
+    }
+};

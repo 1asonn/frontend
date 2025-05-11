@@ -127,7 +127,7 @@ MedicalEquipment.associate = (models) => {
 };
 
 // 同步模型到数据库，使用 alter: true 选项更新表结构
-MedicalEquipment.sync({ alter: true }).then(() => {
+MedicalEquipment.sync().then(() => {
     console.log("医疗设备表模型已同步并更新!");
 });
 

@@ -5,6 +5,37 @@
 
 export const systemMenus = [
   {
+    name: 'medicine',
+    title: '药品管理',
+    icon: 'el-icon-medicine-box',
+    children: [
+      {
+        name: 'MedicineList',
+        title: '药品目录',
+        icon: 'el-icon-notebook-2',
+        path: '/medicine/list'
+      },
+      {
+        name: 'MedicineStock',
+        title: '药品库存',
+        icon: 'el-icon-box',
+        path: '/medicine/stock'
+      },
+      {
+        name: 'MedicineStockIn',
+        title: '药品入库',
+        icon: 'el-icon-download',
+        path: '/medicine/stock-in'
+      },
+      {
+        name: 'MedicineStockOut',
+        title: '药品出库',
+        icon: 'el-icon-upload2',
+        path: '/medicine/stock-out'
+      }
+    ]
+  },
+  {
     name: 'sys',
     title: '系统管理',
     icon: 'el-icon-setting',

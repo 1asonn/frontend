@@ -59,3 +59,34 @@ export function getMedicineRiskAlerts() {
     method: 'get'
   })
 }
+
+export function fetchStockOutList(params) {
+  return request({
+    url: '/medicine/stock/out',
+    method: 'get',
+    params
+  })
+}
+
+export function createStockOut(data) {
+  return request({
+    url: '/medicine/stock/out',
+    method: 'post',
+    data
+  })
+}
+
+export function updateStockOut(data) {
+  return request({
+    url: `/medicine/stock/out/${data.id}`,
+    method: 'put',
+    data
+  })
+}
+
+export function getStockOut(id) {
+  return request({
+    url: `/medicine/stock/out/${id}`,
+    method: 'get'
+  })
+}

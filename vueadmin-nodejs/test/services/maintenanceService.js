@@ -32,9 +32,9 @@ class MaintenanceService {
                 orderNumber = `MO${year}${month}${day}0001`;
             }
             
-            // 处理零件数据，如果是数组则转为JSON字符串
-            if (orderData.parts && Array.isArray(orderData.parts)) {
-                orderData.parts = JSON.stringify(orderData.parts);
+            // 处理图片数据，如果是数组则转为JSON字符串
+            if (orderData.images && Array.isArray(orderData.images)) {
+                orderData.images = JSON.stringify(orderData.images);
             }
             
             // 处理 equipment_id，如果为空字符串或非数字，则设为 null
@@ -44,13 +44,38 @@ class MaintenanceService {
                 orderData.equipment_id = parseInt(orderData.equipment_id);
             }
             
-            // 创建工单
-            const order = await MaintenanceOrder.create({
-                ...orderData,
+            // 创建工单 - 明确指定要创建的字段
+            const orderFields = {
                 order_number: orderNumber,
+                equipment_id: orderData.equipment_id,
+                equipment_name: orderData.equipment_name,
+                equipment_code: orderData.equipment_code,
+                equipment_model: orderData.equipment_model,
+                department: orderData.department,
+                location: orderData.location,
+                manufacturer: orderData.manufacturer,
                 status: 'pending',
-                create_time: new Date()
-            });
+                fault_type: orderData.fault_type,
+                fault_description: orderData.fault_description,
+                reporter: orderData.reporter,
+                reporter_id: orderData.reporter_id,
+                contact_phone: orderData.contact_phone,
+                priority: orderData.priority || 'medium',
+                remarks: orderData.remarks,
+                assignee: orderData.assignee,
+                assignee_id: orderData.assignee_id,
+                estimated_time: orderData.estimated_time,
+                process_remark: null,
+                process_result: null,
+                cost: 0,
+                create_time: new Date(),
+                process_time: null,
+                complete_time: null,
+                cancel_time: null,
+                images: orderData.images
+            };
+            
+            const order = await MaintenanceOrder.create(orderFields);
             
             // 创建历史记录
             await MaintenanceHistory.create({
@@ -124,11 +149,24 @@ class MaintenanceService {
             
             // 查询工单列表
             const result = await MaintenanceOrder.findAndCountAll({
+                attributes: [
+                    'id', 'order_number', 'equipment_id', 'equipment_name', 'equipment_code',
+                    'equipment_model', 'department', 'location', 'manufacturer', 'status',
+                    'fault_type', 'fault_description', 'reporter', 'reporter_id', 'contact_phone',
+                    'priority', 'remarks', 'assignee', 'assignee_id', 'estimated_time',
+                    'process_remark', 'process_result', 'cost', 'create_time', 'process_time',
+                    'complete_time', 'cancel_time', 'images', 'createdAt', 'updatedAt'
+                ],
                 where,
                 include: [
                     {
                         model: User,
                         as: 'assignee_info',
+                        attributes: ['id', 'username', 'realname', 'phone']
+                    },
+                    {
+                        model: User,
+                        as: 'creator_info',
                         attributes: ['id', 'username', 'realname', 'phone']
                     }
                 ],
@@ -137,17 +175,9 @@ class MaintenanceService {
                 order: [['create_time', 'DESC']]
             });
             
-            // 处理零件数据，将JSON字符串转为数组
+            // 转换为普通对象
             const records = result.rows.map(order => {
-                const orderData = order.toJSON();
-                if (orderData.parts && typeof orderData.parts === 'string') {
-                    try {
-                        orderData.parts = JSON.parse(orderData.parts);
-                    } catch (e) {
-                        orderData.parts = [];
-                    }
-                }
-                return orderData;
+                return order.toJSON();
             });
             
             return {
@@ -165,6 +195,14 @@ class MaintenanceService {
     async getMaintenanceOrderById(id) {
         try {
             const order = await MaintenanceOrder.findByPk(id, {
+                attributes: [
+                    'id', 'order_number', 'equipment_id', 'equipment_name', 'equipment_code',
+                    'equipment_model', 'department', 'location', 'manufacturer', 'status',
+                    'fault_type', 'fault_description', 'reporter', 'reporter_id', 'contact_phone',
+                    'priority', 'remarks', 'assignee', 'assignee_id', 'estimated_time',
+                    'process_remark', 'process_result', 'cost', 'create_time', 'process_time',
+                    'complete_time', 'cancel_time', 'images', 'createdAt', 'updatedAt'
+                ],
                 include: [
                     {
                         model: User,
@@ -183,15 +221,7 @@ class MaintenanceService {
                 throw new Error('工单不存在');
             }
             
-            // 处理零件数据，将JSON字符串转为数组
             const orderData = order.toJSON();
-            if (orderData.parts && typeof orderData.parts === 'string') {
-                try {
-                    orderData.parts = JSON.parse(orderData.parts);
-                } catch (e) {
-                    orderData.parts = [];
-                }
-            }
             
             return orderData;
         } catch (error) {
@@ -272,6 +302,14 @@ class MaintenanceService {
 
             // 查找工单及关联设备
             const order = await MaintenanceOrder.findByPk(id, {
+                attributes: [
+                    'id', 'order_number', 'equipment_id', 'equipment_name', 'equipment_code',
+                    'equipment_model', 'department', 'location', 'manufacturer', 'status',
+                    'fault_type', 'fault_description', 'reporter', 'reporter_id', 'contact_phone',
+                    'priority', 'remarks', 'assignee', 'assignee_id', 'estimated_time',
+                    'process_remark', 'process_result', 'cost', 'create_time', 'process_time',
+                    'complete_time', 'cancel_time', 'images', 'createdAt', 'updatedAt'
+                ],
                 include: [{
                     model: MedicalEquipment,
                     as: 'equipment',
@@ -296,7 +334,6 @@ class MaintenanceService {
                 status: 'completed',
                 complete_time: completeTime,
                 process_result: data.process_result || null,
-                result_type: data.result_type || null,
                 cost: data.cost || 0,
                 process_remark: data.process_remark || null
             });
@@ -333,15 +370,8 @@ class MaintenanceService {
                     maintenance_type = 'preventive';
                 }
 
-                // 映射维修结果
+                // 维修结果默认为已修复
                 let result = 'fixed';
-                if (order.result_type === 'partially_fixed') {
-                    result = 'partially_fixed';
-                } else if (order.result_type === 'cannot_fix') {
-                    result = 'cannot_fix';
-                } else if (order.result_type === 'need_parts') {
-                    result = 'need_parts';
-                }
 
                 // 计算下次维护日期（默认3个月后）
                 const today = new Date();
@@ -374,18 +404,16 @@ class MaintenanceService {
                     
                     // 人员信息
                     operator: order.assignee || order.reporter,
-                    operator_id: order.assignee_id || null,
+                    operator_id: order.assignee_id || order.reporter_id || null,
                     
                     // 故障和维修详情
                     fault_type: order.fault_type,
                     fault_description: order.fault_description,
-                    maintenance_details: order.process_remark || '',
+                    maintenance_details: order.process_result || '',  // 使用process_result作为维修详情
                     
-                    // 零件和成本
-                    parts_replaced: order.parts || null,
+                    // 成本
                     total_cost: order.cost || 0,
                     
-                    // 状态和结果
                     status: 'completed',
                     result: result,
                     
@@ -466,9 +494,9 @@ class MaintenanceService {
                 throw new Error('工单不存在');
             }
             
-            // 处理零件数据，如果是数组则转为JSON字符串
-            if (updateData.parts && Array.isArray(updateData.parts)) {
-                updateData.parts = JSON.stringify(updateData.parts);
+            // 处理图片数据，如果是数组则转为JSON字符串
+            if (updateData.images && Array.isArray(updateData.images)) {
+                updateData.images = JSON.stringify(updateData.images);
             }
             
             // 更新工单
@@ -494,7 +522,7 @@ class MaintenanceService {
     async exportMaintenanceData(params) {
         try {
             // 使用与getMaintenanceOrders相同的筛选逻辑，但不分页
-            const { searchQuery, department, status, startDate, endDate } = params;
+            const { searchQuery, department, departmentId, status, startDate, endDate, assigneeId } = params;
             
             // 构建查询条件
             const where = {};
@@ -507,9 +535,18 @@ class MaintenanceService {
                 ];
             }
             
-            // 科室筛选
-            if (department) {
+            // 科室筛选 - 支持通过科室名称或ID筛选
+            if (departmentId) {
+                // 优先使用department_id进行筛选
+                where.department_id = departmentId;
+            } else if (department) {
+                // 兼容旧版本，通过科室名称筛选
                 where.department = department;
+            }
+            
+            // 处理人ID筛选
+            if (assigneeId && !isNaN(parseInt(assigneeId))) {
+                where.assignee_id = parseInt(assigneeId);
             }
             
             // 状态筛选
@@ -537,18 +574,26 @@ class MaintenanceService {
             
             // 查询工单列表
             const orders = await MaintenanceOrder.findAll({
+                attributes: [
+                    'id', 'order_number', 'equipment_id', 'equipment_name', 'equipment_code',
+                    'equipment_model', 'department', 'location', 'manufacturer', 'status',
+                    'fault_type', 'fault_description', 'reporter', 'reporter_id', 'contact_phone',
+                    'priority', 'remarks', 'assignee', 'assignee_id', 'estimated_time',
+                    'process_remark', 'process_result', 'cost', 'create_time', 'process_time',
+                    'complete_time', 'cancel_time', 'images'
+                ],
                 where,
                 order: [['create_time', 'DESC']]
             });
             
-            // 处理零件数据，将JSON字符串转为数组
+            // 处理图片数据，将JSON字符串转为数组
             const records = orders.map(order => {
                 const orderData = order.toJSON();
-                if (orderData.parts && typeof orderData.parts === 'string') {
+                if (orderData.images && typeof orderData.images === 'string') {
                     try {
-                        orderData.parts = JSON.parse(orderData.parts);
+                        orderData.images = JSON.parse(orderData.images);
                     } catch (e) {
-                        orderData.parts = [];
+                        orderData.images = [];
                     }
                 }
                 return orderData;

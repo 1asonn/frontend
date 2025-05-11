@@ -1,3 +1,5 @@
+const path = require("path");
+
 let nav = [
     {
         name: 'PatientManager',
@@ -38,6 +40,27 @@ let nav = [
                 path: '/medicine/list',
                 component: 'medicine/index',
                 children: []
+            },
+            {
+                name:'MedicineStock',
+                title:'药品库存',
+                icon:'el-icon-s-order',
+                path:'/medicine/stock',
+                component:'medicine/StockList',
+            },
+            {
+                name:'MedicineStockIn',
+                title:'药品入库',
+                icon:'el-icon-s-order',
+                path:'/medicine/stock-in',
+                component:'medicine/StockIn',
+            },
+            {
+                name:'MedicineStockOut',
+                title:'药品出库',
+                icon:'el-icon-s-order',
+                path:'/medicine/stock-out',
+                component:'medicine/StockOut',
             }
         ]
     },
@@ -108,12 +131,28 @@ let nav = [
         ]
     },
     {
-        name: 'FinanceManager',
-        title: '财务管理',
-        icon: 'el-icon-s-finance',
-        path: '/finance',
-        component: 'finance/Finance',
-        children: []
+        name:'BaseData',
+        title:'基础资料',
+        icon:'el-icon-s-data',
+        path:'/data',
+        children:[
+            {
+                name:'SysDepartment',
+                title:'部门管理',
+                icon:'el-icon-s-custom',
+                path:'/system/Department',
+                component:'system/Department',
+                children:[]
+            },
+            {
+                name:'SysSupplier',
+                title:'供应商管理',
+                icon:'el-icon-s-order',
+                path:'/system/Supplier',
+                component:'system/Supplier',
+                children:[]
+            }
+        ]
     },
     {
         name: 'DataManager',
@@ -126,19 +165,11 @@ let nav = [
                 name: 'SysAiData',
                 title: 'AI报表',
                 icon: 'el-icon-s-custom',
-                path:'/sys/aiData',
-                component: 'sys/AiData',
+                path:'/system/DataAnalysis',
+                component: 'system/DataAnalysis',
                 children: []
             }
         ]
-    },
-    {
-        name: 'AiManager',
-        title: '智慧管理',
-        icon: 'el-icon-s-data',
-        path: '/ai',
-        component: 'ai/Ai',
-        children: []
     }
 ];
 
