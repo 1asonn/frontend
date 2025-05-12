@@ -26,7 +26,7 @@
     },
     data() {
       return {
-        title:"Welcome to EIMS",
+        title:"AI+医院信息管理系统",
         loginForm: {
           username: '',
           password: ''
@@ -113,7 +113,6 @@
     },
 
     created(){                //页面初始化钩子函数
-        this.getcaptchaImg();
     },
 
     mounted() {

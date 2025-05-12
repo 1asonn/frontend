@@ -32,7 +32,7 @@
 <style scoped>
     @import url("https://fonts.googleapis.com/css2?family=Bangers&family=Homemade+Apple&family=Sacramento&display=swap");
     svg {
-      width: 700px;
+      width: 1300px;
       height: 300px;
       margin: auto;
     }
@@ -40,7 +40,7 @@
     svg text {
       font-family: "Bangers", cursive;
       text-transform: uppercase;
-      animation: stroke 5s forwards alternate infinite;
+      animation: stroke 5s forwards alternate ;
       letter-spacing: 5px;
       font-size: 60px;
     }
