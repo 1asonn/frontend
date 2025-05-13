@@ -92,7 +92,7 @@
         </template>
       </el-table-column>
       
-      <el-table-column label="预警阈值" prop="min_stock" width="100" align="center" />
+      
       
       <el-table-column label="有效期至" width="120" align="center">
         <template slot-scope="{row}">
@@ -106,7 +106,7 @@
       
       <el-table-column label="单价" width="100" align="center">
         <template slot-scope="{row}">
-          <span>¥{{ formatPrice(row.price) }}</span>
+          <span>¥{{ formatPrice(row.unit_price) }}</span>
         </template>
       </el-table-column>
       
@@ -144,9 +144,8 @@
           <el-descriptions-item label="药品名称">{{ currentDetail.medicine_name }}</el-descriptions-item>
           <el-descriptions-item label="规格">{{ currentDetail.specification || '无' }}</el-descriptions-item>
           <el-descriptions-item label="库存数量">{{ currentDetail.quantity }} {{ currentDetail.unit }}</el-descriptions-item>
-          <el-descriptions-item label="预警阈值">{{ currentDetail.min_stock || '无' }}</el-descriptions-item>
-          <el-descriptions-item label="单价">¥{{ formatPrice(currentDetail.price) }}</el-descriptions-item>
-          <el-descriptions-item label="库存总值">¥{{ formatPrice(currentDetail.price * currentDetail.quantity) }}</el-descriptions-item>
+          <el-descriptions-item label="单价">¥{{ formatPrice(currentDetail.unit_price) }}</el-descriptions-item>
+          <el-descriptions-item label="库存总值">¥{{ formatPrice(currentDetail.unit_price * currentDetail.quantity) }}</el-descriptions-item>
         </el-descriptions>
         
         <el-divider content-position="left">批次信息</el-divider>

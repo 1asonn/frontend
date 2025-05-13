@@ -59,6 +59,11 @@ const MedicineStock = sequelize.define('medicine_stock', {
         allowNull: true,
         comment: '供应商ID'
     },
+    unit_price: {
+        type: Sequelize.DECIMAL(10, 2),
+        allowNull: true,
+        comment: '单价'
+    },
     last_update_time: {
         type: Sequelize.DATE,
         allowNull: false,
@@ -100,6 +105,15 @@ MedicineStock.sync({ alter: true, force: false }).then(() => {
         return sequelize.query("ALTER TABLE medicine_stocks ADD COLUMN supplier_id INT COMMENT '供应商ID'");
     } else {
         console.log('supplier_id 列已存在');
+        return sequelize.query("SHOW COLUMNS FROM medicine_stocks LIKE 'unit_price'");
+    }
+}).then((results) => {
+    if (results && Array.isArray(results) && results[0] && results[0].length === 0) {
+        // 如果单价列不存在，手动添加
+        console.log('手动添加 unit_price 列');
+        return sequelize.query("ALTER TABLE medicine_stocks ADD COLUMN unit_price DECIMAL(10,2) COMMENT '单价'");
+    } else {
+        console.log('unit_price 列已存在或无需检查');
         return Promise.resolve();
     }
 }).catch(err => {

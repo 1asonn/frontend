@@ -404,7 +404,7 @@
             <el-table-column type="index" width="50" label="#" align="center"></el-table-column>
             <el-table-column prop="medicineName" label="药品名称" min-width="150"></el-table-column>
             <el-table-column prop="specification" label="规格" width="120"></el-table-column>
-            <el-table-column prop="batchNumber" label="批号" width="100"></el-table-column>
+            <el-table-column prop="batchNumber" label="批号" width="200"></el-table-column>
             <el-table-column label="数量" width="80" align="center">
               <template slot-scope="scope">
                 <span>{{ scope.row.quantity }}{{ scope.row.unit }}</span>
@@ -457,7 +457,7 @@
       </div>
     </el-dialog>
 
-    <!-- 出库单对话框 -->
+    <!-- 新建出库单对话框 -->
     <el-dialog
       :title="dialogTitle"
       :visible.sync="dialogVisible"
@@ -465,7 +465,17 @@
       :close-on-click-modal="false"
       @close="resetStockOutForm"
       custom-class="stock-out-dialog"
+      :fullscreen="isFullscreen"
     >
+      <div class="dialog-toolbar">
+        <el-button type="text" @click="toggleFullscreen">
+          <i :class="isFullscreen ? 'el-icon-close' : 'el-icon-full-screen'"></i>
+          {{ isFullscreen ? '退出全屏' : '全屏编辑' }}
+        </el-button>
+        <el-button type="text" @click="resetStockOutForm" v-if="formChanged">
+          <i class="el-icon-refresh-left"></i> 重置表单
+        </el-button>
+      </div>
       <el-form ref="stockOutForm" :model="stockOutForm" :rules="stockOutRules" label-width="100px">
         <el-row :gutter="20">
           <el-col :span="12">
@@ -502,10 +512,14 @@
 
         <div class="form-divider">
           <span>药品明细</span>
-          <el-button type="primary" icon="el-icon-plus" @click="handleAddItem" size="small">添加药品</el-button>
+          <div class="divider-actions">
+            <el-button type="primary" icon="el-icon-plus" @click="handleAddItem" size="small">添加药品</el-button>
+            <el-button type="info" icon="el-icon-upload2" @click="handleBatchImport" size="small">批量导入</el-button>
+            <el-button type="danger" icon="el-icon-delete" @click="handleClearItems" size="small" :disabled="!stockOutForm.items.length">清空列表</el-button>
+          </div>
         </div>
 
-        <div class="table-container" style="overflow-x: auto; margin-bottom: 20px;">
+        <div class="table-container" style="overflow-x: auto; margin-bottom: 10px;">
           <el-table
             :data="stockOutForm.items"
             border
@@ -544,7 +558,7 @@
           
           <el-table-column label="规格" prop="specification" width="110" />
           
-          <el-table-column label="批号" width="120">
+          <el-table-column label="批号" width="160">
             <template slot-scope="{row}">
               <el-select
                 v-model="row.batch_number"
@@ -564,7 +578,18 @@
             </template>
           </el-table-column>
           
-          <el-table-column label="数量" width="100">
+          <el-table-column label="库存数量" width="100" align="center">
+            <template slot-scope="{row}">
+              <el-tag 
+                :type="getStockTagType(row)" 
+                size="small"
+              >
+                {{ getMaxQuantity(row) }}{{ row.unit || '' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          
+          <el-table-column label="出库数量" width="120">
             <template slot-scope="{row}">
               <el-input-number
                 v-model="row.quantity"
@@ -615,6 +640,17 @@
           </el-table-column>
         </el-table>
         </div>
+        <div class="table-summary" v-if="stockOutForm.items.length > 0">
+          <div class="summary-item">
+            <span class="label">药品种类:</span>
+            <span class="value">{{ stockOutForm.items.length }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">总数量:</span>
+            <span class="value">{{ getTotalQuantity(stockOutForm.items) }}</span>
+          </div>
+        </div>
+        
         <div class="form-footer">
           <div class="total-info">
             <span>总数量: </span>
@@ -624,8 +660,15 @@
       </el-form>
       
       <div slot="footer" class="dialog-footer">
-        <el-button @click="dialogVisible = false">取 消</el-button>
-        <el-button type="primary" @click="submitStockOut" :loading="submitLoading">确 定</el-button>
+        <div class="form-summary" v-if="stockOutForm.items.length > 0">
+          <div class="summary-text">
+            <span>共 <b>{{ stockOutForm.items.length }}</b> 种药品，总数量 <b>{{ getTotalQuantity(stockOutForm.items) }}</b> 件</span>
+          </div>
+        </div>
+        <div>
+          <el-button @click="dialogVisible = false">取 消</el-button>
+          <el-button type="primary" @click="submitStockOut" :loading="submitLoading" :disabled="!stockOutForm.items.length">提交出库单</el-button>
+        </div>
       </div>
     </el-dialog>
   </div>
@@ -643,6 +686,8 @@ export default {
     return {
       // 新UI相关属性
       tableView: 'table', // 表格视图类型：'table'或'card'
+      isFullscreen: false,
+      formChanged: false,
       statsSummary: {
         total: 0,
         pending: 0,
@@ -717,7 +762,8 @@ export default {
         operator: [{ required: true, message: '请输入经办人', trigger: 'blur' }]
       },
       medicineOptions: [],
-      stockList: [],
+      // 库存映射表，以药品ID为键存储对应的库存列表
+      medicineStockMap: {},
       loading: false
     }
   },
@@ -1027,15 +1073,24 @@ export default {
       this.dialogTitle = '新建出库单'
       this.dialogVisible = true
       this.resetStockOutForm()
+      this.formChanged = false
+      this.isFullscreen = false
     },
     async getMedicineList(query) {
       if (query !== '') {
         this.loading = true
         try {
-          const { data } = await getMedicineList({ keyword: query })
-          this.medicineOptions = data
+          // 根据后端API参数格式调整传参，使用name参数而不是keyword
+          const response = await getMedicineList({ name: query })
+          if (response.data.code === 200 && response.data.data && response.data.data.list) {
+            this.medicineOptions = response.data.data.list
+          } else {
+            console.error('获取药品列表返回格式异常:', response)
+            this.medicineOptions = []
+          }
         } catch (error) {
           console.error('获取药品列表失败:', error)
+          this.medicineOptions = []
         }
         this.loading = false
       }
@@ -1043,35 +1098,81 @@ export default {
     async handleMedicineChange(medicineId, index) {
       const medicine = this.medicineOptions.find(item => item.id === medicineId)
       if (medicine) {
-        this.stockOutForm.items[index] = {
+        // 先更新药品基本信息
+        this.$set(this.stockOutForm.items, index, {
           ...this.stockOutForm.items[index],
           medicine_id: medicine.id,
           medicine_name: medicine.name,
           specification: medicine.specification,
-          unit: medicine.unit
-        }
+          unit: medicine.unit,
+          // 清空批次相关信息，因为更换药品后需要重新选择批次
+          batch_number: '',
+          production_date: '',
+          expiry_date: '',
+          location: '',
+          quantity: 0
+        })
         
-        // 获取药品库存信息
-        try {
-          const { data } = await getStockList({ medicine_id: medicine.id })
-          this.stockList = data.items
-        } catch (error) {
-          console.error('获取药品库存失败:', error)
-          this.$message.error('获取药品库存失败')
+        // 检查是否已经有该药品的库存数据
+        if (!this.medicineStockMap[medicineId]) {
+          // 获取药品库存信息
+          try {
+            // 根据后端API参数格式调整传参
+            const response = await getStockList({ medicine_id: medicine.id })
+            if (response.data && response.data.items) {
+              // 如果有库存数据，则存储到映射表中
+              this.$set(this.medicineStockMap, medicineId, response.data.items || [])
+              
+              // 计算总库存数量
+              const totalStock = this.medicineStockMap[medicineId].reduce((sum, stock) => sum + stock.quantity, 0)
+              this.stockOutForm.items[index].available_stock = totalStock
+              
+              // 如果药品有totalStock属性，使用它作为备用
+              if (medicine.totalStock !== undefined && totalStock === 0) {
+                this.stockOutForm.items[index].available_stock = medicine.totalStock
+              }
+            } else {
+              console.error('获取药品库存返回格式异常:', response)
+              this.$set(this.medicineStockMap, medicineId, [])
+              
+              // 如果药品有totalStock属性，使用它作为库存数量
+              if (medicine.totalStock !== undefined) {
+                this.stockOutForm.items[index].available_stock = medicine.totalStock
+              } else {
+                this.stockOutForm.items[index].available_stock = 0
+              }
+            }
+          } catch (error) {
+            console.error('获取药品库存失败:', error)
+            this.$set(this.medicineStockMap, medicineId, [])
+            
+            // 如果药品有totalStock属性，使用它作为库存数量
+            if (medicine.totalStock !== undefined) {
+              this.stockOutForm.items[index].available_stock = medicine.totalStock
+            } else {
+              this.stockOutForm.items[index].available_stock = 0
+            }
+          }
+        } else {
+          // 如果已经有该药品的库存数据，直接使用
+          const totalStock = this.medicineStockMap[medicineId].reduce((sum, stock) => sum + stock.quantity, 0)
+          this.stockOutForm.items[index].available_stock = totalStock
         }
+        this.formChanged = true
       }
     },
     getBatchOptions(medicineId) {
       if (!medicineId) return []
-      const stock = this.stockList.find(item => item.medicine_id === medicineId)
-      return stock ? stock.batch_numbers : []
+      // 从药品库存映射表中获取该药品的库存列表
+      const stockList = this.medicineStockMap[medicineId] || []
+      // 返回所有库存项的批次号数组
+      return stockList.map(stock => stock.batch_number)
     },
     getMaxQuantity(row) {
       if (!row.medicine_id || !row.batch_number) return 0
-      const stock = this.stockList.find(item => 
-        item.medicine_id === row.medicine_id && 
-        item.batch_number === row.batch_number
-      )
+      // 从药品库存映射表中获取该药品的库存列表
+      const stockList = this.medicineStockMap[row.medicine_id] || []
+      const stock = stockList.find(item => item.batch_number === row.batch_number)
       return stock ? stock.quantity : 0
     },
     validateQuantity(row) {
@@ -1080,19 +1181,56 @@ export default {
         this.$message.warning(`超出库存数量，当前库存: ${maxQuantity}`)
         row.quantity = maxQuantity
       }
+      this.formChanged = true
+    },
+    
+    getStockTagType(row) {
+      if (!row.medicine_id || !row.batch_number) return 'info'
+      const quantity = this.getMaxQuantity(row)
+      
+      if (quantity <= 0) {
+        return 'danger' // 无库存
+      } else if (quantity <= 50) {
+        return 'warning' // 库存低
+      } else if (quantity <= 100) {
+        return '' // 库存一般
+      } else {
+        return 'success' // 库存充足
+      }
     },
     handleBatchNumberChange(row) {
-      const stock = this.stockList.find(item => 
-        item.medicine_id === row.medicine_id && 
-        item.batch_number === row.batch_number
-      )
+      // 从药品库存映射表中获取该药品的库存列表
+      const stockList = this.medicineStockMap[row.medicine_id] || []
+      // 在库存列表中查找匹配的库存项
+      const stock = stockList.find(item => item.batch_number === row.batch_number)
+      
       if (stock) {
-        row.production_date = stock.production_date
-        row.expiry_date = stock.expiry_date
-        row.location = stock.location
-        row.stock_quantity = stock.quantity
+        // 使用Vue的响应式更新方式更新字段
+        this.$set(row, 'production_date', stock.production_date)
+        this.$set(row, 'expiry_date', stock.expiry_date)
+        this.$set(row, 'location', stock.location)
+        this.$set(row, 'stock_quantity', stock.quantity)
+        this.$set(row, 'available_stock', stock.quantity)
+        
+        // 默认设置数量为1，但不超过可用库存
+        if (!row.quantity || row.quantity <= 0) {
+          this.$set(row, 'quantity', 1)
+        }
+        
+        // 验证数量不超过库存
         this.validateQuantity(row)
+      } else {
+        console.warn('找不到匹配的库存项:', row.medicine_id, row.batch_number)
+        // 清空相关字段
+        this.$set(row, 'production_date', '')
+        this.$set(row, 'expiry_date', '')
+        this.$set(row, 'location', '')
+        this.$set(row, 'stock_quantity', 0)
+        this.$set(row, 'available_stock', 0)
+        this.$set(row, 'quantity', 0)
       }
+      
+      this.formChanged = true
     },
     submitStockOut() {
       this.$refs.stockOutForm.validate(async valid => {
@@ -1134,6 +1272,7 @@ export default {
         remark: '',
         items: []
       }
+      this.formChanged = false
     },
     handleAddItem() {
       const newItem = {
@@ -1149,9 +1288,14 @@ export default {
         stock_quantity: 0
       }
       this.stockOutForm.items.push(newItem)
+      this.formChanged = true
     },
     removeItem(index) {
       this.stockOutForm.items.splice(index, 1)
+      this.formChanged = true
+    },
+    toggleFullscreen() {
+      this.isFullscreen = !this.isFullscreen
     },
     formatDate(date) {
       if (!date) return ''
@@ -1208,6 +1352,22 @@ export default {
       this.dialogTitle = '查看出库单'
       this.dialogVisible = true
       this.stockOutForm = { ...row }
+    },
+    
+    handleClearItems() {
+      this.$confirm('确认清空所有药品明细?', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        this.stockOutForm.items = []
+        this.formChanged = true
+        this.$message.success('已清空药品明细')
+      }).catch(() => {})
+    },
+    
+    handleBatchImport() {
+      this.$message.info('批量导入功能正在开发中')
     }
   }
 }
@@ -1757,6 +1917,64 @@ export default {
 .stock-out-dialog .dialog-footer {
   padding: 20px 0 0;
   text-align: right;
+}
+
+.stock-out-dialog .dialog-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 15px;
+}
+
+.stock-out-dialog .table-summary {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  background-color: #f5f7fa;
+  padding: 8px 10px;
+  border-radius: 4px;
+  margin-top: -5px;
+}
+
+.stock-out-dialog .summary-item {
+  margin-right: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.stock-out-dialog .summary-item .label {
+  margin-right: 5px;
+  color: #606266;
+}
+
+.stock-out-dialog .summary-item .value {
+  font-weight: 600;
+  color: #409EFF;
+}
+
+.stock-out-dialog .form-summary {
+  display: flex;
+  align-items: center;
+  margin-right: 20px;
+}
+
+.stock-out-dialog .summary-text {
+  color: #606266;
+}
+
+.stock-out-dialog .form-divider {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 20px 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #EBEEF5;
+  font-weight: 600;
+  color: #303133;
+}
+
+.stock-out-dialog .divider-actions {
+  display: flex;
+  gap: 10px;
 }
 
 /* 状态样式 */

@@ -728,6 +728,7 @@ router.get('/getStockList', verifyToken, async (req, res) => {
         const { 
             page = 1, 
             limit = 10, 
+            medicine_id,
             medicine_name,
             batch_number,
             expiry_start_date,
@@ -738,6 +739,9 @@ router.get('/getStockList', verifyToken, async (req, res) => {
         const where = {};
 
         // 添加筛选条件
+        if (medicine_id) {
+            where.medicine_id = medicine_id;
+        }
         if (medicine_name) {
             where.medicine_name = { [Op.like]: `%${medicine_name}%` };
         }

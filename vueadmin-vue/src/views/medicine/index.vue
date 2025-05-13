@@ -675,7 +675,7 @@ export default {
     
     // 库存状态相关方法
     getTotalStock(row) {
-      return row.stocks ? row.stocks.reduce((sum, stock) => sum + stock.quantity, 0) : 0
+      return row.totalStock
     },
     getStockStatusClass(row) {
       const totalStock = this.getTotalStock(row)
