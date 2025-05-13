@@ -1,7 +1,7 @@
 <template>
     <section id="login-form" class="main">
         <div class="formContainer">
-            <h1>Welcome</h1>
+            <h1>欢迎登录</h1>
             <form class="login-form" @submit.prevent="Login">
             <div class="input-wrap i1">
                 <input id="usernameInput" v-model="loginForm.username" type="email" placeholder="请输入您的邮箱~" spellcheck="false" autocomplete=“off” required>
@@ -14,14 +14,14 @@
             <div class="rem">
                 <p>
                     <input type="checkbox" v-model="rememberMe" id="rememberMe">
-                    <label for="rememberMe">Remember me</label>
+                    <label for="rememberMe">记住我</label>
                 </p>
-                <a @click="showForgotPassword">Forgot password?</a>
+                <a @click="showForgotPassword">密码找回</a>
             </div>
 
-            <button type="submit">Login</button>
+            <button type="submit">登录</button>
 
-            <p class="reg">Dont't have an account? <a>Register</a></p>
+            <!-- <p class="reg">Dont't have an account? <a>Register</a></p> -->
             </form>
         </div>
         <forgot-password ref="forgotPassword"></forgot-password>

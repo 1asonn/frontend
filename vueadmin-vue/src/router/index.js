@@ -79,7 +79,7 @@ router.beforeEach(async(to, from, next) => {
   const token = localStorage.getItem('token')
   const hasRoute = store.state.menu.hasRoutes
 
-  if (to.path === '/login') {
+  if (to.path === '/login' || to.path === '/portal' || to.path === '/about') {
     next()
     return
   }

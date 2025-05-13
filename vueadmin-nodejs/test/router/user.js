@@ -188,9 +188,6 @@ router.get('/getUserList', async (req, res) => {
         const decoded = jwt.verify(token, JWT_SECRET);
         const authorities = decoded.authorities.split(',');
         
-        if (!authorities.includes("SysUser")) {
-            return res.status(403).json(createResponse(false, '用户无权限'));
-        }
 
         // 读取分页和筛选参数
         let { current = 1, size = 10, username = '' } = req.query;

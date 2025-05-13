@@ -10,7 +10,7 @@
 			</div>
 		</div>
 
-		<el-card shadow="hover" class="main-card">
+		<el-card shadow="hover" class="search-card">
 			<div class="search-area">
 				<el-form :inline="true" :model="searchForm" class="search-form" @keyup.enter.native="getUserList">
 					<el-form-item>
@@ -40,20 +40,24 @@
 					<el-button type="danger" icon="el-icon-delete" :disabled="delBtlStatu" @click="batchDelete">批量删除</el-button>
 				</div>
 			</div>
+		</el-card>
 
-			<el-table
-				ref="multipleTable"
-				:data="tableData"
-				tooltip-effect="dark"
-				style="width: 100%"
-				border
-				stripe
-				highlight-current-row
-				:header-cell-style="{backgroundColor: '#f5f7fa', color: '#606266'}"
-				v-loading="tableLoading"
-				element-loading-text="加载中..."
-				element-loading-spinner="el-icon-loading"
-				@selection-change="handleSelectionChange">
+		<el-card shadow="hover" class="main-card">
+
+			<div class="table-container">
+				<el-table
+					ref="multipleTable"
+					:data="tableData"
+					tooltip-effect="dark"
+					style="width: 100%"
+					border
+					stripe
+					highlight-current-row
+					:header-cell-style="{backgroundColor: '#f5f7fa', color: '#606266'}"
+					v-loading="tableLoading"
+					element-loading-text="加载中..."
+					element-loading-spinner="el-icon-loading"
+					@selection-change="handleSelectionChange">
 
 				<el-table-column
 					type="selection"
@@ -100,6 +104,9 @@
 					prop="birth_date"
 					label="出生日期"
 					width="100">
+					<template slot-scope="scope">
+						{{ formatDate(scope.row.birth_date) || '-' }}
+					</template>
 				</el-table-column>
 				<el-table-column
 					label="年龄"
@@ -128,7 +135,8 @@
 				<el-table-column
 					prop="icon"
 					width="200px"
-					label="操作">
+					label="操作"
+					fixed="right">
 
 					<template slot-scope="scope">
 						<el-button type="text" @click="checkHandle(scope.row.id)">查看</el-button>
@@ -142,7 +150,8 @@
 					</template>
 				</el-table-column>
 
-			</el-table>
+				</el-table>
+			</div>
 
 			<div class="pagination-container">
 				<el-pagination
@@ -450,13 +459,10 @@
 
 <script>
     import { GetUserList,GetRoleList,GetDepartmentList } from '@/api/index.js'
-	import FullCalendar from '@fullcalendar/vue'  
-    import { dayGridPlugin } from '@fullcalendar/daygrid'
-	import { interactionPlugin } from '@fullcalendar/interaction'
+
 	import { UserRegiste } from '@/api'
 	export default {
-		components:{
-			FullCalendar
+		components:{	
 		},
 		name: "User",
 		data() {
@@ -472,12 +478,6 @@
 			}
 
 			return {
-				calendarOptions: {
-					plugins: [ dayGridPlugin, interactionPlugin ],
-					initialView: 'dayGridMonth',
-					selectable:false
-      			},
-				calendarPlugins: [dayGridPlugin, interactionPlugin],
 				events: [],
                 dialogTableVisible: false,
 				drawer: false,
@@ -1412,15 +1412,18 @@
 
 <style lang="scss" scoped>
 .user-container {
-  padding: 15px;
-  height: 100%;
+  padding: 10px;
+  min-height: 100%;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
 
   .page-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
+    margin-bottom: 8px;
+    flex-shrink: 0;
 
     .header-title {
       font-size: 18px;
@@ -1436,41 +1439,233 @@
     }
   }
 
-  .main-card {
-    height: calc(100% - 50px);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
+  .search-card {
+    margin-bottom: 8px;
+    flex-shrink: 0;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
 
     .search-area {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 15px;
       flex-wrap: wrap;
+      padding: 16px 20px;
+      flex-shrink: 0;
+      background: #fafafa;
+      border-radius: 8px;
 
       .search-form {
         display: flex;
         flex-wrap: wrap;
+        gap: 12px;
+        flex: 1;
+        margin-right: 16px;
+
+        ::v-deep .el-form-item {
+          margin-bottom: 0;
+          margin-right: 0;
+
+          .el-input {
+            width: 220px;
+
+            .el-input__inner {
+              border-radius: 4px;
+              height: 36px;
+              line-height: 36px;
+              transition: all 0.3s;
+
+              &:hover {
+                border-color: #409EFF;
+              }
+
+              &:focus {
+                border-color: #409EFF;
+                box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+              }
+            }
+
+            .el-input__prefix {
+              left: 10px;
+              color: #909399;
+            }
+          }
+
+          .el-select {
+            width: 220px;
+
+            .el-input__inner {
+              border-radius: 4px;
+              height: 36px;
+              line-height: 36px;
+            }
+          }
+        }
+
+        ::v-deep .el-form-item__content {
+          display: flex;
+          align-items: center;
+        }
       }
 
       .action-buttons {
         display: flex;
-        gap: 10px;
+        gap: 12px;
+        flex-shrink: 0;
+
+        .el-button {
+          height: 36px;
+          padding: 0 20px;
+          font-size: 14px;
+          border-radius: 4px;
+          transition: all 0.3s;
+
+          &.el-button--primary {
+            background: #409EFF;
+            border-color: #409EFF;
+
+            &:hover {
+              background: #66b1ff;
+              border-color: #66b1ff;
+            }
+          }
+
+          &.el-button--success {
+            background: #67C23A;
+            border-color: #67C23A;
+
+            &:hover {
+              background: #85ce61;
+              border-color: #85ce61;
+            }
+          }
+
+          &.el-button--danger {
+            background: #F56C6C;
+            border-color: #F56C6C;
+
+            &:hover {
+              background: #f78989;
+              border-color: #f78989;
+            }
+          }
+
+          i {
+            margin-right: 4px;
+          }
+        }
+      }
+    }
+  }
+
+  .main-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+
+    .table-container {
+      flex: 1;
+      position: relative;
+      padding: 0 15px;
+      
+      .el-table {
+        width: 100% !important;
+      }
+
+      // 自定义滚动条样式
+      ::v-deep .el-table__body-wrapper {
+        overflow-y: auto;
+        overflow-x: auto;
+      }
+
+      ::v-deep .el-table__body-wrapper::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+
+      ::v-deep .el-table__body-wrapper::-webkit-scrollbar-thumb {
+        background: #ccc;
+        border-radius: 3px;
+      }
+
+      ::v-deep .el-table__body-wrapper::-webkit-scrollbar-track {
+        background: #f1f1f1;
       }
     }
 
-    .el-table {
-      flex: 1;
-      overflow: auto;
-    }
-
     .pagination-container {
-      margin-top: 15px;
+      padding: 6px 15px;
       display: flex;
       justify-content: flex-end;
+      background-color: #fff;
+      position: sticky;
+      bottom: 0;
+      z-index: 10;
+      border-top: 1px solid #f0f0f0;
+      flex-shrink: 0;
     }
   }
+}
+
+// 响应式布局
+@media screen and (max-width: 1200px) {
+  .search-card {
+    .search-area {
+      .search-form {
+        ::v-deep .el-form-item {
+          .el-input,
+          .el-select {
+            width: 180px;
+          }
+        }
+      }
+    }
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .search-card {
+    .search-area {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 12px;
+
+      .search-form {
+        margin-right: 0;
+        width: 100%;
+
+        ::v-deep .el-form-item {
+          width: 100%;
+
+          .el-input,
+          .el-select {
+            width: 100%;
+          }
+        }
+      }
+
+      .action-buttons {
+        width: 100%;
+        justify-content: flex-end;
+      }
+    }
+  }
+}
+
+// 确保父级容器不会限制内容
+::v-deep .el-card__body {
+  height: 100%;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+::v-deep .el-main {
+  padding: 0;
+  height: 100%;
+  overflow: visible;
 }
 
 // 用户详情抽屉样式

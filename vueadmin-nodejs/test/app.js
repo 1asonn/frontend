@@ -75,6 +75,7 @@ app.use((err, req, res, next) => {
 // Routes
 app.use('/patient', patientRouter);
 app.use('/role', role);
+app.use('/department', departmentRouter);
 app.use('/user', userRouter);
 app.use('/medicalRecord', medicalRecord);
 app.use('/upload', uploadRouter);
@@ -83,9 +84,8 @@ app.use('/aiagent',aiagent)
 app.use('/medicine', medicineRouter)
 app.use('/equipment', equipmentRouter);
 app.use('/download', downloadRouter)
-app.use('/schedule', scheduleRouter);
-app.use('/department', departmentRouter);
 app.use('/shiftSetting', shiftSettingRouter);
+app.use('/schedule', scheduleRouter);
 app.use('/files', filesRouter);
 app.use('/maintenance', maintenanceRouter);
 app.use('/sqlAgent', sqlAgentRouter);
