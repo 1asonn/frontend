@@ -528,6 +528,13 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+.app-container {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 120px);
+  overflow-y: auto;
+}
 /* 页面布局 */
 .page-header {
   display: flex;

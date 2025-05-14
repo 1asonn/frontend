@@ -94,9 +94,9 @@ export function cancelStockIn(id, data) {
 // ================ 药品出库管理 ================
 
 // 普通药品出库
-export function stockOut(data) {
+export function createStockOut(data) {
   return request({
-    url: '/medicine/medicine/stock/out',
+    url: '/medicineTransaction/createStockOut',
     method: 'post',
     data
   })

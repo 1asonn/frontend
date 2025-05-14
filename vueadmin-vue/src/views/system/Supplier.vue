@@ -26,7 +26,7 @@
         placeholder="供应商名称"
         clearable
         class="filter-item"
-        style="width: 200px"
+        style="width: 210px"
         @keyup.enter.native="handleFilter"
         @clear="handleFilter"
       >
@@ -38,7 +38,7 @@
         placeholder="联系人"
         clearable
         class="filter-item"
-        style="width: 160px; margin-left: 10px"
+        style="width: 200px; margin-left: 10px"
         @keyup.enter.native="handleFilter"
         @clear="handleFilter"
       >
@@ -457,6 +457,14 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+.app-container {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 120px);
+  overflow-y: auto;
+}
+
 /* 页面布局 */
 .page-header {
   display: flex;

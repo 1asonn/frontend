@@ -29,16 +29,6 @@ const MedicineTransaction = sequelize.define('medicine_transaction', {
         allowNull: true,
         comment: '供应商名称（入库时使用）'
     },
-    department_id: {
-        type: Sequelize.INTEGER,
-        allowNull: true,
-        comment: '部门ID（出库时使用）'
-    },
-    department_name: {
-        type: Sequelize.STRING,
-        allowNull: true,
-        comment: '部门名称（出库时使用）'
-    },
     entry_date: {
         type: Sequelize.DATEONLY,
         allowNull: false,
@@ -100,6 +90,11 @@ const MedicineTransaction = sequelize.define('medicine_transaction', {
         type: Sequelize.TEXT,
         allowNull: true,
         comment: '备注'
+    },
+    prescription_id: {
+        type: Sequelize.STRING,
+        allowNull: true,
+        comment: '处方ID'
     }
 }, {
     timestamps: true,
@@ -127,11 +122,6 @@ MedicineTransaction.associate = (models) => {
         as: 'supplier'
     });
 
-    // 与部门关联（出库时）
-    MedicineTransaction.belongsTo(models.Department, {
-        foreignKey: 'department_id',
-        as: 'department'
-    });
 
     // 与交易明细关联
     MedicineTransaction.hasMany(models.MedicineTransactionItem, {

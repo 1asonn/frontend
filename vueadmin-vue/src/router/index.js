@@ -29,21 +29,6 @@ const routes = [
         path: '/userCenter',
         name: 'userCenter',
         component: () => import('../views/userCenter.vue')
-      },
-      {
-        path: '/sys/sql-agent',
-        name: 'SqlAgent',
-        component: () => import('../views/sys/SqlAgent.vue')
-      },
-      {
-        path: '/medicine/stock-in',
-        name: 'MedicineStockIn',
-        component: () => import('../views/medicine/StockIn.vue')
-      },
-      {
-        path: '/medicine/stock-out',
-        name: 'MedicineStockOut',
-        component: () => import('../views/medicine/StockOut.vue')
       }
     ]
   },

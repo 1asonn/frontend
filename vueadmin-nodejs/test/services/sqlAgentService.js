@@ -154,6 +154,9 @@ class SqlAgentService {
       this.db = await SqlDatabase.fromDataSourceParams({
         appDataSource: datasource,
         includesTables: ['maintenance_orders', 'medical_equipment', 'equipment_maintenance', 'users', 'departments','patients','roles','suppliers','schedules','shift_settings','medicines'],
+        excludeColumns: [
+          { table: 'users', column: 'password' }
+        ],
         sampleRowsInTableInfo: 5
       });
       
@@ -162,16 +165,14 @@ class SqlAgentService {
       
       // 创建SQL Agent并提供MySQL特定的指导
       const mysqlGuidance = `
-      使用MySQL语法执行所有查询。特别是日期函数，请使用MySQL特定的语法：
-      - 当前日期: CURDATE() 或 CURRENT_DATE()
-      - 当前时间戳: NOW() 或 CURRENT_TIMESTAMP()
-      - 日期加减: DATE_ADD(date, INTERVAL value unit) 或 DATE_SUB(date, INTERVAL value unit)
-      - 例如，30天前的日期: DATE_SUB(NOW(), INTERVAL 30 DAY)
-      - 不要使用SQLite的datetime()函数
-      - 生成的sql语句不要进行换行
-
+      使用MySQL语法执行所有查询。特别是日期函数，请使用MySQL特定的语法
+      
       非常重要：在生成SQL语句前，请先使用info-sql工具获取相关表的结构信息，确保使用的字段确实存在。如果查询失败并提示"Unknown column"，请立即查看表结构并修正查询。
       
+      职工信息查询指南:
+      - 职工信息存储在users表中
+      - 可以通过role_id字段关联roles表来识别职工的角色
+      - 也可以通过department_id字段关联departments表来识别职工所在科室
 
       重要表结构信息：
       1. equipment_maintenance表的关键字段：
@@ -207,6 +208,12 @@ class SqlAgentService {
          - status: 状态（normal/maintenance/scrapped）
          - purchase_date: 采购日期
          - next_maintenance_date: 下次维护日期
+
+      4. roles表的关键字段：
+          - role_name: 角色名称
+          - description: 角色职责
+          - authoritys: 角色权限
+
       
       表关系说明：
       - departments表的id字段是主键，对应其他表中的department_id外键

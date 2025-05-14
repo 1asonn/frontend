@@ -20,8 +20,13 @@ const MedicalRecord = sequelize.define('medical_record',{
            notEmpty:true
        }
     },
-    attendingDoctor :{
-       type:Sequelize.STRING,
+    doctorId :{
+       type:Sequelize.INTEGER,
+       allowNull: false,
+       references:{
+           model:'users',
+           key:'id'
+       },
        validate:{
            notEmpty:true
        }
@@ -46,6 +51,21 @@ const MedicalRecord = sequelize.define('medical_record',{
     }
 
 },{timestamps: true})
+
+// 定义关联关系
+MedicalRecord.associate = (models) => {
+    // 与医生关联
+    MedicalRecord.belongsTo(models.User, {
+        foreignKey: 'doctorId',
+        as: 'doctor'
+    });
+    
+    // 与患者关联
+    MedicalRecord.belongsTo(models.Patient, {
+        foreignKey: 'patientId',
+        as: 'patient'
+    });
+};
 
 MedicalRecord.sync().then(() =>{
     console.log('medical_record表模型已同步!')

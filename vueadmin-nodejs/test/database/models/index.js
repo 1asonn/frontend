@@ -11,6 +11,10 @@ const MedicineTransaction = require('./MedicineTransaction');
 const MedicineTransactionItem = require('./MedicineTransactionItem');
 const MedicineStock = require('./MedicineStock');
 const MedicineStockHistory = require('./MedicineStockHistory');
+const MedicalRecord = require('./MedicalRecord');
+const Patient = require('./Patients');
+const Prescription = require('./Prescription');
+const PrescriptionItem = require('./PrescriptionItem');
 
 // 初始化模型关联关系
 const initializeAssociations = () => {
@@ -28,7 +32,11 @@ const initializeAssociations = () => {
         MedicineTransaction,
         MedicineTransactionItem,
         MedicineStock,
-        MedicineStockHistory
+        MedicineStockHistory,
+        MedicalRecord,
+        Patient,
+        Prescription,
+        PrescriptionItem
     };
 
     Object.values(models).forEach(model => {
@@ -49,6 +57,10 @@ module.exports = {
     ShiftSetting,
     MaintenanceOrder,
     MaintenanceHistory,
+    MedicalRecord,
+    Patient,
+    Prescription,
+    PrescriptionItem,
     Supplier,
     Medicine,
     MedicineTransaction,

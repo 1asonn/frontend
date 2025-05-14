@@ -1,4 +1,5 @@
 const path = require("path");
+const { title } = require("process");
 
 let nav = [
     {
@@ -161,6 +162,14 @@ let nav = [
         path: '/data',
         component: 'data/Data',
         children: [
+            {
+                name:'SysSqlAgent',
+                title:'SQL智能助手',
+                icon: 'el-icon-s-custom',
+                path: '/system/SqlAgent',
+                component: 'sys/SqlAgent',
+                children: []
+            },
             {
                 name: 'SysAiData',
                 title: 'AI报表',

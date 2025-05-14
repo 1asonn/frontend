@@ -148,7 +148,8 @@
 				style="width: 100%"
 				border
 				stripe
-				@selection-change="handleSelectionChange">
+				@selection-change="handleSelectionChange"
+				class="patient-table">
 
 			<el-table-column
 					type="selection"
@@ -158,49 +159,55 @@
 			<el-table-column
 					prop="medicalId"
 					label="就诊卡号"
-					width="120">
+					width="140"
+					show-overflow-tooltip>
 			</el-table-column>
 
 			<el-table-column
 					prop="name"
 					label="患者姓名"
-					width="120">
+					width="100">
 			</el-table-column>
 			<el-table-column
 					prop="gender"
-					label="性别">
+					label="性别"
+					width="80">
 			</el-table-column>
 			<el-table-column
 					prop="birthday"
-					label="出生日期">
+					label="出生日期"
+					width="120"
+					show-overflow-tooltip>
 			</el-table-column>
 			<el-table-column
 					prop="age"
-					label="年龄">
+					label="年龄"
+					width="80">
 			</el-table-column>
 
 			<el-table-column
 					prop="idCard"
 					label="身份证号码"
-					width="120">
+					width="180"
+					show-overflow-tooltip>
 			</el-table-column>
 			<el-table-column
 					prop="phone"
-					label="联系电话">
+					label="联系电话"
+					width="140"
+					show-overflow-tooltip>
 			</el-table-column>
-			<el-table-column
-					prop="createdAt"
-					width="200"
-					label="创建时间"
-			>
-			</el-table-column>
+		
 			<el-table-column
 					prop="icon"
 					width="200px"
-					label="操作">
+					label="操作"
+					fixed="right">
 
 				<template slot-scope="scope">
-					<el-button type="text" @click="checkHandle(scope.row.id)">查看</el-button>
+					<el-button type="text" @click="showPatientDetails(scope.row)">查看详情</el-button>
+					<el-divider direction="vertical"></el-divider>
+					<el-button type="text" @click="checkHandle(scope.row.id)">查看病历</el-button>
 					<el-divider direction="vertical"></el-divider>
 					<el-button type="text" @click="editHandle(scope.row.id)">编辑</el-button>
 					<el-divider direction="vertical"></el-divider>
@@ -392,7 +399,7 @@
 								width="120">
 								<template slot-scope="scope">
 									<el-tag size="medium" type="info">
-										<i class="el-icon-user"></i> {{scope.row.attendingDoctor}}
+										<i class="el-icon-user"></i> {{scope.row.doctor.realname}}
 									</el-tag>
 								</template>
 							</el-table-column>
@@ -461,7 +468,7 @@
 											</span>
 										</h4>
 										<div class="doctor-info">
-											<i class="el-icon-user"></i> 主治医生: {{record.attendingDoctor}}
+											<i class="el-icon-user"></i> 主治医生: {{record.doctor.realname}}
 										</div>
 									</div>
 									<div class="timeline-content">
@@ -856,6 +863,122 @@
 			</el-button>
 		</div>
 	</el-dialog>
+
+	<!-- 患者详情对话框 -->
+	<el-dialog
+		title="患者详细信息"
+		:visible.sync="patientDetailsDialogVisible"
+		width="700px"
+		:before-close="handlePatientDetailsClose">
+		<div v-if="selectedPatientDetails" class="patient-details-container">
+			<el-card class="patient-details-card">
+				<div class="patient-details-header">
+					<div class="patient-avatar-large">
+						<i class="el-icon-user-solid"></i>
+					</div>
+					<div class="patient-name-info">
+						<h2>{{selectedPatientDetails.name}}</h2>
+						<div class="patient-tags">
+							<el-tag type="success" v-if="selectedPatientDetails.gender === '男'">男</el-tag>
+							<el-tag type="danger" v-else-if="selectedPatientDetails.gender === '女'">女</el-tag>
+							<el-tag v-else>其他</el-tag>
+							<el-tag type="info" style="margin-left: 10px">
+								{{getAgeByBirthday(selectedPatientDetails.birthday)}}岁
+							</el-tag>
+						</div>
+					</div>
+				</div>
+
+				<el-divider content-position="left">基本信息</el-divider>
+				
+				<el-row :gutter="20" class="details-row">
+					<el-col :span="12">
+						<div class="details-item">
+							<span class="details-label">就诊卡号：</span>
+							<span class="details-value">{{selectedPatientDetails.medicalId}}</span>
+						</div>
+					</el-col>
+					<el-col :span="12">
+						<div class="details-item">
+							<span class="details-label">出生日期：</span>
+							<span class="details-value">{{selectedPatientDetails.birthday}}</span>
+						</div>
+					</el-col>
+				</el-row>
+
+				<el-row :gutter="20" class="details-row">
+					<el-col :span="12">
+						<div class="details-item">
+							<span class="details-label">联系电话：</span>
+							<span class="details-value">{{selectedPatientDetails.phone}}</span>
+						</div>
+					</el-col>
+					<el-col :span="12">
+						<div class="details-item">
+							<span class="details-label">身份证号：</span>
+							<span class="details-value">{{selectedPatientDetails.idCard}}</span>
+						</div>
+					</el-col>
+				</el-row>
+
+				<el-row :gutter="20" class="details-row">
+					<el-col :span="24">
+						<div class="details-item">
+							<span class="details-label">家庭住址：</span>
+							<span class="details-value">{{selectedPatientDetails.address}}</span>
+						</div>
+					</el-col>
+				</el-row>
+
+				<el-divider content-position="left">医疗信息</el-divider>
+
+				<el-row :gutter="20" class="details-row">
+					<el-col :span="24">
+						<div class="details-item">
+							<span class="details-label">病史记录：</span>
+							<div class="medical-history-tags">
+								<template v-if="selectedPatientDetails.medicalHistory && selectedPatientDetails.medicalHistory !== '无'">
+									<el-tag 
+										v-for="(history, index) in selectedPatientDetails.medicalHistory.split(',')" 
+										:key="index"
+										type="warning"
+										effect="dark"
+										size="medium"
+										style="margin-right: 10px; margin-bottom: 10px;"
+									>
+										{{ history.trim() }}
+									</el-tag>
+								</template>
+								<el-tag v-else type="info" effect="plain">无病史记录</el-tag>
+							</div>
+						</div>
+					</el-col>
+				</el-row>
+
+				<el-divider content-position="left">系统信息</el-divider>
+
+				<el-row :gutter="20" class="details-row">
+					<el-col :span="12">
+						<div class="details-item">
+							<span class="details-label">创建时间：</span>
+							<span class="details-value">{{formatDateTime(selectedPatientDetails.createdAt)}}</span>
+						</div>
+					</el-col>
+					<el-col :span="12">
+						<div class="details-item">
+							<span class="details-label">更新时间：</span>
+							<span class="details-value">{{formatDateTime(selectedPatientDetails.updatedAt)}}</span>
+						</div>
+					</el-col>
+				</el-row>
+			</el-card>
+		</div>
+		<div slot="footer" class="dialog-footer">
+			<el-button @click="patientDetailsDialogVisible = false">关 闭</el-button>
+			<el-button type="primary" @click="editHandle(selectedPatientDetails.id)">编辑信息</el-button>
+			<el-button type="warning" @click="openPrescriptionDialog(selectedPatientDetails)">开具处方</el-button>
+		</div>
+	</el-dialog>
 </div>
 </template>
 
@@ -879,6 +1002,9 @@ import { GetPatientList, GetPatientRecord } from '@/api/index.js'
         dialogTableVisible: false,
 				drawer: false,
         		direction: 'rtl',
+				// 患者详情对话框相关
+				patientDetailsDialogVisible: false,
+				selectedPatientDetails: null,
 				searchForm: {
 					medicalId: '',
 					name: ''
@@ -1005,10 +1131,29 @@ import { GetPatientList, GetPatientRecord } from '@/api/index.js'
                 return this.selectedPrescription.items.some(item => item.stock_status === 'INSUFFICIENT');
             }
         },
-		created() {
-			this.getPatientList()
-		},
+			created() {
+				this.getPatientList()
+			},
+
 		methods: {
+						// 格式化日期时间
+			formatDateTime(dateTimeStr) {
+				if (!dateTimeStr) return '-';
+				try {
+					const date = new Date(dateTimeStr);
+					return date.toLocaleString('zh-CN', { 
+						year: 'numeric', 
+						month: '2-digit', 
+						day: '2-digit',
+						hour: '2-digit',
+						minute: '2-digit',
+						second: '2-digit'
+					});
+				} catch (error) {
+					console.error('Error formatting date:', error);
+					return dateTimeStr;
+				}
+			},
 			async getPatientList() {
 				try {
 					const res = await GetPatientList()
@@ -1018,6 +1163,20 @@ import { GetPatientList, GetPatientRecord } from '@/api/index.js'
 					console.log("Error fetching patient list", error)
 					this.$message.error('获取患者列表失败')
 				}
+			},
+			
+			// 显示患者详情对话框
+			showPatientDetails(patient) {
+				this.selectedPatientDetails = JSON.parse(JSON.stringify(patient)); // 深拷贝患者数据
+				this.patientDetailsDialogVisible = true;
+			},
+			
+			// 关闭患者详情对话框
+			handlePatientDetailsClose() {
+				this.patientDetailsDialogVisible = false;
+				setTimeout(() => {
+					this.selectedPatientDetails = null;
+				}, 300);
 			},
 			
 			async searchPatients() {
@@ -2195,5 +2354,72 @@ import { GetPatientList, GetPatientRecord } from '@/api/index.js'
 
 	.medicine-item .el-card__body {
 		padding: 15px;
+	}
+
+	/* 患者详情对话框样式 */
+	.patient-details-container {
+		padding: 10px;
+	}
+
+	.patient-details-card {
+		box-shadow: none;
+	}
+
+	.patient-details-header {
+		display: flex;
+		align-items: center;
+		margin-bottom: 20px;
+	}
+
+	.patient-avatar-large {
+		width: 70px;
+		height: 70px;
+		border-radius: 50%;
+		background-color: #409EFF;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		margin-right: 20px;
+	}
+
+	.patient-avatar-large i {
+		font-size: 40px;
+		color: white;
+	}
+
+	.patient-name-info h2 {
+		margin: 0 0 8px 0;
+		color: #303133;
+		font-size: 22px;
+	}
+
+	.patient-tags {
+		display: flex;
+		align-items: center;
+	}
+
+	.details-row {
+		margin-bottom: 15px;
+	}
+
+	.details-item {
+		display: flex;
+		align-items: flex-start;
+	}
+
+	.details-label {
+		color: #909399;
+		min-width: 80px;
+		font-weight: 500;
+	}
+
+	.details-value {
+		color: #303133;
+		flex: 1;
+		word-break: break-word;
+	}
+
+	.medical-history-tags {
+		margin-top: 5px;
 	}
 </style>

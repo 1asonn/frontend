@@ -3,13 +3,21 @@
 const express = require('express');
 const router = express.Router();
 
-// 引入 MedicalRecord 模型
+// 引入模型
 const MedicalRecord = require('../database/models/MedicalRecord');
+const User = require('../database/models/user');
+const { sequelize } = require('../database/init.js');
 
 // 获取医疗记录列表
 router.get('/medical_records', async (req, res) => {
     try {
-       const records = await MedicalRecord.findAll();
+       const records = await MedicalRecord.findAll({
+           include: [{
+               model: User,
+               as: 'doctor',
+               attributes: ['id', 'realname']
+           }]
+       });
        res.status(200).json(records);
    } catch (error) {
         console.error('Error fetching medical records:', error);
@@ -23,7 +31,12 @@ router.get('/medical_records/:patientId', async (req, res) => {
       const records = await MedicalRecord.findAll({
        where: {
          patientId: req.params.patientId // 通过外键 patientId 获取记录
-       }
+       },
+       include: [{
+           model: User,
+           as: 'doctor',
+           attributes: ['id', 'realname']
+       }]
      });
      if (records.length > 0) {
         res.status(200).json(records);

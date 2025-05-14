@@ -122,26 +122,21 @@ router.post('/createStockOut', verifyToken, async (req, res) => {
     
     try {
         const { 
-            department_id, 
             entry_date, 
             items, 
             remark 
         } = req.body;
 
-        if (!department_id || !entry_date || !items || items.length === 0) {
+        if (!entry_date || !items || items.length === 0) {
             return res.status(400).json({ message: '缺少必要参数' });
         }
 
-        // 获取部门信息
-        const department = await Department.findByPk(department_id);
-        if (!department) {
-            return res.status(404).json({ message: '部门不存在' });
-        }
-
-        // 获取操作员信息
-        const operator = await User.findByPk(req.user.id);
-        if (!operator) {
-            return res.status(404).json({ message: '操作员不存在' });
+        console.log("this is req.user",req.user)
+        // 直接从 token 中获取操作员信息
+        const operatorId = req.user.userId; // 使用 token 中的用户ID
+        const operatorName = req.user.realname; // 使用 token 中的用户名
+        if (!operatorId || !operatorName) {
+            return res.status(401).json({ message: '未授权的操作或用户信息不完整' });
         }
 
         // 生成出库单号 (格式: CK + 年月日 + 4位随机数)
@@ -159,13 +154,11 @@ router.post('/createStockOut', verifyToken, async (req, res) => {
         const transaction = await MedicineTransaction.create({
             code,
             type: 'out', // 出库类型
-            department_id,
-            department_name: department.name,
             entry_date,
             total_amount,
             status: 'pending',
-            operator_id: req.user.id,
-            operator_name: operator.realname,
+            operator_id: req.user.userId,
+            operator_name: operatorName,
             remark
         }, { transaction: t });
 
@@ -214,8 +207,6 @@ router.post('/createStockOutFromPrescription', verifyToken, async (req, res) => 
             patient_name,            // 患者姓名
             doctor_id,               // 医生ID
             doctor_name,             // 医生姓名
-            department_id,           // 科室ID
-            department_name,         // 科室名称
             prescription_items,      // 处方药品列表
             prescription_date,       // 处方日期
             prescription_remark,     // 处方备注
@@ -224,14 +215,8 @@ router.post('/createStockOutFromPrescription', verifyToken, async (req, res) => 
 
         console.log("请求体",req.body)
         // 验证必要参数
-        if (!prescription_id || !patient_id || !department_id || !prescription_items || prescription_items.length === 0) {
+        if (!prescription_id || !patient_id || !prescription_items || prescription_items.length === 0) {
             return res.status(400).json({ message: '缺少必要参数' });
-        }
-
-        // 获取部门信息
-        const department = await Department.findByPk(department_id);
-        if (!department) {
-            return res.status(404).json({ message: '部门不存在' });
         }
 
         // 获取操作员信息
@@ -313,8 +298,6 @@ router.post('/createStockOutFromPrescription', verifyToken, async (req, res) => 
         const transaction = await MedicineTransaction.create({
             code,
             type: 'out', // 出库类型
-            department_id,
-            department_name: department_name || department.name,
             entry_date: prescription_date || new Date(),
             total_amount,
             status: 'pending',
@@ -410,6 +393,8 @@ router.get('/getStockInList', verifyToken, async (req, res) => {
         // 查询入库单
         const { count, rows } = await MedicineTransaction.findAndCountAll({
             where,
+            // 不需要显式指定属性，Sequelize会自动选择模型中定义的字段
+
             include: [
                 {
                     model: MedicineTransactionItem,
@@ -474,6 +459,8 @@ router.get('/getStockOutList', verifyToken, async (req, res) => {
         // 查询出库单
         const { count, rows } = await MedicineTransaction.findAndCountAll({
             where,
+            // 不需要显式指定属性，Sequelize会自动选择模型中定义的字段
+
             include: [
                 {
                     model: MedicineTransactionItem,
@@ -505,6 +492,8 @@ router.get('/getTransactionDetail/:id', verifyToken, async (req, res) => {
 
         // 查询交易单
         const transaction = await MedicineTransaction.findByPk(id, {
+            // 不需要显式指定属性，Sequelize会自动选择模型中定义的字段
+
             include: [
                 {
                     model: MedicineTransactionItem,

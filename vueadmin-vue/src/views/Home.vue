@@ -517,6 +517,7 @@ body.compact-mode .el-card {
   position: relative;
   z-index: 10;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .logo-container {
@@ -567,11 +568,12 @@ body.compact-mode .el-card {
 
 /* 主内容区 */
 .main-container {
-  height: 100%;
-  overflow: hidden;
+  flex: 1;
   display: flex;
   flex-direction: column;
   transition: margin-left var(--transition-duration);
+  overflow: hidden;
+  height: 100vh;
 }
 
 /* 顶部导航栏 */
@@ -587,6 +589,7 @@ body.compact-mode .el-card {
   justify-content: space-between;
   z-index: 9;
   backdrop-filter: blur(10px);
+  flex-shrink: 0;
 }
 
 .header-left {
@@ -667,15 +670,17 @@ body.compact-mode .el-card {
   box-shadow: var(--box-shadow);
   z-index: 8;
   border-bottom: 1px solid #eee;
+  flex-shrink: 0;
 }
 
 /* 主内容区 */
 .app-main {
   flex: 1;
-  overflow-y: auto;
   padding: 20px;
   background-color: #f0f2f5;
   position: relative;
+  overflow-y: auto;
+  height: calc(100vh - var(--header-height) - var(--footer-height) - 40px);
 }
 
 /* 页脚 */
@@ -688,6 +693,7 @@ body.compact-mode .el-card {
   border-top: 1px solid #eee;
   text-align: center;
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
 }
 
 .footer-content {
