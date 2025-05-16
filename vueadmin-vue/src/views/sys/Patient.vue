@@ -180,9 +180,11 @@
 					show-overflow-tooltip>
 			</el-table-column>
 			<el-table-column
-					prop="age"
 					label="年龄"
 					width="80">
+				<template slot-scope="scope">
+					{{ calculateAge(scope.row.birthday) }}
+				</template>
 			</el-table-column>
 
 			<el-table-column
@@ -307,7 +309,7 @@
 						<el-button type="primary" size="small" @click="startAiAnalysis" :loading="loading" icon="el-icon-data-analysis">
 							AI 分析
 						</el-button>
-						<el-button type="success" size="small" icon="el-icon-plus">
+						<el-button type="success" size="small" icon="el-icon-plus" @click="openAddMedicalRecordDialog">
 							新增病历
 						</el-button>
 					</div>
@@ -979,6 +981,76 @@
 			<el-button type="warning" @click="openPrescriptionDialog(selectedPatientDetails)">开具处方</el-button>
 		</div>
 	</el-dialog>
+	<!-- 新增病历对话框 -->
+	<el-dialog
+		title="新增病历记录"
+		:visible.sync="addMedicalRecordDialogVisible"
+		width="650px"
+		:before-close="handleAddMedicalRecordDialogClose">
+		<el-form :model="medicalRecordForm" :rules="medicalRecordRules" ref="medicalRecordForm" label-width="100px">
+			<el-form-item label="患者" prop="patientId">
+				<el-input v-model="medicalRecordForm.patientName" disabled></el-input>
+				<input type="hidden" v-model="medicalRecordForm.patientId">
+			</el-form-item>
+			<el-form-item label="就诊日期" prop="visitDate">
+				<el-date-picker
+					v-model="medicalRecordForm.visitDate"
+					type="date"
+					placeholder="选择就诊日期"
+					value-format="yyyy-MM-dd"
+					style="width: 100%">
+				</el-date-picker>
+			</el-form-item>
+			<el-form-item label="主诉" prop="chiefComplaint">
+				<el-input v-model="medicalRecordForm.chiefComplaint" placeholder="请输入患者主诉"></el-input>
+			</el-form-item>
+			<el-form-item label="症状描述" prop="symptoms">
+				<el-input 
+					type="textarea" 
+					v-model="medicalRecordForm.symptoms" 
+					:rows="3"
+					placeholder="请详细描述患者症状">
+				</el-input>
+			</el-form-item>
+			<el-form-item label="诊断结果" prop="diagnosis">
+				<el-input 
+					type="textarea" 
+					v-model="medicalRecordForm.diagnosis" 
+					:rows="2"
+					placeholder="请输入诊断结果">
+				</el-input>
+			</el-form-item>
+			<el-form-item label="治疗方案" prop="treatmentPlan">
+				<el-input 
+					type="textarea" 
+					v-model="medicalRecordForm.treatmentPlan" 
+					:rows="3"
+					placeholder="请输入治疗方案">
+				</el-input>
+			</el-form-item>
+			<el-form-item label="医生建议" prop="doctorAdvice">
+				<el-input 
+					type="textarea" 
+					v-model="medicalRecordForm.doctorAdvice" 
+					:rows="2"
+					placeholder="请输入医生建议">
+				</el-input>
+			</el-form-item>
+			<el-form-item label="下次复诊" prop="followUpDate">
+				<el-date-picker
+					v-model="medicalRecordForm.followUpDate"
+					type="date"
+					placeholder="选择下次复诊日期"
+					value-format="yyyy-MM-dd"
+					style="width: 100%">
+				</el-date-picker>
+			</el-form-item>
+		</el-form>
+		<div slot="footer" class="dialog-footer">
+			<el-button @click="addMedicalRecordDialogVisible = false">取 消</el-button>
+			<el-button type="primary" @click="submitMedicalRecord" :loading="submittingMedicalRecord">确 定</el-button>
+		</div>
+	</el-dialog>
 </div>
 </template>
 
@@ -1040,6 +1112,35 @@ import { GetPatientList, GetPatientRecord } from '@/api/index.js'
 				patientData: [],
 				recordData: [],
 				aiAnalysis: null,
+
+				// 新增病历相关
+				addMedicalRecordDialogVisible: false,
+				submittingMedicalRecord: false,
+				medicalRecordForm: {
+					patientId: '',
+					patientName: '',
+					visitDate: '',
+					chiefComplaint: '',
+					symptoms: '',
+					diagnosis: '',
+					treatmentPlan: '',
+					doctorAdvice: '',
+					followUpDate: ''
+				},
+				medicalRecordRules: {
+					visitDate: [
+						{ required: true, message: '请选择就诊日期', trigger: 'change' }
+					],
+					chiefComplaint: [
+						{ required: true, message: '请输入患者主诉', trigger: 'blur' }
+					],
+					symptoms: [
+						{ required: true, message: '请输入症状描述', trigger: 'blur' }
+					],
+					diagnosis: [
+						{ required: true, message: '请输入诊断结果', trigger: 'blur' }
+					]
+				},
 
 				editFormRules: {
 					username: [
@@ -1136,7 +1237,37 @@ import { GetPatientList, GetPatientRecord } from '@/api/index.js'
 			},
 
 		methods: {
-						// 格式化日期时间
+				// 根据出生日期计算年龄
+				calculateAge(birthday) {
+					if (!birthday) return '-';
+					
+					try {
+						// 将生日字符串转换为日期对象
+						const birthDate = new Date(birthday);
+						
+						// 如果日期无效，返回空字符串
+						if (isNaN(birthDate.getTime())) return '-';
+						
+						// 获取当前日期
+						const today = new Date();
+						
+						// 计算年龄
+						let age = today.getFullYear() - birthDate.getFullYear();
+						
+						// 检查是否已过生日
+						const monthDiff = today.getMonth() - birthDate.getMonth();
+						if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+							age--;
+						}
+						
+						return age + '岁';
+					} catch (error) {
+						console.error('计算年龄错误:', error);
+						return '-';
+					}
+				},
+				
+				// 格式化日期时间
 			formatDateTime(dateTimeStr) {
 				if (!dateTimeStr) return '-';
 				try {
@@ -1236,7 +1367,114 @@ import { GetPatientList, GetPatientRecord } from '@/api/index.js'
 					console.error('Error calculating age:', error);
 					return '-';
 				}
+			},
 			
+			// 打开新增病历对话框
+			openAddMedicalRecordDialog() {
+				this.resetMedicalRecordForm();
+				
+				// 设置当前患者信息
+				if (this.currentPatient) {
+					this.medicalRecordForm.patientId = this.currentPatient.id;
+					this.medicalRecordForm.patientName = this.currentPatient.name;
+				}
+				
+				// 设置默认就诊日期为今天
+				const today = new Date();
+				const year = today.getFullYear();
+				const month = String(today.getMonth() + 1).padStart(2, '0');
+				const day = String(today.getDate()).padStart(2, '0');
+				this.medicalRecordForm.visitDate = `${year}-${month}-${day}`;
+				
+				this.addMedicalRecordDialogVisible = true;
+			},
+			
+			// 重置病历表单
+			resetMedicalRecordForm() {
+				this.medicalRecordForm = {
+					patientId: '',
+					patientName: '',
+					visitDate: '',
+					chiefComplaint: '',
+					symptoms: '',
+					diagnosis: '',
+					treatmentPlan: '',
+					doctorAdvice: '',
+					followUpDate: ''
+				};
+				
+				// 如果表单引用存在，重置验证
+				if (this.$refs.medicalRecordForm) {
+					this.$refs.medicalRecordForm.resetFields();
+				}
+			},
+			
+			// 关闭新增病历对话框
+			handleAddMedicalRecordDialogClose() {
+				this.resetMedicalRecordForm();
+				this.addMedicalRecordDialogVisible = false;
+			},
+			
+			// 提交病历记录
+			submitMedicalRecord() {
+				this.$refs.medicalRecordForm.validate(async (valid) => {
+					if (valid) {
+						try {
+							this.submittingMedicalRecord = true;
+							
+							// 准备提交的数据
+							const medicalRecordData = {
+								patientId: this.medicalRecordForm.patientId,
+								visitDate: this.medicalRecordForm.visitDate,
+								chiefComplaint: this.medicalRecordForm.chiefComplaint,
+								symptoms: this.medicalRecordForm.symptoms,
+								diagnosis: this.medicalRecordForm.diagnosis,
+								treatmentPlan: this.medicalRecordForm.treatmentPlan,
+								doctorAdvice: this.medicalRecordForm.doctorAdvice,
+								followUpDate: this.medicalRecordForm.followUpDate || null
+							};
+							
+							// 发送请求创建新病历
+							const response = await this.$axios.post('/medical_records', medicalRecordData);
+							
+							if (response.status === 201) {
+								this.$message.success('病历记录添加成功');
+								
+								// 关闭对话框
+								this.addMedicalRecordDialogVisible = false;
+								
+								// 刷新病历记录列表
+								this.fetchPatientRecords(this.currentPatient.id);
+							} else {
+								this.$message.error('添加病历记录失败');
+							}
+						} catch (error) {
+							console.error('添加病历记录时出错:', error);
+							this.$message.error('添加病历记录失败: ' + (error.response?.data?.message || error.message || '未知错误'));
+						} finally {
+							this.submittingMedicalRecord = false;
+						}
+					} else {
+						return false;
+					}
+				});
+			},
+			
+			// 获取患者病历记录
+			async fetchPatientRecords(patientId) {
+				try {
+					const response = await this.$axios.get(`/medical_records?patientId=${patientId}`);
+					if (response.status === 200) {
+						this.recordData = response.data;
+					} else {
+						this.$message.error('获取病历记录失败');
+						this.recordData = [];
+					}
+				} catch (error) {
+					console.error('获取病历记录时出错:', error);
+					this.$message.error('获取病历记录失败: ' + (error.response?.data?.message || error.message || '未知错误'));
+					this.recordData = [];
+				}
 			},
 			checkHandle(id){
 				// Find the patient in the data

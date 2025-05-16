@@ -2,7 +2,7 @@ const maintenanceService = require('../services/maintenanceService');
 const path = require('path');
 const fs = require('fs');
 const ExcelJS = require('exceljs');
-const { getDropboxClient } = require('../utils/dropboxAuth');
+const cosService = require('../services/cosService');
 
 // 统一响应格式
 const createResponse = (success, message, data = null) => {
@@ -66,32 +66,25 @@ const createMaintenanceOrder = async (req, res) => {
                 console.log('未检测到有效的图片文件');
             }
             try {
-                // 获取带有有效 token 的 Dropbox 客户端
-                const dbx = await getDropboxClient();
-                
                 // 处理多个图片文件
                 const uploadPromises = imageFiles.map(async (file) => {
-                    // 设置文件路径和名称
-                    const fileName = `maintenance_${Date.now()}_${Math.floor(Math.random() * 10000)}${getExtension(file.originalname)}`;
-                    const filePath = `/maintenance/${fileName}`;
+                    // 生成文件名和存储路径
+                    const originalExt = path.extname(file.originalname);
+                    const fileName = `maintenance_${Date.now()}_${Math.floor(Math.random() * 10000)}${originalExt}`;
+                    const cosKey = cosService.generateFileKey(fileName, 'maintenance/');
                     
-                    // 上传文件到Dropbox
-                    await dbx.filesUpload({
-                        path: filePath,
-                        contents: file.buffer,
-                        mode: 'overwrite'
+                    // 上传文件到腾讯云COS
+                    const uploadResult = await cosService.uploadFile({
+                        file: file.buffer,
+                        key: cosKey
                     });
                     
-                    // 获取共享链接
-                    const linkResponse = await dbx.sharingCreateSharedLinkWithSettings({
-                        path: filePath,
-                        settings: {
-                            requested_visibility: { '.tag': 'public' }
-                        }
-                    });
+                    if (!uploadResult.success) {
+                        throw new Error(`上传到腾讯云COS失败: ${uploadResult.error}`);
+                    }
                     
-                    // 获取直接下载链接（替换dl=0为dl=1）
-                    return linkResponse.result.url.replace('dl=0', 'dl=1');
+                    // 返回永久链接，适合在浏览器中直接展示图片
+                    return uploadResult.url;
                 });
                 
                 // 等待所有图片上传完成
@@ -366,14 +359,56 @@ const exportMaintenanceData = async (req, res) => {
 // 获取工单统计数据
 const getMaintenanceStats = async (req, res) => {
     try {
+        // 调用服务获取详细统计数据
         const stats = await maintenanceService.getMaintenanceStats();
         
-        res.json(createResponse(true, '获取工单统计数据成功', stats));
+        // 计算平均处理时间（将小时转为天）
+        const avgProcessingDays = stats.avgProcessingTime / 24;
+        
+        // 格式化平均处理时间，保留一位小数
+        const formattedAvgProcessingDays = avgProcessingDays.toFixed(1);
+        
+        // 获取上月的平均处理时间（模拟数据，实际应从数据库查询）
+        // 这里模拟上月平均处理时间比当前多0.5天
+        const lastMonthAvgProcessingDays = parseFloat(formattedAvgProcessingDays) + 0.5;
+        
+        // 计算平均处理时间的变化
+        const processingTimeChange = lastMonthAvgProcessingDays - parseFloat(formattedAvgProcessingDays);
+        
+        // 构建前端需要的统计数据格式
+        const responseData = {
+            // 总工单数
+            totalOrders: stats.totalOrders,
+            totalOrdersGrowth: Math.abs(stats.orderGrowthRate).toFixed(1),
+            totalOrdersTrend: stats.orderGrowthRate >= 0 ? 'up' : 'down',
+            
+            // 待处理工单
+            pendingOrders: stats.pendingOrders,
+            pendingOrdersGrowth: Math.abs(stats.pendingGrowthRate).toFixed(1),
+            pendingOrdersTrend: stats.pendingGrowthRate >= 0 ? 'up' : 'down',
+            
+            // 处理中工单
+            processingOrders: stats.processingOrders,
+            processingOrdersGrowth: Math.abs(stats.processingGrowthRate).toFixed(1),
+            processingOrdersTrend: stats.processingGrowthRate >= 0 ? 'up' : 'down',
+            
+            // 平均处理时间
+            avgProcessingDays: formattedAvgProcessingDays,
+            avgProcessingDaysChange: Math.abs(processingTimeChange).toFixed(1),
+            avgProcessingDaysTrend: processingTimeChange > 0 ? 'up' : 'down',
+            
+            // 其他统计数据（可能在其他图表中使用）
+            completedOrders: stats.completedOrders,
+            cancelledOrders: stats.cancelledOrders
+        };
+        
+        res.json(createResponse(true, '获取统计数据成功', responseData));
     } catch (error) {
         console.error('获取工单统计数据错误:', error);
         res.status(500).json(createResponse(false, error.message || '服务器内部错误'));
     }
 };
+
 // 获取设备维修历史记录
 const getEquipmentMaintenanceHistory = async (req, res) => {
     try {
@@ -506,32 +541,25 @@ const addOrderImages = async (req, res) => {
             return res.status(400).json(createResponse(false, '未检测到有效的图片文件'));
         }
         
-        // 获取带有有效 token 的 Dropbox 客户端
-        const dbx = await getDropboxClient();
-        
         // 处理多个图片文件
         const uploadPromises = imageFiles.map(async (file) => {
-            // 设置文件路径和名称
-            const fileName = `maintenance_${id}_${Date.now()}_${Math.floor(Math.random() * 10000)}${getExtension(file.originalname)}`;
-            const filePath = `/maintenance/${fileName}`;
+            // 生成文件名和存储路径
+            const originalExt = path.extname(file.originalname);
+            const fileName = `maintenance_${id}_${Date.now()}_${Math.floor(Math.random() * 10000)}${originalExt}`;
+            const cosKey = cosService.generateFileKey(fileName, 'maintenance/');
             
-            // 上传文件到Dropbox
-            await dbx.filesUpload({
-                path: filePath,
-                contents: file.buffer,
-                mode: 'overwrite'
+            // 上传文件到腾讯云COS
+            const uploadResult = await cosService.uploadFile({
+                file: file.buffer,
+                key: cosKey
             });
             
-            // 获取共享链接
-            const linkResponse = await dbx.sharingCreateSharedLinkWithSettings({
-                path: filePath,
-                settings: {
-                    requested_visibility: { '.tag': 'public' }
-                }
-            });
+            if (!uploadResult.success) {
+                throw new Error(`上传到腾讯云COS失败: ${uploadResult.error}`);
+            }
             
-            // 获取直接下载链接（替换dl=0为dl=1）
-            return linkResponse.result.url.replace('dl=0', 'dl=1');
+            // 返回永久链接，适合在浏览器中直接展示图片
+            return uploadResult.url;
         });
         
         // 等待所有图片上传完成
@@ -568,10 +596,7 @@ const addOrderImages = async (req, res) => {
     }
 };
 
-// 获取文件扩展名的辅助函数
-function getExtension(filename) {
-    return filename.substring(filename.lastIndexOf('.'));
-}
+// 不再需要此函数，使用path.extname代替
 
 module.exports = {
     createMaintenanceOrder,

@@ -568,7 +568,7 @@ router.get('/getSchListBydepartment/:departmentId', async (req, res) => {
         message: '该部门下未找到任何用户'
       });
     }
-
+    console.log("this are users",users)
     // 获取这些用户的排班信息
     const userIds = users.map(user => user.id);
     const schedules = await Schedule.findAll({
@@ -590,10 +590,39 @@ router.get('/getSchListBydepartment/:departmentId', async (req, res) => {
       order: [['createdAt', 'DESC']]
     });
 
-    // 如果没有找到排班信息，为每个用户创建空的排班数据行
+    // 处理排班数据
+    let allUserSchedules = [];
+    
     if (!schedules || schedules.length === 0) {
-      // 创建空的排班数据行
-      const emptySchedules = users.map(user => ({
+      // 情况1: 所有用户都没有排班记录，为全部用户创建空排班数据
+      allUserSchedules = users.map(user => ({
+        id: null,
+        employee_id: user.id,
+        employee: user,
+        monday: null,
+        tuesday: null,
+        wednesday: null,
+        thursday: null,
+        friday: null,
+        saturday: null,
+        sunday: null,
+        createdAt: null,
+        updatedAt: null
+      }));
+    } else {
+      // 情况2: 部分用户有排班记录，需要找出没有排班记录的用户并为他们创建空记录
+      
+      // 找出已有排班记录的用户ID
+      const scheduledUserIds = schedules.map(schedule => schedule.employee_id);
+      
+      // 已有排班记录的用户，直接加入结果列表
+      allUserSchedules = [...schedules];
+      
+      // 找出没有排班记录的用户
+      const unscheduledUsers = users.filter(user => !scheduledUserIds.includes(user.id));
+      
+      // 为没有排班记录的用户创建空排班数据并加入结果列表
+      const emptySchedules = unscheduledUsers.map(user => ({
         id: null,
         employee_id: user.id,
         employee: user,
@@ -608,16 +637,12 @@ router.get('/getSchListBydepartment/:departmentId', async (req, res) => {
         updatedAt: null
       }));
       
-      return res.json({
-        code: 200,
-        data: emptySchedules,
-        message: '获取部门排班信息成功'
-      });
+      allUserSchedules = [...allUserSchedules, ...emptySchedules];
     }
-
-    res.json({
+    
+    return res.json({
       code: 200,
-      data: schedules,
+      data: allUserSchedules,
       message: '获取部门排班信息成功'
     });
   } catch (error) {

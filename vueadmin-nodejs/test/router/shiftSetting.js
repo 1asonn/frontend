@@ -48,7 +48,7 @@ router.post('/shift', async (req, res) => {
 // 获取所有班次设置（分页）
 router.get('/shifts', async (req, res) => {
   try {
-    const { page = 1, size = 10 } = req.query;
+    const { page = 1, size = 20 } = req.query;
     const offset = (page - 1) * size;
     
     const shifts = await ShiftSetting.findAndCountAll({

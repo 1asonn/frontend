@@ -62,7 +62,7 @@
         <el-table-column
           v-for="(day, index) in weekDays"
           :key="index"
-          :label="day.label"
+          :label="day.weekday"
           :width="120">
           <template slot-scope="scope">
             <div class="shift-cell">
@@ -240,20 +240,11 @@
       <el-table :data="shifts" border style="width: 100%">
         <el-table-column prop="name" label="班次名称" width="120"></el-table-column>
         <el-table-column prop="description" label="描述" width="180"></el-table-column>
-        <el-table-column label="周一至周五">
+        <el-table-column label="周一至周日" width="400">
           <template slot-scope="scope">
-            <div v-for="(day, index) in scope.row.weekSchedule.slice(0, 5)" :key="index" class="day-schedule">
-              <span class="day-name">{{ ['周一', '周二', '周三', '周四', '周五'][index] }}:</span>
-              <span v-if="day.enabled">{{ day.startTime }} - {{ day.endTime }}</span>
-              <span v-else>休息</span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="周末">
-          <template slot-scope="scope">
-            <div v-for="(day, index) in scope.row.weekSchedule.slice(5)" :key="index" class="day-schedule">
-              <span class="day-name">{{ ['周六', '周日'][index] }}:</span>
-              <span v-if="day.enabled">{{ day.startTime }} - {{ day.endTime }}</span>
+            <div v-for="(day, index) in scope.row.weekSchedule" :key="index" class="day-schedule">
+              <span class="day-name">{{ ['周一', '周二', '周三', '周四', '周五', '周六', '周日'][index] }}:</span>
+              <span v-if="day && day.enabled">{{ day.startTime }} - {{ day.endTime }}</span>
               <span v-else>休息</span>
             </div>
           </template>

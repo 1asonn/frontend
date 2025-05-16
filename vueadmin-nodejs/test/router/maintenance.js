@@ -39,6 +39,9 @@ router.put('/orders/:id', maintenanceController.updateMaintenanceOrder);
 // 为工单添加图片
 router.post('/orders/:id/upload-images', upload.any(), maintenanceController.addOrderImages);
 
+// 获取工单统计数据
+router.get('/stats', maintenanceController.getMaintenanceStats);
+
 // 导出维修数据
 router.get('/export', maintenanceController.exportMaintenanceData);
 

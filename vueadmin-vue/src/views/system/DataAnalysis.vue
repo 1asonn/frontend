@@ -432,7 +432,127 @@ export default {
         return
       }
 
-      const blob = new Blob([this.formattedResult], { type: 'application/json' })
+      try {
+        // 尝试从分析结果中提取表格数据
+        let tableData = this.extractTableDataFromAnalysis(this.analysisResult)
+        
+        if (!tableData || tableData.length === 0) {
+          // 如果无法提取表格数据，则尝试将分析结果作为文本导出
+          tableData = [{
+            '分析结果': this.analysisResult
+          }]
+        }
+        
+        // 使用XLSX库创建工作表
+        import('xlsx').then(XLSX => {
+          // 创建工作簿
+          const worksheet = XLSX.utils.json_to_sheet(tableData)
+          const workbook = XLSX.utils.book_new()
+          XLSX.utils.book_append_sheet(workbook, worksheet, '查询结果')
+          
+          // 导出为Excel文件
+          const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
+          const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+          
+          // 创建下载链接
+          const url = URL.createObjectURL(blob)
+          const link = document.createElement('a')
+          link.href = url
+          link.download = `数据分析报告_${new Date().toISOString().split('T')[0]}.xlsx`
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+          URL.revokeObjectURL(url)
+          
+          this.$message.success('导出Excel成功')
+        }).catch(error => {
+          console.error('导出Excel失败:', error)
+          this.$message.error('导出Excel失败: ' + error.message)
+          
+          // 如果加载XLSX库失败，则回退到导出JSON
+          this.downloadAsJson()
+        })
+      } catch (error) {
+        console.error('处理导出数据失败:', error)
+        this.$message.error('处理导出数据失败: ' + error.message)
+        
+        // 出错时回退到导出JSON
+        this.downloadAsJson()
+      }
+    },
+    
+    // 将分析结果中的表格数据提取出来
+    extractTableDataFromAnalysis(analysisText) {
+      try {
+        // 尝试解析JSON
+        if (typeof analysisText === 'string' && (analysisText.trim().startsWith('{') || analysisText.trim().startsWith('['))) {
+          try {
+            const jsonData = JSON.parse(analysisText)
+            
+            // 如果是数组，直接返回
+            if (Array.isArray(jsonData)) {
+              return jsonData
+            }
+            
+            // 如果是对象，尝试找到数组属性
+            for (const key in jsonData) {
+              if (Array.isArray(jsonData[key]) && jsonData[key].length > 0) {
+                return jsonData[key]
+              }
+            }
+            
+            // 如果没有数组属性，将对象转为数组
+            return [jsonData]
+          } catch (e) {
+            // JSON解析失败，继续尝试其他方法
+          }
+        }
+        
+        // 尝试从文本中提取表格数据（如果有Markdown表格）
+        const tableRegex = /\|([^\|]*)\|([^\|]*)\|([^\|]*)\|([^\|]*)\|/g
+        const matches = [...analysisText.matchAll(tableRegex)]
+        
+        if (matches.length > 1) { // 至少需要有标题行和数据行
+          // 提取标题行
+          const headerRow = matches[0]
+          const headers = []
+          
+          // 从第二个元素开始，因为第一个匹配组是整个匹配
+          for (let i = 1; i < headerRow.length; i++) {
+            const header = headerRow[i].trim()
+            if (header && header !== '---') { // 跳过分隔符行
+              headers.push(header)
+            }
+          }
+          
+          // 提取数据行
+          const tableData = []
+          for (let i = 1; i < matches.length; i++) {
+            const row = matches[i]
+            const rowData = {}
+            
+            for (let j = 1; j < row.length && j-1 < headers.length; j++) {
+              rowData[headers[j-1]] = row[j].trim()
+            }
+            
+            tableData.push(rowData)
+          }
+          
+          return tableData
+        }
+        
+        // 如果无法提取表格数据，返回空数组
+        return []
+      } catch (error) {
+        console.error('提取表格数据失败:', error)
+        return []
+      }
+    },
+    
+    // 导出为JSON文件（作为备选方案）
+    downloadAsJson() {
+      const jsonContent = typeof this.analysisResult === 'string' ? this.analysisResult : JSON.stringify(this.analysisResult, null, 2)
+      const blob = new Blob([jsonContent], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -441,6 +561,7 @@ export default {
       link.click()
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
+      this.$message.success('导出JSON成功')
     },
 
     // 获取历史SQL查询文件列表

@@ -20,14 +20,6 @@ let nav = [
         ]
     },
     {
-        name: 'HospitalizationManager',
-        title: '住院管理',
-        icon: 'el-icon-s-home',
-        path: '/hospitalization',
-        component: 'hospitalization/Hospitalization',
-        children: []
-    },
-    {
         name: 'MedicineManager',
         title: '药品管理',
         icon: 'el-icon-s-goods',

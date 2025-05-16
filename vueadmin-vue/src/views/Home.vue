@@ -23,7 +23,7 @@
       <el-header class="app-header" height="60px">
         <div class="header-left">
           <h2 class="system-title">医院信息管理系统</h2>
-          <el-tag size="small" type="success" class="env-tag">{{ currentEnv }}</el-tag>
+          <!-- <el-tag size="small" type="success" class="env-tag">{{ currentEnv }}</el-tag> -->
         </div>
 
         <div class="header-right">

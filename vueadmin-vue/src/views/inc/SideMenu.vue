@@ -42,7 +42,7 @@
       </el-submenu>
       
       <!-- 系统工具菜单 -->
-      <el-submenu index="sysTools">
+      <!-- <el-submenu index="sysTools">
         <template slot="title">
           <i class="el-icon-s-tools menu-icon"></i>
           <span>系统工具</span>
@@ -54,7 +54,7 @@
             <span slot="title">SQL智能查询</span>
           </el-menu-item>
         </router-link>
-      </el-submenu>
+      </el-submenu> -->
     </el-menu>
     
     <!-- 底部系统信息 -->

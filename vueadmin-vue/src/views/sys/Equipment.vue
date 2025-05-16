@@ -28,7 +28,7 @@
         </div>
         <div v-loading="loading" class="equipment-container">
             <template v-if="loading">
-                <div class="skeleton-container" v-for="i in 6" :key="'skeleton-' + i">
+                <div class="skeleton-container" v-for="i in 10" :key="'skeleton-' + i">
                     <el-card class="skeleton-card">
                         <div class="skeleton-image"></div>
                         <div class="skeleton-content">
@@ -1594,7 +1594,7 @@
 </template>
 
 <script>
-import { getEquipmentList, createEquipment, updateEquipment, deleteEquipment, uploadEquipmentImage, getEquipmentHealthReport, exportEquipmentHealthReport } from '@/api/equipment'
+import { getEquipmentList, createEquipment, createEquipmentWithImage, updateEquipment, deleteEquipment, uploadEquipmentImage, getEquipmentHealthReport, exportEquipmentHealthReport } from '@/api/equipment'
 import { GetDepartmentList } from '@/api/index'
 import { GetEquipmentMaintenanceHistory, GetMaintenanceOrderById, GetMaintenanceOrderHistory } from '@/api/equipmentMaintenance'
 
@@ -3027,37 +3027,30 @@ export default {
                         const equipmentData = { ...this.addForm };
                         delete equipmentData.image_url; // 移除图片URL字段
                         
-                        // 先创建设备记录
-                        const response = await createEquipment(equipmentData);
+                        // 使用一体化接口创建设备并上传图片
+                        const response = await createEquipmentWithImage(equipmentData, this._uploadFile);
                         
                         if (response.code === 200) {
-                            // 获取新创建的设备ID
-                            const newEquipmentId = response.data.id;
-                            
-                            // 如果有上传的文件，则上传图片
-                            if (this._uploadFile) {
-                                try {
-                                    // 直接使用保存的文件对象上传
-                                    const uploadResponse = await uploadEquipmentImage(newEquipmentId, this._uploadFile);
-                                    
-                                    if (uploadResponse.code === 200) {
-                                        // 更新图片URL为服务器返回的URL
-                                        this.$message.success('设备图片上传成功');
-                                    } else {
-                                        this.$message.warning('设备创建成功，但图片上传失败: ' + (uploadResponse.message || '未知错误'));
-                                    }
-                                } catch (uploadError) {
-                                    console.error('图片上传失败:', uploadError);
-                                    this.$message.warning('设备创建成功，但图片上传失败: ' + uploadError.message);
-                                }
+                            this.$message.success('新增设备成功');
+                            if (response.data.imageUrl) {
+                                this.$message.success('设备图片上传成功');
+                            } else if (this._uploadFile) {
+                                this.$message.warning('设备创建成功，但图片上传失败');
                             }
                             
-                            this.$message.success('新增设备成功');
                             this.addDialogVisible = false;
                             // 重置上传文件对象
                             this._uploadFile = null;
                             // 重新获取设备列表
-                            this.fetchEquipmentList();
+                            this.getEquipmentList();
+                        } else if (response.code === 201) {
+                            // 部分成功（设备创建成功但图片上传失败）
+                            this.$message.success('新增设备成功');
+                            this.$message.warning('设备图片上传失败: ' + (response.message || '未知错误'));
+                            
+                            this.addDialogVisible = false;
+                            this._uploadFile = null;
+                            this.getEquipmentList();
                         } else {
                             this.$message.error(response.message || '新增设备失败');
                         }
@@ -3458,13 +3451,14 @@ export default {
 .equipment-container {
     display: flex;
     flex-wrap: wrap;
-    gap: 20px;
+    gap: 15px;
+    justify-content: space-between;
 }
 
 .container {
     display: flex;
     position: relative;
-    width: 280px;
+    width: 19%; /* 调整为页面宽度的19%，确保一行5个设备 */
     margin-bottom: 15px;
 }
 
@@ -3483,7 +3477,7 @@ export default {
 .image-container {
     position: relative;
     overflow: hidden;
-    height: 180px;
+    height: 160px; /* 调整高度使卡片更紧凑 */
     background-color: #f5f7fa;
 }
 
@@ -3544,7 +3538,7 @@ export default {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 200px;
+    max-width: 100%;
 }
 
 .equipment-status-dot {
@@ -4547,7 +4541,7 @@ p{
 .skeleton-container {
     display: flex;
     position: relative;
-    width: 280px;
+    width: 19%; /* 调整为与设备卡片相同的宽度 */
     margin-bottom: 15px;
 }
 
@@ -4558,7 +4552,7 @@ p{
 }
 
 .skeleton-image {
-    height: 180px;
+    height: 160px; /* 调整高度与设备卡片一致 */
     background: linear-gradient(90deg, #f2f2f2 25%, #e6e6e6 50%, #f2f2f2 75%);
     background-size: 200% 100%;
     animation: skeleton-loading 1.5s infinite;

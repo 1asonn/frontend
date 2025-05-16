@@ -300,7 +300,7 @@ class MaintenanceService {
         try {
             console.log('开始完成工单，ID:', id, '数据:', JSON.stringify(data));
 
-            // 查找工单及关联设备
+            // 查找工单
             const order = await MaintenanceOrder.findByPk(id, {
                 attributes: [
                     'id', 'order_number', 'equipment_id', 'equipment_name', 'equipment_code',
@@ -309,15 +309,7 @@ class MaintenanceService {
                     'priority', 'remarks', 'assignee', 'assignee_id', 'estimated_time',
                     'process_remark', 'process_result', 'cost', 'create_time', 'process_time',
                     'complete_time', 'cancel_time', 'images', 'createdAt', 'updatedAt'
-                ],
-                include: [{
-                    model: MedicalEquipment,
-                    as: 'equipment',
-                    attributes: ['id', 'name', 'equipment_code', 'model', 'manufacturer', 'department_id', 'department', 
-                                'location', 'status', 'purchase_date', 'warranty_period', 'service_life', 
-                                'last_maintenance_date', 'next_maintenance_date', 'responsible_person', 'contact_number', 
-                                'description', 'image_url', 'created_at', 'updated_at']
-                }]
+                ]
             });
 
             if (!order) {

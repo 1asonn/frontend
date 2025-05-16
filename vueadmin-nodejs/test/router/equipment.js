@@ -2,26 +2,81 @@ const equipmentService = require('../services/equipmentService')
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { getDropboxClient } = require('../utils/dropboxAuth');
+const cosService = require('../services/cosService');
+const path = require('path');
 
 // 配置 multer 的临时存储
 const upload = multer({ storage: multer.memoryStorage() });
 
 // 创建医疗设备
-router.post('/create', async (req, res) => {
+router.post('/create', upload.single('image'), async (req, res) => {
     try {
-        // 创建设备记录，不包含图片字段
-        const equipmentData = { ...req.body };
+        // 解析设备数据
+        let equipmentData;
+        try {
+            // 如果是通过表单提交，数据会在equipmentData字段中
+            equipmentData = req.body.equipmentData ? JSON.parse(req.body.equipmentData) : req.body;
+        } catch (e) {
+            // 如果解析失败，直接使用body
+            equipmentData = req.body;
+        }
+        
         // 确保创建时不包含图片字段，防止URL过长错误
         delete equipmentData.image_url;
         
+        // 创建设备记录
         const equipment = await equipmentService.createEquipment(equipmentData);
+        
+        // 如果没有上传图片，直接返回创建结果
+        if (!req.file) {
+            return res.json({
+                code: 200,
+                data: equipment,
+                message: '设备创建成功'
+            });
+        }
+        
+        // 如果有图片上传，处理图片
+        // 生成文件名和存储路径
+        const originalExt = path.extname(req.file.originalname);
+        const fileName = `equipment_${equipment.id}_${Date.now()}${originalExt}`;
+        const cosKey = cosService.generateFileKey(fileName, 'equipment/');
+        
+        // 上传文件到腾讯云COS
+        const uploadResult = await cosService.uploadFile({
+            file: req.file.buffer,
+            key: cosKey
+        });
+        
+        if (!uploadResult.success) {
+            // 图片上传失败，但设备已创建成功
+            return res.json({
+                code: 201, // 使用201表示部分成功
+                data: equipment,
+                message: `设备创建成功，但图片上传失败: ${uploadResult.error}`
+            });
+        }
+        
+        // 直接使用COS的永久URL作为图片展示链接
+        // 这个链接适合在浏览器中直接展示图片
+        const imageUrl = uploadResult.url;
+        
+        // 更新设备记录中的图片URL
+        const updatedEquipment = await equipmentService.updateEquipment(equipment.id, {
+            image_url: imageUrl
+        });
+        
         res.json({
             code: 200,
-            data: equipment,
-            message: '创建成功'
-        })
+            data: {
+                equipment: updatedEquipment,
+                imageUrl: imageUrl,
+                cosKey: cosKey
+            },
+            message: '设备创建成功'
+        });
     } catch (error) {
+        console.error('创建设备错误:', error);
         res.json({
             code: 500,
             data: null,
@@ -29,6 +84,8 @@ router.post('/create', async (req, res) => {
         })
     }
 })
+
+
 
 // 更新医疗设备
 router.put('/update/:id', async (req, res) => {
@@ -169,41 +226,36 @@ router.post('/upload-image/:id', upload.single('image'), async (req, res) => {
             });
         }
 
-        // 获取带有有效 token 的 Dropbox 客户端
-        const dbx = await getDropboxClient();
-
-        // 设置文件路径和名称
-        const fileName = `equipment_${equipmentId}_${Date.now()}${getExtension(req.file.originalname)}`;
-        const filePath = `/equipment/${fileName}`;
+        // 生成文件名和存储路径
+        const originalExt = path.extname(req.file.originalname);
+        const fileName = `equipment_${equipmentId}_${Date.now()}${originalExt}`;
+        const cosKey = cosService.generateFileKey(fileName, 'equipment/');
         
-        // 上传文件到Dropbox
-        const uploadResponse = await dbx.filesUpload({
-            path: filePath,
-            contents: req.file.buffer,
-            mode: 'overwrite'
+        // 上传文件到腾讯云COS
+        const uploadResult = await cosService.uploadFile({
+            file: req.file.buffer,
+            key: cosKey
         });
         
-        // 获取共享链接
-        const linkResponse = await dbx.sharingCreateSharedLinkWithSettings({
-            path: filePath,
-            settings: {
-                requested_visibility: { '.tag': 'public' }
-            }
-        });
+        if (!uploadResult.success) {
+            throw new Error(`上传到腾讯云COS失败: ${uploadResult.error}`);
+        }
         
-        // 获取直接下载链接（替换dl=0为dl=1）
-        const directLink = linkResponse.result.url.replace('dl=0', 'dl=1');
+        // 直接使用COS的永久URL作为图片展示链接
+        // 这个链接适合在浏览器中直接展示图片
+        const imageUrl = uploadResult.url;
         
         // 更新设备记录中的图片URL
         const updatedEquipment = await equipmentService.updateEquipment(equipmentId, {
-            image_url: directLink
+            image_url: imageUrl
         });
         
         res.json({
             code: 200,
             data: {
                 equipment: updatedEquipment,
-                imageUrl: directLink
+                imageUrl: imageUrl,
+                cosKey: cosKey
             },
             message: '图片上传成功'
         });
@@ -217,9 +269,6 @@ router.post('/upload-image/:id', upload.single('image'), async (req, res) => {
     }
 });
 
-// 获取文件扩展名的辅助函数
-function getExtension(filename) {
-    return filename.substring(filename.lastIndexOf('.'));
-}
+// 不再需要此函数，使用path.extname代替
 
 module.exports = router

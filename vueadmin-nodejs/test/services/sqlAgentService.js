@@ -168,11 +168,13 @@ class SqlAgentService {
       使用MySQL语法执行所有查询。特别是日期函数，请使用MySQL特定的语法
       
       非常重要：在生成SQL语句前，请先使用info-sql工具获取相关表的结构信息，确保使用的字段确实存在。如果查询失败并提示"Unknown column"，请立即查看表结构并修正查询。
+      若用户注明查询详细信息则需要将所有字段查询出来
       
       职工信息查询指南:
       - 职工信息存储在users表中
-      - 可以通过role_id字段关联roles表来识别职工的角色
-      - 也可以通过department_id字段关联departments表来识别职工所在科室
+      - 不要暴露职工的password字段
+      - 需要通过role_id字段关联roles表来识别职工的角色
+      - 需要通过department_id字段关联departments表来识别职工所在科室
 
       重要表结构信息：
       1. equipment_maintenance表的关键字段：
@@ -183,7 +185,7 @@ class SqlAgentService {
          - start_date: 维护开始日期（不是date或maintenance_date）
          - end_date: 维护结束日期 
          - fault_description: 故障描述
-         - maintance_details: 修复内容
+         - maintenance_details: 修复内容
          - remark: 修复备注
          - operator: 操作人
          - next_maintenance_date: 下次维护日期
@@ -214,7 +216,6 @@ class SqlAgentService {
           - description: 角色职责
           - authoritys: 角色权限
 
-      
       表关系说明：
       - departments表的id字段是主键，对应其他表中的department_id外键
       - users表的id字段是主键，对应其他表中的user_id、created_by、reporter_id、assignee_id、employee_id等外键,realname是职工姓名,username是职工的账号

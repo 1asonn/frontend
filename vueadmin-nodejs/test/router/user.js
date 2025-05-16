@@ -33,9 +33,6 @@ const validateLoginInput = (req, res, next) => {
     if (typeof username !== 'string' || typeof password !== 'string') {
         return res.status(400).json(createResponse(false, '无效的输入格式'));
     }
-    if (username.length < 3 || username.length > 20) {
-        return res.status(400).json(createResponse(false, '用户名长度必须在3-20个字符之间'));
-    }
     if (password.length < 6) {
         return res.status(400).json(createResponse(false, '密码长度不能小于6个字符'));
     }

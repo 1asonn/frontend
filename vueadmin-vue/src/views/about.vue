@@ -15,8 +15,7 @@
       <span class="module-title">1. 患者信息管理</span><br />
       &emsp;<span class="feature-item">※ 患者基本信息录入与管理</span><br />
       &emsp;<span class="feature-item">※ 就诊记录跟踪</span><br />
-      &emsp;<span class="feature-item">※ 病历电子化管理</span><br />
-      &emsp;<span class="feature-item">※ 患者预约与随访系统</span>
+      &emsp;<span class="feature-item">※ 病历电子化管理</span>
     </p>
     <p class="p2">
       <span class="module-title">2. 药品管理</span><br />
@@ -24,14 +23,13 @@
       &emsp;<span class="feature-item">※ 入库与出库管理</span><br />
       &emsp;<span class="feature-item">※ 库存记录追踪</span><br />
       &emsp;<span class="feature-item">※ 药品有效期预警</span><br />
-      &emsp;<span class="feature-item">※ 供应商管理系统，支持完整的CRUD操作</span>
+      &emsp;<span class="feature-item">※ 供应商管理</span>
     </p>
     <p class="p3">
       <span class="module-title">3. 医疗设备管理</span><br />
       &emsp;<span class="feature-item">※ 设备全生命周期管理（采购、使用、维护、报废）</span><br />
       &emsp;<span class="feature-item">※ 详细设备信息记录（名称、编号、型号、厂商等）</span><br />
       &emsp;<span class="feature-item">※ 设备位置与状态追踪</span><br />
-      &emsp;<span class="feature-item">※ 财务信息管理</span><br />
       &emsp;<span class="feature-item">※ 维护计划与记录</span><br />
       &emsp;<span class="feature-item">※ 维修工单系统</span>
     </p>

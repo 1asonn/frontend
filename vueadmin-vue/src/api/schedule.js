@@ -40,7 +40,7 @@ export const GetShifts = async (params) => {
         const response = await request.get('/shiftSetting/shifts', {
             params: {
                 page: params?.page || 1,
-                size: params?.size || 10
+                size: params?.size || 20
             }
         })
         return response.data

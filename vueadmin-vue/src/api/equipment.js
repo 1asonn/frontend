@@ -58,6 +58,36 @@ export const createEquipment = async (equipmentData) => {
 };
 
 /**
+ * 创建新的医疗设备并上传图片（一体化接口）
+ * @param {Object} equipmentData - 设备数据
+ * @param {File} imageFile - 设备图片文件
+ * @returns {Promise} - 返回创建结果的Promise
+ */
+export const createEquipmentWithImage = async (equipmentData, imageFile) => {
+    try {
+        const formData = new FormData();
+        
+        // 添加设备数据
+        formData.append('equipmentData', JSON.stringify(equipmentData));
+        
+        // 添加图片文件
+        if (imageFile) {
+            formData.append('image', imageFile);
+        }
+        
+        const response = await request.post('/equipment/create-with-image', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+        return response.data;
+    } catch (error) {
+        console.error('创建医疗设备并上传图片失败:', error);
+        throw error;
+    }
+};
+
+/**
  * 更新医疗设备信息
  * @param {string} id - 设备ID
  * @param {Object} equipmentData - 更新的设备数据

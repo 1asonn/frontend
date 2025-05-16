@@ -50,11 +50,6 @@ const EquipmentMaintenance = sequelize.define('equipment_maintenance', {
         allowNull: true,
         comment: '结束日期'
     },
-    next_maintenance_date: {
-        type: Sequelize.DATE,
-        allowNull: true,
-        comment: '下次维护日期'
-    },
     
     // 人员信息
     operator_id: {
