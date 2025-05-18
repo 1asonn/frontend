@@ -2,10 +2,22 @@ import * as THREE from 'three'
 import g from '../assets/images/gradient.png'
 import {instanceBasic} from '../declare/THREE/instance'
 
-
+// 随机函数
 function getRandomRange(a:number,b:number){
     return Math.random() * (a -b) + b
 }
+
+// 定义氛围粒子材质
+const textureLoader = new THREE.TextureLoader()
+const pointMaterial = new THREE.PointsMaterial({
+    size: 7,
+    map: textureLoader.load(g),
+    blending:THREE.AdditiveBlending,
+    depthWrite: false,
+    transparent: true
+})
+
+
 // 定义氛围粒子系统的入参
 export interface AtmosphereParticleProps {
     // 粒子出现的范围
@@ -42,17 +54,28 @@ export class AtmosphereParticle extends instanceBasic{
         this.onChangeModel = onChangeModel
 
         //为粒子生成初始随机坐标 
-        const vertix = []
+        const vertices = []
         for(let i =0; i<particleSum; i++){
             const x = getRandomRange(-1 * longestDistance,longestDistance)
             const y = getRandomRange(-1 * longestDistance,longestDistance)
             const z = getRandomRange(-1 * longestDistance,longestDistance)
-            vertix.push(x,y,z)
+            vertices.push(x,y,z)
         }
+
+        // 氛围粒子系统初始化
+        const geometry = new THREE.BufferGeometry()
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3))
+        this.Geometry = new THREE.Points(geometry, pointMaterial)
+        options.onInitialize?.call(this, this.Geometry)
     }
 
-    
+    update = () => {
+        this.renderUpdate?.call(this, this.Geometry!)
+    }
 
-
-
+    ChangeModel = () => {
+        this.onChangeModel?.call(this, this.Geometry!)
+    }
 }
+
+export default AtmosphereParticle
